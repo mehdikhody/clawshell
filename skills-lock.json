@@ -98,6 +98,12 @@
       "computedHash": "5db10aea0f95d69a54cabcfae129ea0e7069b7022de967b2a04acdd9fa1be050",
       "wellKnownDigest": "sha256:8db9f7cafeda65751e88fcbc1c9e4fc3f93803a438c30fe8e3fc8b00773417bd"
     },
+    "no-ai-slop": {
+      "source": "petergyang/no-ai-slop",
+      "sourceType": "github",
+      "skillPath": "skills/no-ai-slop/SKILL.md",
+      "computedHash": "109e265d222da64314b5f08634e4c4ab91051c81eff92d52beea8f3cd81ddb3d"
+    },
     "ponytail": {
       "source": "dietrichgebert/ponytail",
       "sourceType": "github",
