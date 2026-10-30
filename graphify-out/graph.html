@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>graphify - graphify-out/graph.html</title>
+<script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"
+        integrity="sha384-Ux6phic9PEHJ38YtrijhkzyJ8yQlH8i/+buBR8s3mAZOJrP1gwyvAcIYl3GWtpX1"
+        crossorigin="anonymous"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; height: 100vh; overflow: hidden; }
+  #graph { flex: 1; }
+  #sidebar { width: 280px; background: #1a1a2e; border-left: 1px solid #2a2a4e; display: flex; flex-direction: column; overflow: hidden; }
+  #search-wrap { padding: 12px; border-bottom: 1px solid #2a2a4e; }
+  #search { width: 100%; background: #0f0f1a; border: 1px solid #3a3a5e; color: #e0e0e0; padding: 7px 10px; border-radius: 6px; font-size: 13px; outline: none; }
+  #search:focus { border-color: #4E79A7; }
+  #search-results { max-height: 140px; overflow-y: auto; padding: 4px 12px; border-bottom: 1px solid #2a2a4e; display: none; }
+  .search-item { padding: 4px 6px; cursor: pointer; border-radius: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search-item:hover { background: #2a2a4e; }
+  #info-panel { padding: 14px; border-bottom: 1px solid #2a2a4e; min-height: 140px; }
+  #info-panel h3 { font-size: 13px; color: #aaa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+  #info-content { font-size: 13px; color: #ccc; line-height: 1.6; }
+  #info-content .field { margin-bottom: 5px; }
+  #info-content .field b { color: #e0e0e0; }
+  #info-content .empty { color: #555; font-style: italic; }
+  .neighbor-link { display: block; padding: 2px 6px; margin: 2px 0; border-radius: 3px; cursor: pointer; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid #333; }
+  .neighbor-link:hover { background: #2a2a4e; }
+  #neighbors-list { max-height: 160px; overflow-y: auto; margin-top: 4px; }
+  #legend-wrap { flex: 1; overflow-y: auto; padding: 12px; }
+  #legend-wrap h3 { font-size: 13px; color: #aaa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; border-radius: 4px; font-size: 12px; }
+  .legend-item:hover { background: #2a2a4e; padding-left: 4px; }
+  .legend-item.dimmed { opacity: 0.35; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .legend-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .legend-count { color: #666; font-size: 11px; }
+  #stats { padding: 10px 14px; border-top: 1px solid #2a2a4e; font-size: 11px; color: #555; }
+  #legend-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 4px 0; }
+  #legend-controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #aaa; user-select: none; }
+  #legend-controls label:hover { color: #e0e0e0; }
+  .legend-cb, #select-all-cb { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; border: 1.5px solid #3a3a5e; border-radius: 3px; background: #0f0f1a; cursor: pointer; position: relative; flex-shrink: 0; }
+  .legend-cb:checked, #select-all-cb:checked { background: #4E79A7; border-color: #4E79A7; }
+  .legend-cb:checked::after, #select-all-cb:checked::after { content: ''; position: absolute; left: 3.5px; top: 1px; width: 4px; height: 7px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  #select-all-cb:indeterminate { background: #4E79A7; border-color: #4E79A7; }
+  #select-all-cb:indeterminate::after { content: ''; position: absolute; left: 2px; top: 5px; width: 8px; height: 2px; background: #fff; border: none; transform: none; }
+</style>
+</head>
+<body>
+<div id="graph"></div>
+<div id="sidebar">
+  <div id="search-wrap">
+    <input id="search" type="text" placeholder="Search nodes..." autocomplete="off">
+    <div id="search-results"></div>
+  </div>
+  <div id="info-panel">
+    <h3>Node Info</h3>
+    <div id="info-content"><span class="empty">Click a node to inspect it</span></div>
+  </div>
+  <div id="legend-wrap">
+    <h3>Communities</h3>
+    <div id="legend-controls">
+      <label><input type="checkbox" id="select-all-cb" checked onchange="toggleAllCommunities(!this.checked)">Select All</label>
+    </div>
+    <div id="legend"></div>
+  </div>
+  <div id="stats">85 nodes &middot; 63 edges &middot; 29 communities</div>
+</div>
+<script>
+const RAW_NODES = [{"id": "src_lib_utils_withelementref", "label": "WithElementRef", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "WithElementRef", "community": 5, "community_name": "UI Component Utilities", "source_file": "src/lib/utils.ts", "file_type": "code", "degree": 1}, {"id": "src_lib_utils_withoutchild", "label": "WithoutChild", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "WithoutChild", "community": 5, "community_name": "UI Component Utilities", "source_file": "src/lib/utils.ts", "file_type": "code", "degree": 1}, {"id": "src_lib_utils_withoutchildren", "label": "WithoutChildren", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "WithoutChildren", "community": 5, "community_name": "UI Component Utilities", "source_file": "src/lib/utils.ts", "file_type": "code", "degree": 1}, {"id": "src_lib_utils_withoutchildrenorchild", "label": "WithoutChildrenOrChild", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "WithoutChildrenOrChild", "community": 5, "community_name": "UI Component Utilities", "source_file": "src/lib/utils.ts", "file_type": "code", "degree": 1}, {"id": "src_hooks_reroute", "label": "reroute()", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "reroute()", "community": 2, "community_name": "Server Hooks & i18n", "source_file": "src/hooks.ts", "file_type": "code", "degree": 1}, {"id": "src_hooks_server_handleparaglide", "label": "handleParaglide()", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "handleParaglide()", "community": 2, "community_name": "Server Hooks & i18n", "source_file": "src/hooks.server.ts", "file_type": "code", "degree": 1}, {"id": "src_lib_vitest_examples_greet_greet", "label": "greet()", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 21.2, "font": {"size": 12, "color": "#ffffff"}, "title": "greet()", "community": 3, "community_name": "Vitest Example Specs", "source_file": "src/lib/vitest-examples/greet.ts", "file_type": "code", "degree": 3}, {"id": "src_routes_page_greet", "label": "greet()", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "greet()", "community": 4, "community_name": "Greet Frontend Page", "source_file": "src/routes/+page.svelte", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf", "label": "tauri.conf.json", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 36.2, "font": {"size": 12, "color": "#ffffff"}, "title": "tauri.conf.json", "community": 0, "community_name": "Tauri App Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 7}, {"id": "src_tauri_tauri_conf_app", "label": "app", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 21.2, "font": {"size": 12, "color": "#ffffff"}, "title": "app", "community": 0, "community_name": "Tauri App Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 3}, {"id": "src_tauri_tauri_conf_app_security", "label": "security", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 17.5, "font": {"size": 12, "color": "#ffffff"}, "title": "security", "community": 0, "community_name": "Tauri App Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 2}, {"id": "src_tauri_tauri_conf_app_windows", "label": "windows", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "windows", "community": 0, "community_name": "Tauri App Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf_identifier", "label": "identifier", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "identifier", "community": 0, "community_name": "Tauri App Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf_productname", "label": "productName", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "productName", "community": 0, "community_name": "Tauri App Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf_schema", "label": "$schema", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "$schema", "community": 0, "community_name": "Tauri App Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf_security_csp", "label": "csp", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "csp", "community": 0, "community_name": "Tauri App Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf_version", "label": "version", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "version", "community": 0, "community_name": "Tauri App Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "paths", "label": "$app/paths", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "$app/paths", "community": 1, "community_name": "SvelteKit Layout & Modules", "source_file": "$app/paths", "file_type": "code", "degree": 1}, {"id": "src_lib_paraglide_runtime", "label": "$lib/paraglide/runtime.js", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "$lib/paraglide/runtime.js", "community": 1, "community_name": "SvelteKit Layout & Modules", "source_file": "src/lib/paraglide/runtime.js", "file_type": "code", "degree": 1}, {"id": "state", "label": "$app/state", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "$app/state", "community": 1, "community_name": "SvelteKit Layout & Modules", "source_file": "$app/state", "file_type": "code", "degree": 1}, {"id": "svelte_kit_types_index_d", "label": "$app/types", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "$app/types", "community": 1, "community_name": "SvelteKit Layout & Modules", "source_file": ".svelte-kit/types/index.d.ts", "file_type": "code", "degree": 1}, {"id": "src_routes_layout_svelte_src_routes_layout", "label": "+layout.svelte", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 40.0, "font": {"size": 12, "color": "#ffffff"}, "title": "+layout.svelte", "community": 1, "community_name": "SvelteKit Layout & Modules", "source_file": "src/routes/+layout.svelte", "file_type": "code", "degree": 8}, {"id": "src_routes_layout_ssr", "label": "ssr", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "ssr", "community": 10, "community_name": "SSR Layout", "source_file": "src/routes/+layout.ts", "file_type": "code", "degree": 1}, {"id": "src_routes_layout_ts_src_routes_layout", "label": "+layout.ts", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "+layout.ts", "community": 10, "community_name": "SSR Layout", "source_file": "src/routes/+layout.ts", "file_type": "code", "degree": 1}, {"id": "src_tauri_build", "label": "build.rs", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "build.rs", "community": 11, "community_name": "Build Script", "source_file": "src-tauri/build.rs", "file_type": "code", "degree": 1}, {"id": "src_tauri_build_main", "label": "main()", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "main()", "community": 11, "community_name": "Build Script", "source_file": "src-tauri/build.rs", "file_type": "code", "degree": 1}, {"id": "src_tauri_src_main", "label": "main.rs", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "main.rs", "community": 12, "community_name": "Rust Main Entry", "source_file": "src-tauri/src/main.rs", "file_type": "code", "degree": 1}, {"id": "src_tauri_src_main_main", "label": "main()", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "main()", "community": 12, "community_name": "Rust Main Entry", "source_file": "src-tauri/src/main.rs", "file_type": "code", "degree": 1}, {"id": "pkg_clawshell", "label": "clawshell", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "clawshell", "community": 13, "community_name": "Project Root", "source_file": "src-tauri/Cargo.toml", "file_type": "code", "degree": 0}, {"id": "src_hooks", "label": "hooks.ts", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 21.2, "font": {"size": 12, "color": "#ffffff"}, "title": "hooks.ts", "community": 2, "community_name": "Server Hooks & i18n", "source_file": "src/hooks.ts", "file_type": "code", "degree": 3}, {"id": "src_hooks_server", "label": "hooks.server.ts", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 28.8, "font": {"size": 12, "color": "#ffffff"}, "title": "hooks.server.ts", "community": 2, "community_name": "Server Hooks & i18n", "source_file": "src/hooks.server.ts", "file_type": "code", "degree": 5}, {"id": "src_hooks_server_handle", "label": "handle", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "handle", "community": 2, "community_name": "Server Hooks & i18n", "source_file": "src/hooks.server.ts", "file_type": "code", "degree": 1}, {"id": "src_lib_vitest_examples_greet", "label": "greet.ts", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 21.2, "font": {"size": 12, "color": "#ffffff"}, "title": "greet.ts", "community": 3, "community_name": "Vitest Example Specs", "source_file": "src/lib/vitest-examples/greet.ts", "file_type": "code", "degree": 3}, {"id": "src_lib_vitest_examples_greet_spec", "label": "greet.spec.ts", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 21.2, "font": {"size": 12, "color": "#ffffff"}, "title": "greet.spec.ts", "community": 3, "community_name": "Vitest Example Specs", "source_file": "src/lib/vitest-examples/greet.spec.ts", "file_type": "code", "degree": 3}, {"id": "src_lib_vitest_examples_welcome", "label": "Welcome.svelte", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 25.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Welcome.svelte", "community": 3, "community_name": "Vitest Example Specs", "source_file": "src/lib/vitest-examples/Welcome.svelte", "file_type": "code", "degree": 4}, {"id": "src_lib_vitest_examples_welcome_host_sveltekit_guest_vitest", "label": "{ host = 'SvelteKit', guest = 'Vitest' }", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "{ host = 'SvelteKit', guest = 'Vitest' }", "community": 3, "community_name": "Vitest Example Specs", "source_file": "src/lib/vitest-examples/Welcome.svelte", "file_type": "code", "degree": 1}, {"id": "src_lib_vitest_examples_welcome_svelte_spec", "label": "Welcome.svelte.spec.ts", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 21.2, "font": {"size": 12, "color": "#ffffff"}, "title": "Welcome.svelte.spec.ts", "community": 3, "community_name": "Vitest Example Specs", "source_file": "src/lib/vitest-examples/Welcome.svelte.spec.ts", "file_type": "code", "degree": 3}, {"id": "core", "label": "@tauri-apps/api/core", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "@tauri-apps/api/core", "community": 4, "community_name": "Greet Frontend Page", "source_file": "@tauri-apps/api/core", "file_type": "code", "degree": 1}, {"id": "src_routes_page", "label": "+page.svelte", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 28.8, "font": {"size": 12, "color": "#ffffff"}, "title": "+page.svelte", "community": 4, "community_name": "Greet Frontend Page", "source_file": "src/routes/+page.svelte", "file_type": "code", "degree": 5}, {"id": "src_routes_page_greetmsg", "label": "greetMsg", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "greetMsg", "community": 4, "community_name": "Greet Frontend Page", "source_file": "src/routes/+page.svelte", "file_type": "code", "degree": 1}, {"id": "src_routes_page_name", "label": "name", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "name", "community": 4, "community_name": "Greet Frontend Page", "source_file": "src/routes/+page.svelte", "file_type": "code", "degree": 1}, {"id": "src_lib_utils", "label": "utils.ts", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 28.8, "font": {"size": 12, "color": "#ffffff"}, "title": "utils.ts", "community": 5, "community_name": "UI Component Utilities", "source_file": "src/lib/utils.ts", "file_type": "code", "degree": 5}, {"id": "src_tauri_capabilities_default", "label": "default.json", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 28.8, "font": {"size": 12, "color": "#ffffff"}, "title": "default.json", "community": 6, "community_name": "Tauri Capabilities", "source_file": "src-tauri/capabilities/default.json", "file_type": "code", "degree": 5}, {"id": "src_tauri_capabilities_default_description", "label": "description", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "description", "community": 6, "community_name": "Tauri Capabilities", "source_file": "src-tauri/capabilities/default.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_capabilities_default_identifier", "label": "identifier", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "identifier", "community": 6, "community_name": "Tauri Capabilities", "source_file": "src-tauri/capabilities/default.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_capabilities_default_permissions", "label": "permissions", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "permissions", "community": 6, "community_name": "Tauri Capabilities", "source_file": "src-tauri/capabilities/default.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_capabilities_default_schema", "label": "$schema", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "$schema", "community": 6, "community_name": "Tauri Capabilities", "source_file": "src-tauri/capabilities/default.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_capabilities_default_windows", "label": "windows", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "windows", "community": 6, "community_name": "Tauri Capabilities", "source_file": "src-tauri/capabilities/default.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf_build", "label": "build", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 28.8, "font": {"size": 12, "color": "#ffffff"}, "title": "build", "community": 7, "community_name": "Build Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 5}, {"id": "src_tauri_tauri_conf_build_beforebuildcommand", "label": "beforeBuildCommand", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "beforeBuildCommand", "community": 7, "community_name": "Build Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf_build_beforedevcommand", "label": "beforeDevCommand", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "beforeDevCommand", "community": 7, "community_name": "Build Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf_build_devurl", "label": "devUrl", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "devUrl", "community": 7, "community_name": "Build Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf_build_frontenddist", "label": "frontendDist", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "frontendDist", "community": 7, "community_name": "Build Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf_bundle", "label": "bundle", "color": {"background": "#9C755F", "border": "#9C755F", "highlight": {"background": "#ffffff", "border": "#9C755F"}}, "size": 25.0, "font": {"size": 12, "color": "#ffffff"}, "title": "bundle", "community": 8, "community_name": "Bundle Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 4}, {"id": "src_tauri_tauri_conf_bundle_active", "label": "active", "color": {"background": "#9C755F", "border": "#9C755F", "highlight": {"background": "#ffffff", "border": "#9C755F"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "active", "community": 8, "community_name": "Bundle Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf_bundle_icon", "label": "icon", "color": {"background": "#9C755F", "border": "#9C755F", "highlight": {"background": "#ffffff", "border": "#9C755F"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "icon", "community": 8, "community_name": "Bundle Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_tauri_conf_bundle_targets", "label": "targets", "color": {"background": "#9C755F", "border": "#9C755F", "highlight": {"background": "#ffffff", "border": "#9C755F"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "targets", "community": 8, "community_name": "Bundle Config", "source_file": "src-tauri/tauri.conf.json", "file_type": "code", "degree": 1}, {"id": "src_tauri_src_lib", "label": "lib.rs", "color": {"background": "#BAB0AC", "border": "#BAB0AC", "highlight": {"background": "#ffffff", "border": "#BAB0AC"}}, "size": 17.5, "font": {"size": 12, "color": "#ffffff"}, "title": "lib.rs", "community": 9, "community_name": "Rust Library Entry", "source_file": "src-tauri/src/lib.rs", "file_type": "code", "degree": 2}, {"id": "src_tauri_src_lib_greet", "label": "greet()", "color": {"background": "#BAB0AC", "border": "#BAB0AC", "highlight": {"background": "#ffffff", "border": "#BAB0AC"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "greet()", "community": 9, "community_name": "Rust Library Entry", "source_file": "src-tauri/src/lib.rs", "file_type": "code", "degree": 1}, {"id": "src_tauri_src_lib_run", "label": "run()", "color": {"background": "#BAB0AC", "border": "#BAB0AC", "highlight": {"background": "#ffffff", "border": "#BAB0AC"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "run()", "community": 9, "community_name": "Rust Library Entry", "source_file": "src-tauri/src/lib.rs", "file_type": "code", "degree": 1}, {"id": "src_app", "label": "src/app.html (SvelteKit app shell)", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "src/app.html (SvelteKit app shell)", "community": 14, "community_name": "App HTML Shell", "source_file": "src/app.html", "file_type": "document", "degree": 0}, {"id": "src_tauri_icons_128x128", "label": "128x128 app icon", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "128x128 app icon", "community": 15, "community_name": "Icon 128x128", "source_file": "src-tauri/icons/128x128.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_128x128_2x", "label": "128x128@2x app icon", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "128x128@2x app icon", "community": 16, "community_name": "Icon 128x128@2x", "source_file": "src-tauri/icons/128x128@2x.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_32x32", "label": "32x32 app icon", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "32x32 app icon", "community": 17, "community_name": "Icon 32x32", "source_file": "src-tauri/icons/32x32.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_icon", "label": "icon.png (base app icon)", "color": {"background": "#9C755F", "border": "#9C755F", "highlight": {"background": "#ffffff", "border": "#9C755F"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "icon.png (base app icon)", "community": 18, "community_name": "Icon Base", "source_file": "src-tauri/icons/icon.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_square107x107logo", "label": "Square107x107 Logo icon", "color": {"background": "#BAB0AC", "border": "#BAB0AC", "highlight": {"background": "#ffffff", "border": "#BAB0AC"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Square107x107 Logo icon", "community": 19, "community_name": "Icon Square107", "source_file": "src-tauri/icons/Square107x107Logo.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_square142x142logo", "label": "Square142x142 Logo icon", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Square142x142 Logo icon", "community": 20, "community_name": "Icon Square142", "source_file": "src-tauri/icons/Square142x142Logo.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_square150x150logo", "label": "Square150x150 Logo icon", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Square150x150 Logo icon", "community": 21, "community_name": "Icon Square150", "source_file": "src-tauri/icons/Square150x150Logo.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_square284x284logo", "label": "Square284x284 Logo icon", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Square284x284 Logo icon", "community": 22, "community_name": "Icon Square284", "source_file": "src-tauri/icons/Square284x284Logo.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_square30x30logo", "label": "Square30x30 Logo icon", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Square30x30 Logo icon", "community": 23, "community_name": "Icon Square30", "source_file": "src-tauri/icons/Square30x30Logo.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_square310x310logo", "label": "Square310x310 Logo icon", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Square310x310 Logo icon", "community": 24, "community_name": "Icon Square310", "source_file": "src-tauri/icons/Square310x310Logo.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_square44x44logo", "label": "Square44x44 Logo icon", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Square44x44 Logo icon", "community": 25, "community_name": "Icon Square44", "source_file": "src-tauri/icons/Square44x44Logo.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_square71x71logo", "label": "Square71x71 Logo icon", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Square71x71 Logo icon", "community": 26, "community_name": "Icon Square71", "source_file": "src-tauri/icons/Square71x71Logo.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_square89x89logo", "label": "Square89x89 Logo icon", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Square89x89 Logo icon", "community": 27, "community_name": "Icon Square89", "source_file": "src-tauri/icons/Square89x89Logo.png", "file_type": "image", "degree": 0}, {"id": "src_tauri_icons_storelogo", "label": "Store Logo icon", "color": {"background": "#9C755F", "border": "#9C755F", "highlight": {"background": "#ffffff", "border": "#9C755F"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Store Logo icon", "community": 28, "community_name": "Icon Store Logo", "source_file": "src-tauri/icons/StoreLogo.png", "file_type": "image", "degree": 0}, {"id": "ref_app", "label": "ref_app", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "ref_app", "community": 1, "community_name": "SvelteKit Layout & Modules", "source_file": "", "file_type": "concept", "degree": 1}, {"id": "ref_app_types", "label": "ref_app_types", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "ref_app_types", "community": 1, "community_name": "SvelteKit Layout & Modules", "source_file": "", "file_type": "concept", "degree": 1}, {"id": "src_routes_layout", "label": "src_routes_layout", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "src_routes_layout", "community": 1, "community_name": "SvelteKit Layout & Modules", "source_file": "", "file_type": "concept", "degree": 1}, {"id": "ref_lib_paraglide_runtime_js", "label": "ref_lib_paraglide_runtime_js", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 21.2, "font": {"size": 12, "color": "#ffffff"}, "title": "ref_lib_paraglide_runtime_js", "community": 2, "community_name": "Server Hooks & i18n", "source_file": "", "file_type": "concept", "degree": 3}, {"id": "ref_lib_paraglide_server_js", "label": "ref_lib_paraglide_server_js", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "ref_lib_paraglide_server_js", "community": 2, "community_name": "Server Hooks & i18n", "source_file": "", "file_type": "concept", "degree": 1}, {"id": "ref_sveltejs_kit", "label": "ref_sveltejs_kit", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 17.5, "font": {"size": 12, "color": "#ffffff"}, "title": "ref_sveltejs_kit", "community": 2, "community_name": "Server Hooks & i18n", "source_file": "", "file_type": "concept", "degree": 2}, {"id": "ref_vitest", "label": "ref_vitest", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 17.5, "font": {"size": 12, "color": "#ffffff"}, "title": "ref_vitest", "community": 3, "community_name": "Vitest Example Specs", "source_file": "", "file_type": "concept", "degree": 2}, {"id": "ref_vitest_browser_svelte", "label": "ref_vitest_browser_svelte", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "ref_vitest_browser_svelte", "community": 3, "community_name": "Vitest Example Specs", "source_file": "", "file_type": "concept", "degree": 1}, {"id": "ref_tauri_apps_api", "label": "ref_tauri_apps_api", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "ref_tauri_apps_api", "community": 4, "community_name": "Greet Frontend Page", "source_file": "", "file_type": "concept", "degree": 1}, {"id": "ref_cn", "label": "ref_cn", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 13.8, "font": {"size": 0, "color": "#ffffff"}, "title": "ref_cn", "community": 5, "community_name": "UI Component Utilities", "source_file": "", "file_type": "concept", "degree": 1}];
+const RAW_EDGES = [{"from": "src_lib_utils", "to": "src_lib_utils_withelementref", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_utils", "to": "src_lib_utils_withoutchild", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_utils", "to": "src_lib_utils_withoutchildren", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_utils", "to": "src_lib_utils_withoutchildrenorchild", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_hooks", "to": "src_hooks_reroute", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_hooks_server", "to": "src_hooks_server_handleparaglide", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_vitest_examples_greet_spec", "to": "src_lib_vitest_examples_greet_greet", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_vitest_examples_welcome", "to": "src_lib_vitest_examples_greet_greet", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_vitest_examples_greet", "to": "src_lib_vitest_examples_greet_greet", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_page", "to": "src_routes_page_greet", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf", "to": "src_tauri_tauri_conf_app", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf", "to": "src_tauri_tauri_conf_schema", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf", "to": "src_tauri_tauri_conf_bundle", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf", "to": "src_tauri_tauri_conf_productname", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf", "to": "src_tauri_tauri_conf_version", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf", "to": "src_tauri_tauri_conf_identifier", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf", "to": "src_tauri_tauri_conf_build", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf_app", "to": "src_tauri_tauri_conf_app_windows", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf_app", "to": "src_tauri_tauri_conf_app_security", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf_app_security", "to": "src_tauri_tauri_conf_security_csp", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_layout_svelte_src_routes_layout", "to": "paths", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_layout_svelte_src_routes_layout", "to": "src_lib_paraglide_runtime", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_layout_svelte_src_routes_layout", "to": "state", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_layout_svelte_src_routes_layout", "to": "svelte_kit_types_index_d", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_layout_svelte_src_routes_layout", "to": "src_routes_layout", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_layout_svelte_src_routes_layout", "to": "ref_app_types", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_layout_svelte_src_routes_layout", "to": "ref_app", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_layout_svelte_src_routes_layout", "to": "ref_lib_paraglide_runtime_js", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_layout_ts_src_routes_layout", "to": "src_routes_layout_ssr", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_build", "to": "src_tauri_build_main", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_src_main", "to": "src_tauri_src_main_main", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_hooks", "to": "ref_sveltejs_kit", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_hooks", "to": "ref_lib_paraglide_runtime_js", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_hooks_server", "to": "ref_sveltejs_kit", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_hooks_server", "to": "ref_lib_paraglide_runtime_js", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_hooks_server", "to": "ref_lib_paraglide_server_js", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_hooks_server", "to": "src_hooks_server_handle", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_vitest_examples_greet_spec", "to": "src_lib_vitest_examples_greet", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_vitest_examples_welcome", "to": "src_lib_vitest_examples_greet", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_vitest_examples_greet_spec", "to": "ref_vitest", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_vitest_examples_welcome_svelte_spec", "to": "src_lib_vitest_examples_welcome", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_vitest_examples_welcome", "to": "src_lib_vitest_examples_welcome_host_sveltekit_guest_vitest", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_vitest_examples_welcome_svelte_spec", "to": "ref_vitest", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_vitest_examples_welcome_svelte_spec", "to": "ref_vitest_browser_svelte", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_page", "to": "core", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_page", "to": "ref_tauri_apps_api", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_page", "to": "src_routes_page_name", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_routes_page", "to": "src_routes_page_greetmsg", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_lib_utils", "to": "ref_cn", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_capabilities_default", "to": "src_tauri_capabilities_default_schema", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_capabilities_default", "to": "src_tauri_capabilities_default_identifier", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_capabilities_default", "to": "src_tauri_capabilities_default_description", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_capabilities_default", "to": "src_tauri_capabilities_default_windows", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_capabilities_default", "to": "src_tauri_capabilities_default_permissions", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf_build", "to": "src_tauri_tauri_conf_build_frontenddist", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf_build", "to": "src_tauri_tauri_conf_build_beforedevcommand", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf_build", "to": "src_tauri_tauri_conf_build_devurl", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf_build", "to": "src_tauri_tauri_conf_build_beforebuildcommand", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf_bundle", "to": "src_tauri_tauri_conf_bundle_active", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf_bundle", "to": "src_tauri_tauri_conf_bundle_targets", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_tauri_conf_bundle", "to": "src_tauri_tauri_conf_bundle_icon", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_src_lib", "to": "src_tauri_src_lib_greet", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_tauri_src_lib", "to": "src_tauri_src_lib_run", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}];
+const LEGEND = [{"cid": 0, "color": "#4E79A7", "label": "Tauri App Config", "count": 9}, {"cid": 1, "color": "#F28E2B", "label": "SvelteKit Layout &amp; Modules", "count": 8}, {"cid": 2, "color": "#E15759", "label": "Server Hooks &amp; i18n", "count": 8}, {"cid": 3, "color": "#76B7B2", "label": "Vitest Example Specs", "count": 8}, {"cid": 4, "color": "#59A14F", "label": "Greet Frontend Page", "count": 6}, {"cid": 5, "color": "#EDC948", "label": "UI Component Utilities", "count": 6}, {"cid": 6, "color": "#B07AA1", "label": "Tauri Capabilities", "count": 6}, {"cid": 7, "color": "#FF9DA7", "label": "Build Config", "count": 5}, {"cid": 8, "color": "#9C755F", "label": "Bundle Config", "count": 4}, {"cid": 9, "color": "#BAB0AC", "label": "Rust Library Entry", "count": 3}, {"cid": 10, "color": "#4E79A7", "label": "SSR Layout", "count": 2}, {"cid": 11, "color": "#F28E2B", "label": "Build Script", "count": 2}, {"cid": 12, "color": "#E15759", "label": "Rust Main Entry", "count": 2}, {"cid": 13, "color": "#76B7B2", "label": "Project Root", "count": 1}, {"cid": 14, "color": "#59A14F", "label": "App HTML Shell", "count": 1}, {"cid": 15, "color": "#EDC948", "label": "Icon 128x128", "count": 1}, {"cid": 16, "color": "#B07AA1", "label": "Icon 128x128@2x", "count": 1}, {"cid": 17, "color": "#FF9DA7", "label": "Icon 32x32", "count": 1}, {"cid": 18, "color": "#9C755F", "label": "Icon Base", "count": 1}, {"cid": 19, "color": "#BAB0AC", "label": "Icon Square107", "count": 1}, {"cid": 20, "color": "#4E79A7", "label": "Icon Square142", "count": 1}, {"cid": 21, "color": "#F28E2B", "label": "Icon Square150", "count": 1}, {"cid": 22, "color": "#E15759", "label": "Icon Square284", "count": 1}, {"cid": 23, "color": "#76B7B2", "label": "Icon Square30", "count": 1}, {"cid": 24, "color": "#59A14F", "label": "Icon Square310", "count": 1}, {"cid": 25, "color": "#EDC948", "label": "Icon Square44", "count": 1}, {"cid": 26, "color": "#B07AA1", "label": "Icon Square71", "count": 1}, {"cid": 27, "color": "#FF9DA7", "label": "Icon Square89", "count": 1}, {"cid": 28, "color": "#9C755F", "label": "Icon Store Logo", "count": 1}];
+
+// HTML-escape helper — prevents XSS when injecting graph data into innerHTML
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Build vis datasets
+const nodesDS = new vis.DataSet(RAW_NODES.map((n, i) => ({
+  id: n.id, label: n.label, color: n.color, size: n.size,
+  font: n.font, title: n.title,
+  // Fermat/golden-angle spiral seed positions (#3699): spreading nodes out
+  // before physics runs keeps avoidOverlap from computing near-zero-distance
+  // repulsion that blows the BarnesHut recursion into a stack overflow on large
+  // graphs. `i` is the map index — physics still settles small graphs identically.
+  x: 30 * Math.sqrt(i) * Math.cos(i * 2.4),
+  y: 30 * Math.sqrt(i) * Math.sin(i * 2.4),
+  community: n.community, community_name: n.community_name,
+  source_file: n.source_file, file_type: n.file_type, degree: n.degree,
+  member_count: n.member_count,
+})));
+
+const edgesDS = new vis.DataSet(RAW_EDGES.map((e, i) => ({
+  id: i, from: e.from, to: e.to,
+  label: '',
+  title: e.title,
+  dashes: e.dashes,
+  width: e.width,
+  color: e.color,
+  arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+})));
+
+const container = document.getElementById('graph');
+const network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, {
+  physics: {
+    enabled: true,
+    solver: 'forceAtlas2Based',
+    forceAtlas2Based: {
+      gravitationalConstant: -60,
+      centralGravity: 0.005,
+      springLength: 120,
+      springConstant: 0.08,
+      damping: 0.4,
+      avoidOverlap: 0.8,
+    },
+    stabilization: { iterations: 200, fit: true },
+  },
+  interaction: {
+    hover: true,
+    tooltipDelay: 100,
+    hideEdgesOnDrag: true,
+    navigationButtons: false,
+    keyboard: false,
+  },
+  nodes: { shape: 'dot', borderWidth: 1.5 },
+  edges: { smooth: { type: 'continuous', roundness: 0.2 }, selectionWidth: 3 },
+});
+
+network.once('stabilizationIterationsDone', () => {
+  network.setOptions({ physics: { enabled: false } });
+});
+
+function showInfo(nodeId) {
+  const n = nodesDS.get(nodeId);
+  if (!n) return;
+  const neighborIds = network.getConnectedNodes(nodeId);
+  const neighborItems = neighborIds.map(nid => {
+    const nb = nodesDS.get(nid);
+    const color = nb ? nb.color.background : '#555';
+    return `<span class="neighbor-link" style="border-left-color:${esc(color)}" data-nid="${esc(nid)}">${esc(nb ? nb.label : nid)}</span>`;
+  }).join('');
+  const isMetaNode = !n.file_type && !n.source_file;
+  let html = `<div class="field"><b>${esc(n.label)}</b></div>`;
+  if (!isMetaNode) {
+    html += `<div class="field">Type: ${esc(n.file_type || 'unknown')}</div>`;
+  }
+  html += `<div class="field">Community: ${esc(n.community_name || '')}</div>`;
+  if (!isMetaNode) {
+    html += `<div class="field">Source: ${esc(n.source_file || '-')}</div>`;
+  } else if (n.member_count !== undefined && n.member_count !== null) {
+    html += `<div class="field">Members: ${esc(n.member_count)}</div>`;
+  }
+  html += `<div class="field">Degree: ${n.degree}</div>`;
+  if (neighborIds.length) {
+    html += `<div class="field" style="margin-top:8px;color:#aaa;font-size:11px">Neighbors (${neighborIds.length})</div><div id="neighbors-list">${neighborItems}</div>`;
+  }
+  document.getElementById('info-content').innerHTML = html;
+}
+
+function focusNode(nodeId) {
+  network.focus(nodeId, { scale: 1.4, animation: true });
+  network.selectNodes([nodeId]);
+  showInfo(nodeId);
+}
+
+// Neighbor links use a data attribute + one delegated listener rather than an
+// inline onclick. A node id/label sourced from a document or a scraped URL
+// (graphify add) can contain a double-quote; dropping the stringified id
+// unescaped into a quoted onclick both broke every link and allowed a hostile
+// source to inject an event handler into the local report (stored XSS, #1838).
+// esc() on data-nid keeps the value inside the attribute; the listener reads it
+// back verbatim. Bound to document so it survives the innerHTML rebuild that
+// recreates #neighbors-list on each showInfo().
+document.addEventListener('click', e => {
+  const el = e.target.closest('.neighbor-link');
+  if (el && el.dataset.nid !== undefined) focusNode(el.dataset.nid);
+});
+
+// Track hovered node — hover detection is more reliable than click params
+let hoveredNodeId = null;
+network.on('hoverNode', params => {
+  hoveredNodeId = params.node;
+  container.style.cursor = 'pointer';
+});
+network.on('blurNode', () => {
+  hoveredNodeId = null;
+  container.style.cursor = 'default';
+});
+container.addEventListener('click', () => {
+  if (hoveredNodeId !== null) {
+    showInfo(hoveredNodeId);
+    network.selectNodes([hoveredNodeId]);
+  }
+});
+network.on('click', params => {
+  if (params.nodes.length > 0) {
+    showInfo(params.nodes[0]);
+  } else if (hoveredNodeId === null) {
+    document.getElementById('info-content').innerHTML = '<span class="empty">Click a node to inspect it</span>';
+  }
+});
+
+const searchInput = document.getElementById('search');
+const searchResults = document.getElementById('search-results');
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  searchResults.innerHTML = '';
+  if (!q) { searchResults.style.display = 'none'; return; }
+  const matches = RAW_NODES.filter(n => n.label.toLowerCase().includes(q)).slice(0, 20);
+  if (!matches.length) { searchResults.style.display = 'none'; return; }
+  searchResults.style.display = 'block';
+  matches.forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'search-item';
+    el.textContent = n.label;
+    el.style.borderLeft = `3px solid ${n.color.background}`;
+    el.style.paddingLeft = '8px';
+    el.onclick = () => {
+      network.focus(n.id, { scale: 1.5, animation: true });
+      network.selectNodes([n.id]);
+      showInfo(n.id);
+      searchResults.style.display = 'none';
+      searchInput.value = '';
+    };
+    searchResults.appendChild(el);
+  });
+});
+document.addEventListener('click', e => {
+  if (!searchResults.contains(e.target) && e.target !== searchInput)
+    searchResults.style.display = 'none';
+});
+
+const hiddenCommunities = new Set();
+
+const selectAllCb = document.getElementById('select-all-cb');
+
+function updateSelectAllState() {
+  const total = LEGEND.length;
+  const hidden = hiddenCommunities.size;
+  selectAllCb.checked = hidden === 0;
+  selectAllCb.indeterminate = hidden > 0 && hidden < total;
+}
+
+function toggleAllCommunities(hide) {
+  document.querySelectorAll('.legend-item').forEach(item => {
+    hide ? item.classList.add('dimmed') : item.classList.remove('dimmed');
+  });
+  document.querySelectorAll('.legend-cb').forEach(cb => {
+    cb.checked = !hide;
+  });
+  LEGEND.forEach(c => {
+    if (hide) hiddenCommunities.add(c.cid); else hiddenCommunities.delete(c.cid);
+  });
+  const updates = RAW_NODES.map(n => ({ id: n.id, hidden: hide }));
+  nodesDS.update(updates);
+  updateSelectAllState();
+}
+
+const legendEl = document.getElementById('legend');
+LEGEND.forEach(c => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'legend-cb';
+  cb.checked = true;
+  cb.addEventListener('change', (e) => {
+    e.stopPropagation();
+    if (cb.checked) {
+      hiddenCommunities.delete(c.cid);
+      item.classList.remove('dimmed');
+    } else {
+      hiddenCommunities.add(c.cid);
+      item.classList.add('dimmed');
+    }
+    const updates = RAW_NODES
+      .filter(n => n.community === c.cid)
+      .map(n => ({ id: n.id, hidden: !cb.checked }));
+    nodesDS.update(updates);
+    updateSelectAllState();
+  });
+  item.innerHTML = `<div class="legend-dot" style="background:${c.color}"></div>
+    <span class="legend-label">${c.label}</span>
+    <span class="legend-count">${c.count}</span>`;
+  item.prepend(cb);
+  item.onclick = (e) => {
+    if (e.target === cb) return;
+    cb.checked = !cb.checked;
+    cb.dispatchEvent(new Event('change'));
+  };
+  legendEl.appendChild(item);
+});
+</script>
+<script>
+// Render hyperedges as shaded regions
+const hyperedges = [];
+// afterDrawing passes ctx already transformed to network coordinate space.
+// Draw node positions raw — no manual pan/zoom/DPR math needed.
+
+// Andrew's monotone chain. Returns the hull in counter-clockwise order, which
+// is what the perimeter must be traced in. Collinear and duplicate points
+// collapse to the extremes, so degenerate member sets render as a segment
+// rather than a zero-area crossed path.
+function convexHull(pts) {
+    const p = pts.slice().sort((a, b) => (a.x - b.x) || (a.y - b.y));
+    if (p.length < 3) return p;
+    const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    const build = seq => {
+        const out = [];
+        for (const q of seq) {
+            while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], q) <= 0) out.pop();
+            out.push(q);
+        }
+        out.pop();
+        return out;
+    };
+    const hull = build(p).concat(build(p.slice().reverse()));
+    return hull.length >= 3 ? hull : p;
+}
+network.on('afterDrawing', function(ctx) {
+    hyperedges.forEach(h => {
+        const positions = h.nodes
+            .map(nid => network.getPositions([nid])[nid])
+            .filter(p => p !== undefined);
+        if (positions.length < 2) return;
+        ctx.save();
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = '#6366f1';
+        ctx.strokeStyle = '#6366f1';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        // Centroid and expanded hull in network coordinates.
+        // The perimeter must follow hull order, not h.nodes order: tracing the
+        // raw member order self-intersects whenever the layout does not happen
+        // to place members in angular order, filling as crossed wedges.
+        const cx = positions.reduce((s, p) => s + p.x, 0) / positions.length;
+        const cy = positions.reduce((s, p) => s + p.y, 0) / positions.length;
+        const hull = convexHull(positions);
+        const expanded = hull.map(p => ({
+            x: cx + (p.x - cx) * 1.15,
+            y: cy + (p.y - cy) * 1.15
+        }));
+        ctx.moveTo(expanded[0].x, expanded[0].y);
+        expanded.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 0.4;
+        ctx.stroke();
+        // Label
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = '#4f46e5';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(h.label, cx, cy - 5);
+        ctx.restore();
+    });
+});
+</script>
+</body>
+</html>
