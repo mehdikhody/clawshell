@@ -12,3 +12,7 @@ Rules:
 ## Git commits
 
 - Never add a `Co-Authored-By:` line (or any co-author trailer) to git commit messages. This applies to every commit, with no exceptions.
+
+## Grilling
+
+- Ask every grilling question through the `AskUserQuestion` tool, never as a numbered list in chat.
