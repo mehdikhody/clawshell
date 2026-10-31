@@ -14,11 +14,14 @@ const account = (id: string, label: string, status: string) => ({
 	id,
 	label,
 	status,
-	running: status === 'running'
+	running: status === 'running',
+	email: null,
+	usage: null
 });
 
 const threeAccounts: AccountList = {
 	claudeFound: true,
+	refreshAllowedAt: null,
 	accounts: [
 		account('id-run', 'Account 2', 'running'),
 		account('id-idle', 'Work', 'idle'),
@@ -48,7 +51,7 @@ describe('AccountsScreen', () => {
 	});
 
 	it('shows an empty state when there are no accounts yet', async () => {
-		mount({}, { claudeFound: true, accounts: [] });
+		mount({}, { claudeFound: true, refreshAllowedAt: null, accounts: [] });
 
 		await expect.element(page.getByText('No accounts yet')).toBeVisible();
 	});
@@ -123,7 +126,7 @@ describe('AccountsScreen', () => {
 	});
 
 	it('explains that Claude cannot be found and blocks Add', async () => {
-		const tauri = mount({}, { claudeFound: false, accounts: [] });
+		const tauri = mount({}, { claudeFound: false, refreshAllowedAt: null, accounts: [] });
 
 		await expect.element(page.getByText('Claude Desktop not found')).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Add account' })).toBeDisabled();
@@ -356,6 +359,7 @@ describe('AccountsScreen', () => {
 	describe('an account whose folder is missing', () => {
 		const withMissing: AccountList = {
 			claudeFound: true,
+			refreshAllowedAt: null,
 			accounts: [
 				account('id-idle', 'Work', 'idle'),
 				account('id-gone', 'Old laptop', 'missing')
@@ -411,6 +415,207 @@ describe('AccountsScreen', () => {
 				.element(page.getByRole('menuitem', { name: 'Open folder' }))
 				.toHaveAttribute('aria-disabled', 'true');
 			expect(tauri.calls.some((c) => c.cmd === 'launch_account')).toBe(false);
+		});
+	});
+});
+
+describe('AccountsScreen usage', () => {
+	const MIN = 60_000;
+	// Far in the future so the reset always renders as a date plus time.
+	const fiveReset = new Date(2030, 0, 1, 15, 0).toISOString();
+	const weekReset = new Date(2030, 0, 4, 9, 30).toISOString();
+
+	const usage = (over: Record<string, unknown> = {}) => ({
+		fiveHour: { utilization: 42, resetsAt: fiveReset },
+		weekly: { utilization: 17.4, resetsAt: weekReset },
+		extraUsage: null,
+		fetchedAtMs: Date.now(),
+		source: 'live',
+		...over
+	});
+
+	const listWith = (
+		extra: Record<string, unknown>,
+		status = 'idle',
+		running = false,
+		list: Record<string, unknown> = {}
+	) =>
+		({
+			claudeFound: true,
+			refreshAllowedAt: null,
+			accounts: [
+				{
+					id: 'id-1',
+					label: 'Work',
+					status,
+					running,
+					email: 'work@example.com',
+					usage: usage(),
+					...extra
+				}
+			],
+			...list
+		}) as unknown as AccountList;
+
+	it('shows the email, the 5-hour % with its reset and the weekly % with its reset', async () => {
+		mount({}, listWith({}));
+
+		const row = page.getByRole('listitem').nth(0);
+		await expect.element(row).toHaveTextContent('work@example.com');
+		await expect.element(row).toHaveTextContent(/5-hour\s*42%/);
+		await expect.element(row).toHaveTextContent(/Jan 1, 3:00\s?PM/);
+		await expect.element(row).toHaveTextContent(/Weekly\s*17%/);
+		await expect.element(row).toHaveTextContent(/Jan 4, 9:30\s?AM/);
+	});
+
+	it('draws a bar for each window', async () => {
+		mount({}, listWith({}));
+
+		const bars = page.getByRole('progressbar');
+		await expect.element(bars.nth(0)).toHaveAttribute('aria-valuenow', '42');
+		await expect.element(bars.nth(1)).toHaveAttribute('aria-valuenow', '17.4');
+	});
+
+	it('shows a Limited badge, and Running beside it when Claude is open on the account', async () => {
+		mount(
+			{},
+			listWith(
+				{ usage: usage({ weekly: { utilization: 100, resetsAt: weekReset } }) },
+				'limited',
+				true
+			)
+		);
+
+		const row = page.getByRole('listitem').nth(0);
+		await expect.element(row).toHaveTextContent('Limited');
+		await expect.element(row).toHaveTextContent('Running');
+	});
+
+	it('a limited account that is not running shows only Limited', async () => {
+		mount({}, listWith({}, 'limited', false));
+
+		const row = page.getByRole('listitem').nth(0);
+		await expect.element(row).toHaveTextContent('Limited');
+		await expect.element(row).not.toHaveTextContent('Running');
+	});
+
+	it('marks a stale snapshot with how long ago it was updated', async () => {
+		mount({}, listWith({ usage: usage({ source: 'stale', fetchedAtMs: Date.now() - 5 * MIN }) }));
+
+		const row = page.getByRole('listitem').nth(0);
+		await expect.element(row).toHaveTextContent(/Stale, updated 5 minutes ago/);
+		await expect.element(row).toHaveTextContent(/42%/);
+	});
+
+	it('labels values taken from local history, which have no reset time', async () => {
+		mount(
+			{},
+			listWith({
+				usage: usage({
+					source: 'local-history',
+					fetchedAtMs: Date.now() - 2 * 60 * MIN,
+					fiveHour: { utilization: 55, resetsAt: null },
+					weekly: { utilization: 60, resetsAt: null }
+				})
+			})
+		);
+
+		const row = page.getByRole('listitem').nth(0);
+		await expect.element(row).toHaveTextContent(/From local history, updated 2 hours ago/);
+		await expect.element(row).toHaveTextContent(/55%/);
+		await expect.element(row).toHaveTextContent(/60%/);
+		await expect.element(row).not.toHaveTextContent(/resets/i);
+	});
+
+	it('does not label live numbers as stale', async () => {
+		mount({}, listWith({}));
+
+		await expect.element(page.getByRole('listitem').nth(0)).toHaveTextContent(/42%/);
+		await expect.element(page.getByRole('listitem').nth(0)).not.toHaveTextContent(/stale/i);
+	});
+
+	it('says usage is not loaded yet when a signed-in account has no snapshot', async () => {
+		mount({}, listWith({ usage: null, email: null }));
+
+		await expect.element(page.getByRole('listitem').nth(0)).toHaveTextContent('No usage data yet');
+	});
+
+	it('shows no usage for a signed-out account', async () => {
+		mount({}, listWith({ usage: null, email: null }, 'signed-out'));
+
+		const row = page.getByRole('listitem').nth(0);
+		await expect.element(row).toHaveTextContent('Signed out');
+		await expect.element(row).not.toHaveTextContent('No usage data yet');
+	});
+
+	it('updates usage when the core pushes a changed snapshot', async () => {
+		mount({}, listWith({}));
+		await expect.element(page.getByRole('listitem').nth(0)).toHaveTextContent(/42%/);
+
+		await emit(
+			'accounts-changed',
+			listWith({ usage: usage({ fiveHour: { utilization: 63, resetsAt: fiveReset } }) })
+		);
+
+		await expect.element(page.getByRole('listitem').nth(0)).toHaveTextContent(/63%/);
+	});
+
+	describe('manual refresh', () => {
+		it('asks the core to refresh when the button is pressed', async () => {
+			const tauri = mount(
+				{ refresh_usage: () => ({ refreshed: 1, refreshAllowedAt: Date.now() + 3 * MIN }) },
+				listWith({})
+			);
+
+			await page.getByRole('button', { name: 'Refresh usage' }).click();
+
+			expect(tauri.calls.filter((c) => c.cmd === 'refresh_usage')).toHaveLength(1);
+		});
+
+		it('is enabled when a refresh is allowed now', async () => {
+			mount({}, listWith({}));
+
+			await expect.element(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
+			await expect.element(page.getByText(/Next refresh allowed/)).not.toBeInTheDocument();
+		});
+
+		it('is disabled inside the minimum interval and says when the next refresh is allowed', async () => {
+			const tauri = mount(
+				{},
+				listWith({}, 'idle', false, { refreshAllowedAt: Date.now() + 151_500 })
+			);
+
+			await expect.element(page.getByRole('button', { name: 'Refresh usage' })).toBeDisabled();
+			await expect.element(page.getByText(/Next refresh allowed in 2:3\d/)).toBeVisible();
+			expect(tauri.calls.some((c) => c.cmd === 'refresh_usage')).toBe(false);
+		});
+
+		it('becomes available again once the wait is over', async () => {
+			mount({}, listWith({}, 'idle', false, { refreshAllowedAt: Date.now() + 1500 }));
+			await expect.element(page.getByRole('button', { name: 'Refresh usage' })).toBeDisabled();
+
+			await expect
+				.element(page.getByRole('button', { name: 'Refresh usage' }), { timeout: 4000 })
+				.toBeEnabled();
+		});
+
+		it('shows the wait the core reports after a refresh', async () => {
+			let allowedAt: number | null = null;
+			mount(
+				{
+					refresh_usage: () => {
+						allowedAt = Date.now() + 180_000;
+						return { refreshed: 1, refreshAllowedAt: allowedAt };
+					},
+					list_accounts: () => listWith({}, 'idle', false, { refreshAllowedAt: allowedAt })
+				},
+				listWith({})
+			);
+
+			await page.getByRole('button', { name: 'Refresh usage' }).click();
+
+			await expect.element(page.getByText(/Next refresh allowed in/)).toBeVisible();
+			await expect.element(page.getByRole('button', { name: 'Refresh usage' })).toBeDisabled();
 		});
 	});
 });

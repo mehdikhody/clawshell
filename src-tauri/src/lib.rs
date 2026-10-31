@@ -3,7 +3,7 @@ pub mod core;
 mod adapters;
 mod commands;
 
-use adapters::{NoTokens, OfflineHttp, SysinfoLister, SystemClock, WindowsLocator, WindowsOs};
+use adapters::{DesktopTokens, SysinfoLister, SystemClock, UreqHttp, WindowsLocator, WindowsOs};
 use core::ports::{ProcessLister, Roots};
 use core::process::DesktopProcesses;
 use core::{Core, Ports};
@@ -15,9 +15,9 @@ fn build_core(roots: Roots) -> Arc<Core> {
     let lister: Arc<dyn ProcessLister> = Arc::new(SysinfoLister);
     Arc::new(Core::new(Ports {
         roots,
-        http: Arc::new(OfflineHttp),
+        http: Arc::new(UreqHttp::new()),
         clock: Arc::new(SystemClock),
-        tokens: Arc::new(NoTokens),
+        tokens: Arc::new(DesktopTokens),
         processes: Arc::new(DesktopProcesses::new(lister.clone(), locator.clone())),
         os: Arc::new(WindowsOs::new(locator, lister)),
     }))
@@ -41,7 +41,10 @@ pub fn run() {
                 local_app_data: paths.local_data_dir()?,
                 home: paths.home_dir()?,
             });
-            commands::watch_accounts(app.handle().clone(), core.clone());
+            let feed = commands::AccountFeed::new(app.handle().clone(), core.clone());
+            commands::watch_accounts(feed.clone());
+            commands::poll_usage(core.clone(), feed.clone());
+            app.manage(feed);
             app.manage(core);
             Ok(())
         })
@@ -51,7 +54,8 @@ pub fn run() {
             commands::launch_account,
             commands::rename_account,
             commands::open_account_folder,
-            commands::delete_account
+            commands::delete_account,
+            commands::refresh_usage
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

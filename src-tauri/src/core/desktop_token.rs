@@ -27,7 +27,9 @@ pub enum TokenError {
 
 /// Decrypts a base64 `v10` value with the profile's AES-256 key.
 pub fn decrypt_v10(value_b64: &str, key: &[u8]) -> Result<Vec<u8>, TokenError> {
-    let raw = STANDARD.decode(value_b64.trim()).map_err(|_| TokenError::Base64)?;
+    let raw = STANDARD
+        .decode(value_b64.trim())
+        .map_err(|_| TokenError::Base64)?;
     let body = raw.strip_prefix(V10).ok_or(TokenError::NotV10)?;
     if body.len() < NONCE_LEN + TAG_LEN {
         return Err(TokenError::Decrypt);
@@ -83,4 +85,25 @@ pub fn extract_token(cache: &serde_json::Value) -> Option<AccessToken> {
             access_token: token.to_string(),
             expires_at_ms,
         })
+}
+
+/// Reads a profile's access token: `oauth:tokenCacheV2` from `config.json`,
+/// decrypted with the AES key `unwrap_key` recovers from the DPAPI blob in
+/// `Local State` (the Windows adapter supplies the DPAPI call). Anything
+/// missing, malformed or undecryptable is simply no token; nothing is logged.
+pub fn read_access_token(
+    profile: &std::path::Path,
+    unwrap_key: impl Fn(&[u8]) -> Option<Vec<u8>>,
+) -> Option<AccessToken> {
+    let read_json = |name: &str| -> Option<serde_json::Value> {
+        serde_json::from_str(&std::fs::read_to_string(profile.join(name)).ok()?).ok()
+    };
+    let config = read_json("config.json")?;
+    let local_state = read_json("Local State")?;
+    let cache = config.get("oauth:tokenCacheV2")?.as_str()?;
+    let wrapped = local_state.pointer("/os_crypt/encrypted_key")?.as_str()?;
+    let blob = dpapi_blob_from_encrypted_key(wrapped).ok()?;
+    let key = unwrap_key(&blob)?;
+    let plain = decrypt_v10(cache, &key).ok()?;
+    extract_token(&serde_json::from_slice(&plain).ok()?)
 }

@@ -5,6 +5,7 @@
 	import IconFolderOpen from '@tabler/icons-svelte/icons/folder-open';
 	import IconPencil from '@tabler/icons-svelte/icons/pencil';
 	import IconPlus from '@tabler/icons-svelte/icons/plus';
+	import IconRefresh from '@tabler/icons-svelte/icons/refresh';
 	import IconTrash from '@tabler/icons-svelte/icons/trash';
 	import {
 		addAccount,
@@ -14,10 +15,13 @@
 		listAccounts,
 		onAccountsChanged,
 		openAccountFolder,
+		refreshUsage,
 		renameAccount,
 		type Account,
 		type AccountList,
-		type AccountStatus
+		type AccountStatus,
+		type UsageSnapshot,
+		type WindowUsage
 	} from '$lib/accounts';
 	import * as Alert from '$lib/components/ui/alert';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -27,11 +31,19 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Input } from '$lib/components/ui/input';
 	import * as Item from '$lib/components/ui/item';
+	import { Progress } from '$lib/components/ui/progress';
 	import { m } from '$lib/paraglide/messages.js';
+	import { getLocale } from '$lib/paraglide/runtime.js';
+	import { formatAgo, formatCountdown, formatReset } from '$lib/usage';
 
-	let list = $state<AccountList>({ claudeFound: true, accounts: [] });
+	let list = $state<AccountList>({ claudeFound: true, refreshAllowedAt: null, accounts: [] });
 	let loaded = $state(false);
 	let adding = $state(false);
+	let refreshing = $state(false);
+	/** Ticks every second so "updated X ago" and the refresh wait stay current. */
+	let now = $state(Date.now());
+	/** How long until a manual refresh is allowed again; 0 when it is allowed now. */
+	const refreshWaitMs = $derived(Math.max(0, (list.refreshAllowedAt ?? 0) - now));
 	let failure = $state<string | null>(null);
 
 	/** The account being renamed, and the draft name in the dialog. */
@@ -44,12 +56,14 @@
 		running: () => m.status_running(),
 		idle: () => m.status_idle(),
 		'signed-out': () => m.status_signed_out(),
+		limited: () => m.status_limited(),
 		missing: () => m.status_missing()
 	};
 	const statusVariant: Record<AccountStatus, BadgeVariant> = {
 		running: 'default',
 		idle: 'secondary',
 		'signed-out': 'destructive',
+		limited: 'outline',
 		missing: 'destructive'
 	};
 
@@ -59,6 +73,20 @@
 			loaded = true;
 		} catch {
 			// The core pushes the next snapshot when it can.
+		}
+	}
+
+	async function refreshNow() {
+		refreshing = true;
+		failure = null;
+		try {
+			const outcome = await refreshUsage();
+			list = { ...list, refreshAllowedAt: outcome.refreshAllowedAt };
+		} catch {
+			failure = m.error_refresh_failed();
+		} finally {
+			refreshing = false;
+			await refresh();
 		}
 	}
 
@@ -145,12 +173,14 @@
 	}
 
 	onMount(() => {
+		const tick = setInterval(() => (now = Date.now()), 1000);
 		void refresh();
 		const unlisten = onAccountsChanged((next) => {
 			list = next;
 			loaded = true;
 		});
 		return () => {
+			clearInterval(tick);
 			void unlisten.then((stop) => stop()).catch(() => {});
 		};
 	});
@@ -159,11 +189,28 @@
 <section class="flex flex-col gap-3 p-4">
 	<header class="flex items-center justify-between">
 		<h1 class="text-base font-semibold">{m.accounts_title()}</h1>
-		<Button size="sm" onclick={add} disabled={adding || !list.claudeFound}>
-			<IconPlus />
-			{m.accounts_add()}
-		</Button>
+		<div class="flex items-center gap-2">
+			<Button
+				size="icon-sm"
+				variant="outline"
+				aria-label={m.refresh_usage()}
+				onclick={refreshNow}
+				disabled={refreshing || refreshWaitMs > 0}
+			>
+				<IconRefresh class={refreshing ? 'animate-spin' : ''} />
+			</Button>
+			<Button size="sm" onclick={add} disabled={adding || !list.claudeFound}>
+				<IconPlus />
+				{m.accounts_add()}
+			</Button>
+		</div>
 	</header>
+
+	{#if refreshWaitMs > 0}
+		<p class="text-xs text-muted-foreground">
+			{m.refresh_next({ time: formatCountdown(refreshWaitMs) })}
+		</p>
+	{/if}
 
 	{#if !list.claudeFound}
 		<Alert.Root variant="destructive">
@@ -201,9 +248,21 @@
 						<Item.Title>{account.label}</Item.Title>
 						{#if account.status === 'missing'}
 							<Item.Description>{m.missing_hint()}</Item.Description>
+						{:else}
+							{#if account.email}
+								<Item.Description>{account.email}</Item.Description>
+							{/if}
+							{#if account.usage}
+								{@render usageLines(account.usage)}
+							{:else if account.status !== 'signed-out'}
+								<p class="text-xs text-muted-foreground">{m.usage_none()}</p>
+							{/if}
 						{/if}
 					</Item.Content>
 					<Item.Actions>
+						{#if account.status === 'limited' && account.running}
+							<Badge variant="default">{statusLabel.running()}</Badge>
+						{/if}
 						<Badge variant={statusVariant[account.status]}>{statusLabel[account.status]()}</Badge>
 						{#if account.status === 'missing'}
 							<Button size="xs" variant="destructive" onclick={() => askDelete(account)}>
@@ -255,6 +314,36 @@
 		</div>
 	{/if}
 </section>
+
+{#snippet usageWindow(label: string, window: WindowUsage | null)}
+	{#if window}
+		<div class="flex items-center gap-2 text-xs">
+			<span class="w-14 shrink-0 text-muted-foreground">{label}</span>
+			<Progress
+				value={window.utilization}
+				aria-label={label}
+				class={window.utilization >= 100 ? '*:data-[slot=progress-indicator]:bg-destructive' : ''}
+			/>
+			<span class="w-9 shrink-0 text-end tabular-nums">{Math.round(window.utilization)}%</span>
+		</div>
+		{#if window.resetsAt}
+			<p class="ps-16 text-[11px] text-muted-foreground">
+				{m.usage_resets({ time: formatReset(window.resetsAt, new Date(now), getLocale()) })}
+			</p>
+		{/if}
+	{/if}
+{/snippet}
+
+{#snippet usageLines(usage: UsageSnapshot)}
+	{@render usageWindow(m.usage_five_hour(), usage.fiveHour)}
+	{@render usageWindow(m.usage_weekly(), usage.weekly)}
+	{#if usage.source !== 'live'}
+		{@const ago = formatAgo(usage.fetchedAtMs, now, getLocale())}
+		<p class="text-[11px] text-muted-foreground">
+			{usage.source === 'stale' ? m.usage_stale({ ago }) : m.usage_local_history({ ago })}
+		</p>
+	{/if}
+{/snippet}
 
 <Dialog.Root
 	open={renaming !== null}

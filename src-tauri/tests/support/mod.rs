@@ -1,6 +1,7 @@
 //! Core test harness: temp fixture folders plus scripted fakes for every port.
 #![allow(dead_code)]
 
+use clawshell_lib::core::desktop_token::AccessToken;
 use clawshell_lib::core::ports::*;
 use clawshell_lib::core::{Core, Ports};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -61,6 +62,14 @@ impl Fixture {
         fs::write(path, r#"{"windowSizeWasSignedIn": true}"#).unwrap();
     }
 
+    /// Overwrites a profile's `plan-usage-history.json` verbatim.
+    pub fn write_usage_history(&self, id: &str, json: &str) {
+        let path = self
+            .local_app_data()
+            .join(format!("clawshell-{id}/plan-usage-history.json"));
+        fs::write(path, json).unwrap();
+    }
+
     /// Overwrites a profile's `config.json` verbatim.
     pub fn write_config(&self, id: &str, json: &str) {
         let path = self
@@ -94,6 +103,7 @@ impl Fixture {
 pub struct FakeHttp {
     scripted: Mutex<HashMap<String, VecDeque<HttpResponse>>>,
     requests: Mutex<Vec<HttpRequest>>,
+    failing: Mutex<Vec<String>>,
 }
 
 impl FakeHttp {
@@ -114,6 +124,34 @@ impl FakeHttp {
             });
     }
 
+    /// Like `respond`, with response headers (e.g. `Retry-After`).
+    pub fn respond_with_headers(
+        &self,
+        url: &str,
+        status: u16,
+        headers: &[(&str, &str)],
+        body: &str,
+    ) {
+        self.scripted
+            .lock()
+            .unwrap()
+            .entry(url.to_string())
+            .or_default()
+            .push_back(HttpResponse {
+                status,
+                headers: headers
+                    .iter()
+                    .map(|(n, v)| (n.to_string(), v.to_string()))
+                    .collect(),
+                body: body.to_string(),
+            });
+    }
+
+    /// Scripts a network failure for the next request to `url`.
+    pub fn fail(&self, url: &str) {
+        self.failing.lock().unwrap().push(url.to_string());
+    }
+
     pub fn requests(&self) -> Vec<HttpRequest> {
         self.requests.lock().unwrap().clone()
     }
@@ -123,6 +161,13 @@ impl HttpClient for FakeHttp {
     fn send(&self, request: HttpRequest) -> Result<HttpResponse, HttpError> {
         let url = request.url.clone();
         self.requests.lock().unwrap().push(request);
+        {
+            let mut failing = self.failing.lock().unwrap();
+            if let Some(at) = failing.iter().position(|u| *u == url) {
+                failing.remove(at);
+                return Err(HttpError::Network("connection reset".into()));
+            }
+        }
         self.scripted
             .lock()
             .unwrap()
@@ -157,11 +202,28 @@ impl Clock for FakeClock {
 
 /// Token reader faked at its port: profile folder -> access token.
 #[derive(Default)]
-pub struct FakeTokens(pub Mutex<HashMap<PathBuf, String>>);
+pub struct FakeTokens(pub Mutex<HashMap<PathBuf, (String, Option<i64>)>>);
+
+impl FakeTokens {
+    /// `expires_at_ms` is epoch milliseconds, as Claude Desktop stores it.
+    pub fn set(&self, profile: &Path, token: &str, expires_at_ms: Option<i64>) {
+        self.0
+            .lock()
+            .unwrap()
+            .insert(profile.to_path_buf(), (token.to_string(), expires_at_ms));
+    }
+}
 
 impl TokenReader for FakeTokens {
-    fn read_token(&self, profile: &Path) -> Option<String> {
-        self.0.lock().unwrap().get(profile).cloned()
+    fn read_token(&self, profile: &Path) -> Option<AccessToken> {
+        self.0
+            .lock()
+            .unwrap()
+            .get(profile)
+            .map(|(token, expires)| AccessToken {
+                access_token: token.clone(),
+                expires_at_ms: *expires,
+            })
     }
 }
 
@@ -305,6 +367,15 @@ impl Harness {
             processes: Arc::new(FakeProcesses::default()),
             os: Arc::new(FakeOs::default()),
         }
+    }
+
+    /// The fake clock as epoch milliseconds.
+    pub fn now_ms(&self) -> i64 {
+        self.clock
+            .now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64
     }
 
     pub fn core(&self) -> Core {

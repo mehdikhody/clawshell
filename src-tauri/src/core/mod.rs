@@ -5,19 +5,22 @@ pub mod accounts;
 pub mod desktop_token;
 pub mod install;
 mod paths;
+pub mod polling;
 pub mod ports;
 pub mod process;
 mod signin;
 mod store;
+pub mod usage;
 
 pub use accounts::{
     Account, AccountList, AddError, DeleteError, LaunchError, LaunchOutcome, OpenFolderError,
     RenameError, Status,
 };
+pub use usage::{RefreshOutcome, UsageSnapshot, UsageSource};
 
 use ports::{Clock, HttpClient, OsAdapters, ProcessInspector, Roots, TokenReader};
 use std::io;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -48,11 +51,19 @@ pub struct ProfileScan {
 
 pub struct Core {
     ports: Ports,
+    /// Emails and usage snapshots, polling schedules: in memory only.
+    usage: Mutex<usage::UsageState>,
+    /// Held for a whole refresh so two refreshes never overlap.
+    refresh_gate: Mutex<()>,
 }
 
 impl Core {
     pub fn new(ports: Ports) -> Self {
-        Core { ports }
+        Core {
+            ports,
+            usage: Mutex::default(),
+            refresh_gate: Mutex::new(()),
+        }
     }
 
     /// Finds the profile folders clawshell created under local app data.
