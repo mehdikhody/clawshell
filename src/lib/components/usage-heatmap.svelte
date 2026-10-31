@@ -2,9 +2,9 @@
 	import { formatUsd } from '$lib/cost';
 	import {
 		cellsFor,
+		formatDay,
 		formatPercent,
 		intensity,
-		parseDay,
 		type Heatmap,
 		type HeatmapDay,
 		type HeatmapMode,
@@ -14,7 +14,7 @@
 	import * as ToggleGroup from '$lib/components/ui/toggle-group';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { m } from '$lib/paraglide/messages.js';
-	import { getLocale } from '$lib/paraglide/runtime.js';
+	import { formatTag } from '$lib/locale-state.svelte';
 
 	let { heatmap }: { heatmap: Heatmap } = $props();
 
@@ -38,15 +38,14 @@
 	const levelOf = (day: HeatmapDay) => intensity(valuesOf(day)?.total ?? null, mode, maxUsd);
 	const classOf = (level: Level | null) => (level === null ? noDataClass : levelClass[level]);
 
-	const money = (amount: number) => formatUsd(amount, getLocale());
+	const money = (amount: number) => formatUsd(amount, formatTag());
 	const amount = (value: number) =>
-		mode === 'usd' ? money(value) : formatPercent(value, getLocale());
+		mode === 'usd' ? money(value) : formatPercent(value, formatTag());
 	const total = (value: number) =>
 		mode === 'usd'
 			? m.cost_estimated({ amount: money(value) })
-			: m.heatmap_total_percent({ percent: formatPercent(value, getLocale()) });
-	const dateLabel = (date: string) =>
-		new Intl.DateTimeFormat(getLocale(), { month: 'short', day: 'numeric' }).format(parseDay(date));
+			: m.heatmap_total_percent({ percent: formatPercent(value, formatTag()) });
+	const dateLabel = (date: string) => formatDay(date, formatTag());
 	const labelOf = (day: HeatmapDay) => {
 		const values = valuesOf(day);
 		return values

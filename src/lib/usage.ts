@@ -38,8 +38,9 @@ export function formatAgo(thenMs: number, nowMs: number, locale: string): string
 }
 
 /** A wait as m:ss, rounded up so a pending wait never reads 0:00. */
-export function formatCountdown(ms: number): string {
+export function formatCountdown(ms: number, locale = 'en'): string {
 	const total = Math.max(0, Math.ceil(ms / 1000));
-	const seconds = String(total % 60).padStart(2, '0');
-	return `${Math.floor(total / 60)}:${seconds}`;
+	const digits = new Intl.NumberFormat(locale, { useGrouping: false });
+	const seconds = new Intl.NumberFormat(locale, { minimumIntegerDigits: 2 }).format(total % 60);
+	return `${digits.format(Math.floor(total / 60))}:${seconds}`;
 }

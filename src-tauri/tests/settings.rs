@@ -1,6 +1,6 @@
 mod support;
 
-use clawshell_lib::core::{Settings, SettingsError};
+use clawshell_lib::core::{Language, Settings, SettingsError};
 use support::Harness;
 
 const ID: &str = "3f2b8c1e-5a4d-4e7b-9c10-2d6f8a9b0c11";
@@ -17,6 +17,7 @@ fn a_fresh_install_has_the_default_settings() {
             launch_at_boot: false,
             start_hidden: false,
             close_to_tray: true,
+            language: Language::En,
             claude_path: None,
         }
     );
@@ -32,6 +33,43 @@ fn settings_survive_a_restart() {
     h.core().update_settings(changed.clone()).unwrap();
 
     assert_eq!(h.core().settings(), changed);
+}
+
+#[test]
+fn the_language_survives_a_restart() {
+    let h = Harness::new();
+    let core = h.core();
+    let mut settings = core.settings();
+    settings.language = Language::Fa;
+    core.update_settings(settings).unwrap();
+
+    assert_eq!(h.core().settings().language, Language::Fa);
+}
+
+#[test]
+fn the_language_is_saved_as_en_or_fa() {
+    let h = Harness::new();
+    let core = h.core();
+    let mut settings = core.settings();
+    settings.language = Language::Fa;
+    core.update_settings(settings).unwrap();
+
+    let text = std::fs::read_to_string(h.fixture.local_app_data().join("clawshell/settings.json"))
+        .unwrap();
+    assert!(text.contains("\"language\": \"fa\""), "{text}");
+}
+
+#[test]
+fn a_settings_file_from_before_languages_opens_in_english() {
+    let h = Harness::new();
+    let dir = h.fixture.local_app_data().join("clawshell");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("settings.json"), r#"{ "closeToTray": false }"#).unwrap();
+
+    let settings = h.core().settings();
+
+    assert_eq!(settings.language, Language::En);
+    assert!(!settings.close_to_tray);
 }
 
 #[test]

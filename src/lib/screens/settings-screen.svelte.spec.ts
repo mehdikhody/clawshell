@@ -3,17 +3,22 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import '../../routes/layout.css';
 import { mockTauri, type IpcHandlers } from '$lib/test/tauri-ipc';
+import { active, switchLocale } from '$lib/locale-state.svelte';
 import type { Settings } from '$lib/settings';
 
 import SettingsScreen from './settings-screen.svelte';
 
 let restore: () => void;
-afterEach(() => restore?.());
+afterEach(() => {
+	restore?.();
+	switchLocale('en');
+});
 
 const defaults: Settings = {
 	launchAtBoot: false,
 	startHidden: false,
 	closeToTray: true,
+	language: 'en',
 	claudePath: null
 };
 
@@ -116,5 +121,60 @@ describe('SettingsScreen', () => {
 		await page.getByRole('button', { name: 'Save path' }).click();
 
 		expect(updates(tauri.calls)).toEqual([{ ...defaults, claudePath: null }]);
+	});
+
+	it('offers English and Persian with the saved language picked', async () => {
+		mount({ ...defaults, language: 'fa' });
+
+		const group = page.getByRole('group', { name: 'Language' });
+		await expect.element(group).toBeVisible();
+		await expect.element(page.getByRole('radio', { name: 'فارسی' })).toBeChecked();
+		await expect.element(page.getByRole('radio', { name: 'English' })).not.toBeChecked();
+	});
+
+	it('saves the chosen language and flips the document to right-to-left', async () => {
+		const tauri = mount();
+
+		await page.getByRole('radio', { name: 'فارسی' }).click();
+
+		await expect.element(page.getByRole('radio', { name: 'فارسی' })).toBeChecked();
+		expect(updates(tauri.calls)).toEqual([{ ...defaults, language: 'fa' }]);
+		expect(active.locale).toBe('fa');
+		expect(document.documentElement.dir).toBe('rtl');
+		expect(document.documentElement.lang).toBe('fa');
+	});
+
+	it('goes back to English and left-to-right', async () => {
+		switchLocale('fa');
+		const tauri = mount({ ...defaults, language: 'fa' });
+
+		await page.getByRole('radio', { name: 'English' }).click();
+
+		await expect.poll(() => document.documentElement.dir).toBe('ltr');
+		expect(updates(tauri.calls)).toEqual([{ ...defaults, language: 'en' }]);
+		expect(active.locale).toBe('en');
+	});
+
+	it('keeps the language when the core refuses the change', async () => {
+		mount(defaults, {
+			update_settings: () => {
+				throw { code: 'io', message: 'disk full' };
+			}
+		});
+
+		await page.getByRole('radio', { name: 'فارسی' }).click();
+
+		await expect.element(page.getByRole('alert')).toBeVisible();
+		await expect.element(page.getByRole('radio', { name: 'English' })).toBeChecked();
+		expect(active.locale).toBe('en');
+		expect(document.documentElement.dir).toBe('ltr');
+	});
+
+	it('shows the Claude.exe path field left-to-right even in Persian', async () => {
+		switchLocale('fa');
+		mount({ ...defaults, language: 'fa' });
+
+		const field = page.getByRole('textbox', { name: 'مسیر Claude.exe' });
+		await expect.element(field).toHaveAttribute('dir', 'ltr');
 	});
 });

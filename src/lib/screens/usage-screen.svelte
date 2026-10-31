@@ -18,7 +18,8 @@
 	import * as Item from '$lib/components/ui/item';
 	import { Progress } from '$lib/components/ui/progress';
 	import { m } from '$lib/paraglide/messages.js';
-	import { getLocale } from '$lib/paraglide/runtime.js';
+	import { formatTag } from '$lib/locale-state.svelte';
+	import { formatInteger, formatPercentValue } from '$lib/locale';
 	import { formatAgo, formatCountdown, formatReset } from '$lib/usage';
 
 	let list = $state<AccountList | null>(null);
@@ -111,7 +112,7 @@
 
 	{#if refreshWaitMs > 0}
 		<p class="text-xs text-muted-foreground">
-			{m.refresh_next({ time: formatCountdown(refreshWaitMs) })}
+			{m.refresh_next({ time: formatCountdown(refreshWaitMs, formatTag()) })}
 		</p>
 	{/if}
 
@@ -150,7 +151,7 @@
 				<Item.Title>{label}</Item.Title>
 				{#if pooled.remainingPercent !== null}
 					<span class="text-lg font-semibold tabular-nums">
-						{m.usage_remaining({ percent: Math.round(pooled.remainingPercent) })}
+						{formatPercentValue(pooled.remainingPercent, formatTag())}
 					</span>
 				{/if}
 			</div>
@@ -159,18 +160,23 @@
 			{:else}
 				<Progress value={Math.round(pooled.remainingPercent)} aria-label={label} />
 				<div class="flex items-center justify-between text-xs text-muted-foreground">
-					<span>{m.usage_available({ available: pooled.available, total: pooled.total })}</span>
+					<span
+						>{m.usage_available({
+							available: formatInteger(pooled.available, formatTag()),
+							total: formatInteger(pooled.total, formatTag())
+						})}</span
+					>
 					{#if pooled.soonestReset}
 						<span>
 							{m.usage_soonest_reset({
-								time: formatReset(pooled.soonestReset, new Date(now), getLocale())
+								time: formatReset(pooled.soonestReset, new Date(now), formatTag())
 							})}
 						</span>
 					{/if}
 				</div>
 				{#if pooled.staleSinceMs !== null}
 					<p class="text-[11px] text-muted-foreground">
-						{m.usage_pooled_stale({ ago: formatAgo(pooled.staleSinceMs, now, getLocale()) })}
+						{m.usage_pooled_stale({ ago: formatAgo(pooled.staleSinceMs, now, formatTag()) })}
 					</p>
 				{/if}
 			{/if}

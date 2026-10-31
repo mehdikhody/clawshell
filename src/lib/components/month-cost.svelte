@@ -3,11 +3,12 @@
 	import * as Item from '$lib/components/ui/item';
 	import { Progress } from '$lib/components/ui/progress';
 	import { m } from '$lib/paraglide/messages.js';
-	import { getLocale } from '$lib/paraglide/runtime.js';
+	import { formatInteger } from '$lib/locale';
+	import { formatTag } from '$lib/locale-state.svelte';
 
 	let { cost }: { cost: MonthCost } = $props();
 
-	const usd = (amount: number) => formatUsd(amount, getLocale());
+	const usd = (amount: number) => formatUsd(amount, formatTag());
 
 	/** An account's dollars; none when it has no estimate and no extra usage either. */
 	const dollarsOf = (a: AccountCost) => a.totalUsd ?? (a.extraUsd > 0 ? a.extraUsd : null);
@@ -42,7 +43,7 @@
 		{/if}
 		{#if cost.unpricedMessages > 0}
 			<p class="text-[11px] text-muted-foreground">
-				{m.cost_unpriced({ count: cost.unpricedMessages })}
+				{m.cost_unpriced({ count: formatInteger(cost.unpricedMessages, formatTag()) })}
 			</p>
 		{/if}
 
@@ -58,7 +59,7 @@
 									{dollars === null ? '—' : usd(dollars)}
 									{#if account.share !== null}
 										<span class="text-muted-foreground"
-											>{formatShare(account.share, getLocale())}</span
+											>{formatShare(account.share, formatTag())}</span
 										>
 									{/if}
 								</span>

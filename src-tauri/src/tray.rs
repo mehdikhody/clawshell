@@ -69,13 +69,14 @@ fn menu(app: &AppHandle, core: &Core) -> tauri::Result<Menu<tauri::Wry>> {
             TrayEntry::Quit,
         ]
     });
+    let labels = core.tray_labels();
     let mut items: Vec<Box<dyn IsMenuItem<tauri::Wry>>> = Vec::new();
     for entry in entries {
         items.push(match entry {
             TrayEntry::Open => Box::new(MenuItem::with_id(
                 app,
                 OPEN,
-                "Open clawshell",
+                labels.open,
                 true,
                 None::<&str>,
             )?),
@@ -91,11 +92,17 @@ fn menu(app: &AppHandle, core: &Core) -> tauri::Result<Menu<tauri::Wry>> {
             TrayEntry::AddAccount => Box::new(MenuItem::with_id(
                 app,
                 ADD,
-                "Add account",
+                labels.add_account,
                 true,
                 None::<&str>,
             )?),
-            TrayEntry::Quit => Box::new(MenuItem::with_id(app, QUIT, "Quit", true, None::<&str>)?),
+            TrayEntry::Quit => Box::new(MenuItem::with_id(
+                app,
+                QUIT,
+                labels.quit,
+                true,
+                None::<&str>,
+            )?),
         });
     }
     let refs: Vec<&dyn IsMenuItem<tauri::Wry>> = items.iter().map(|i| i.as_ref()).collect();

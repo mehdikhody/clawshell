@@ -6,6 +6,9 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as Item from '$lib/components/ui/item';
 	import { Label } from '$lib/components/ui/label';
+	import * as ToggleGroup from '$lib/components/ui/toggle-group';
+	import { isLocale, locales } from '$lib/locale';
+	import { active, switchLocale } from '$lib/locale-state.svelte';
 	import { Switch } from '$lib/components/ui/switch';
 	import { m } from '$lib/paraglide/messages.js';
 	import { getSettings, updateSettings, type Settings } from '$lib/settings';
@@ -39,6 +42,7 @@
 		try {
 			settings = await updateSettings({ ...settings, ...change });
 			draftPath = settings.claudePath ?? '';
+			if (settings.language !== active.locale) switchLocale(settings.language);
 		} catch (error) {
 			failure = failureText[errorCode(error) ?? '']?.() ?? m.error_settings_save_failed();
 		}
@@ -49,6 +53,8 @@
 		const path = draftPath.trim();
 		return save({ claudePath: path === '' ? null : path });
 	}
+
+	const languageName = { en: () => m.language_en(), fa: () => m.language_fa() };
 
 	const switches = [
 		{
@@ -91,6 +97,34 @@
 				</Item.Actions>
 			</Item.Root>
 		{/each}
+
+		<Item.Root variant="outline">
+			<Item.Content>
+				<Item.Title id="setting-language">{m.settings_language()}</Item.Title>
+				<Item.Description>{m.settings_language_hint()}</Item.Description>
+			</Item.Content>
+			<Item.Actions>
+				<ToggleGroup.Root
+					type="single"
+					variant="outline"
+					size="sm"
+					aria-labelledby="setting-language"
+					bind:value={
+						() => settings!.language,
+						(next) => {
+							// A single-select group reports '' when the pressed item is pressed again.
+							if (isLocale(next) && next !== settings!.language) void save({ language: next });
+						}
+					}
+				>
+					{#each locales as locale (locale)}
+						<ToggleGroup.Item value={locale} lang={locale}
+							>{languageName[locale]()}</ToggleGroup.Item
+						>
+					{/each}
+				</ToggleGroup.Root>
+			</Item.Actions>
+		</Item.Root>
 
 		<form class="flex flex-col gap-2" onsubmit={savePath}>
 			<Label for="setting-claude-path">{m.settings_claude_path()}</Label>
