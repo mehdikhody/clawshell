@@ -4,10 +4,10 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] For 3 accounts at 60/0/0% used, the bar shows 80% remaining
-- [ ] Signed-out accounts are excluded from both the average and M
-- [ ] "N of M available" and the soonest reset are correct and update live
-- [ ] The empty state (no signed-in accounts) is handled
-- [ ] Core tests cover the pooling maths; UI tests cover the bars and captions
+- [x] For 3 accounts at 60/0/0% used, the bar shows 80% remaining
+- [x] Signed-out accounts are excluded from both the average and M
+- [x] "N of M available" and the soonest reset are correct and update live
+- [x] The empty state (no signed-in accounts) is handled
+- [x] Core tests cover the pooling maths; UI tests cover the bars and captions

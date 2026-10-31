@@ -4,10 +4,10 @@
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] New accounts get distinct auto colours; the picker in the ⋯ menu changes the colour, and it persists
-- [ ] Rows show the badge colour and letter
+- [x] New accounts get distinct auto colours; the picker in the ⋯ menu changes the colour, and it persists
+- [x] Rows show the badge colour and letter
 - [ ] Each running account appears as its own taskbar button with its badge (checked by hand on Windows 11, Store build)
-- [ ] Renaming to a new initial updates the badge
-- [ ] Core tests cover colour assignment and persistence
+- [x] Renaming to a new initial updates the badge
+- [x] Core tests cover colour assignment and persistence

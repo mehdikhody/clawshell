@@ -8,10 +8,10 @@ Intensity is bucketed. Hover or tap shows the date, the total and the per-accoun
 
 **Blocked by:** 06, 07
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] 30 cells ending today, in local days, fit 400px without scrolling
-- [ ] The $ / % toggle works; % mode uses peak weekly averaged across accounts
-- [ ] The tooltip shows the date, the total and the per-account values
-- [ ] No-data days render distinctly from zero
-- [ ] Core tests cover both modes' daily values and empty-vs-zero; UI tests cover the toggle and tooltip
+- [x] 30 cells ending today, in local days, fit 400px without scrolling
+- [x] The $ / % toggle works; % mode uses peak weekly averaged across accounts
+- [x] The tooltip shows the date, the total and the per-account values
+- [x] No-data days render distinctly from zero
+- [x] Core tests cover both modes' daily values and empty-vs-zero; UI tests cover the toggle and tooltip

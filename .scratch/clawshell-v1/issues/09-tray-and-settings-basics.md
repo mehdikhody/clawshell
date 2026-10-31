@@ -14,11 +14,11 @@ See spec: Settings, user stories 7–11, 72–74, 79–82.
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Tray menu items all work; running accounts are ticked
-- [ ] Close hides or quits according to the setting
-- [ ] Launch at boot registers and unregisters autostart; start hidden is respected at boot
-- [ ] A path override pointing at an invalid file is rejected; a valid one is used for launches
-- [ ] Settings persist across restarts
-- [ ] Core tests cover settings persistence and path validation; UI tests cover the switches and the path field
+- [x] Tray menu items all work; running accounts are ticked
+- [x] Close hides or quits according to the setting
+- [x] Launch at boot registers and unregisters autostart; start hidden is respected at boot
+- [x] A path override pointing at an invalid file is rejected; a valid one is used for launches
+- [x] Settings persist across restarts
+- [x] Core tests cover settings persistence and path validation; UI tests cover the switches and the path field

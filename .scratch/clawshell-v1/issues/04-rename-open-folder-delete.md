@@ -9,11 +9,11 @@ An account whose folder disappeared outside clawshell is flagged and offered for
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Rename updates the label everywhere, and it persists across restarts
-- [ ] Open folder opens the right `clawshell-{uuid}` folder
-- [ ] Delete asks for confirmation, then removes the folder and the metadata
-- [ ] Delete is blocked, with a message, while the account is running
-- [ ] A missing folder is detected and offered for removal
-- [ ] Core and UI tests cover rename, delete-confirm, the delete-while-running refusal and the missing folder
+- [x] Rename updates the label everywhere, and it persists across restarts
+- [x] Open folder opens the right `clawshell-{uuid}` folder
+- [x] Delete asks for confirmation, then removes the folder and the metadata
+- [x] Delete is blocked, with a message, while the account is running
+- [x] A missing folder is detected and offered for removal
+- [x] Core and UI tests cover rename, delete-confirm, the delete-while-running refusal and the missing folder

@@ -9,9 +9,9 @@ Each notification fires at most once per account per window, keyed by that windo
 
 **Blocked by:** 05, 09
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Warning, limited and reset notifications fire at the right crossings
-- [ ] There are no repeats within the same window, across polls or restarts
-- [ ] Thresholds and on/off switches in Settings take effect immediately and persist
-- [ ] Core tests (fake clock and HTTP sequence) cover crossings, dedup and resets; UI tests cover the settings controls
+- [x] Warning, limited and reset notifications fire at the right crossings
+- [x] There are no repeats within the same window, across polls or restarts
+- [x] Thresholds and on/off switches in Settings take effect immediately and persist
+- [x] Core tests (fake clock and HTTP sequence) cover crossings, dedup and resets; UI tests cover the settings controls

@@ -14,13 +14,13 @@ Use shadcn-svelte components first. See spec: Platform and stack, Testing Decisi
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] App opens as a 400×780 frameless, rounded, non-resizable window that can be dragged by the top bar
-- [ ] Minimize works; close quits for now (close to tray comes in 09)
-- [ ] The three bottom tabs switch screens
-- [ ] Dark Claude Code theme tokens replace the scaffold theme
-- [ ] Launching a second copy focuses the first
-- [ ] Template greet code and examples are removed
-- [ ] Core harness: one passing example test drives a core operation against a fixture folder with fake HTTP and clock
-- [ ] UI harness: one passing example test renders the tab bar with IPC mocked
+- [x] App opens as a 400×780 frameless, rounded, non-resizable window that can be dragged by the top bar
+- [x] Minimize works; close quits for now (close to tray comes in 09)
+- [x] The three bottom tabs switch screens
+- [x] Dark Claude Code theme tokens replace the scaffold theme
+- [x] Launching a second copy focuses the first
+- [x] Template greet code and examples are removed
+- [x] Core harness: one passing example test drives a core operation against a fixture folder with fake HTTP and clock
+- [x] UI harness: one passing example test renders the tab bar with IPC mocked
