@@ -2,8 +2,9 @@
 //! changes to the UI.
 
 use crate::core::{
-    Account, AccountList, AddError, Core, DeleteError, Heatmap, LaunchError, LaunchOutcome,
-    MonthCost, OpenFolderError, RefreshOutcome, RenameError, Settings, SettingsError,
+    Account, AccountList, AddError, ColourError, Core, DeleteError, Heatmap, LaunchError,
+    LaunchOutcome, MonthCost, OpenFolderError, RefreshOutcome, RenameError, Settings,
+    SettingsError,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
@@ -38,6 +39,8 @@ impl AccountFeed {
         let Ok(list) = self.core.list_accounts() else {
             return;
         };
+        // Every running window keeps its badged taskbar identity.
+        self.core.apply_taskbar_identities(&list.accounts);
         let mut last = self.last.lock().unwrap();
         if last.as_ref() != Some(&list) {
             let _ = self.app.emit(ACCOUNTS_CHANGED, &list);
@@ -97,6 +100,18 @@ impl From<RenameError> for CommandError {
     }
 }
 
+impl From<ColourError> for CommandError {
+    fn from(e: ColourError) -> Self {
+        match e {
+            ColourError::UnknownAccount => CommandError::new("unknown-account", "No such account"),
+            ColourError::InvalidColour => {
+                CommandError::new("invalid-colour", "The colour must look like #rrggbb")
+            }
+            ColourError::Io(e) => CommandError::new("io", e.to_string()),
+        }
+    }
+}
+
 impl From<OpenFolderError> for CommandError {
     fn from(e: OpenFolderError) -> Self {
         match e {
@@ -130,6 +145,15 @@ pub fn rename_account(
     label: String,
 ) -> Result<Account, CommandError> {
     Ok(core.rename_account(&id, &label)?)
+}
+
+#[tauri::command]
+pub fn set_account_colour(
+    core: State<'_, Arc<Core>>,
+    id: String,
+    colour: String,
+) -> Result<Account, CommandError> {
+    Ok(core.set_account_colour(&id, &colour)?)
 }
 
 #[tauri::command]

@@ -30,6 +30,10 @@ export type UsageSnapshot = {
 export type Account = {
 	id: string;
 	label: string;
+	/** The first letter of the label, in capitals. */
+	badge: string;
+	/** The badge colour, `#rrggbb`. */
+	colour: string;
 	status: AccountStatus;
 	/** A Claude Desktop window is open on this account, whatever the badge says. */
 	running: boolean;
@@ -75,6 +79,8 @@ export type AccountList = {
 	refreshAllowedAt: number | null;
 	/** The 5-hour and weekly windows pooled over the signed-in accounts. */
 	pooled: PooledRemaining;
+	/** The badge colours the picker offers. */
+	palette: string[];
 	accounts: Account[];
 };
 
@@ -92,6 +98,8 @@ export const launchAccount = (id: string) =>
 	invoke<'started' | 'focused'>('launch_account', { id });
 export const renameAccount = (id: string, label: string) =>
 	invoke<Account>('rename_account', { id, label });
+export const setAccountColour = (id: string, colour: string) =>
+	invoke<Account>('set_account_colour', { id, colour });
 export const openAccountFolder = (id: string) => invoke<void>('open_account_folder', { id });
 export const deleteAccount = (id: string) => invoke<void>('delete_account', { id });
 /** Manual usage refresh; the core refuses it inside the minimum interval. */

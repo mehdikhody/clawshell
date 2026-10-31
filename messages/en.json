@@ -22,6 +22,8 @@
 	"menu_rename": "Rename",
 	"menu_open_folder": "Open folder",
 	"menu_delete": "Delete",
+	"menu_badge_colour": "Badge colour",
+	"error_colour_failed": "Couldn't change the colour",
 	"action_cancel": "Cancel",
 	"rename_title": "Rename account",
 	"rename_field": "Name",
