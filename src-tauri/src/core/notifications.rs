@@ -31,7 +31,7 @@ pub(super) enum WindowKind {
 pub(super) enum Event {
     Warning,
     Limited,
-    /// The window that was Limited has reset.
+    /// The window has moved on to a new reset time.
     Reset,
 }
 
@@ -44,8 +44,6 @@ struct WindowNotes {
     resets_at_ms: i64,
     warned: bool,
     limit_notified: bool,
-    /// Usage reached the limit threshold in this window, notified or not.
-    reached_limit: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -123,11 +121,9 @@ fn observe(notes: &mut Option<WindowNotes>, reading: &WindowUsage, rules: &Rules
         .as_ref()
         .is_some_and(|n| (n.resets_at_ms - resets_at_ms).abs() < SAME_WINDOW_MS);
     if !same_window {
-        let previous = notes.take();
-        if rules.reset_on
-            && utilization < rules.limit_at
-            && previous.is_some_and(|p| p.reached_limit)
-        {
+        // Only a window seen before can have reset; the first reading after
+        // launch with no memory of it says nothing either way.
+        if rules.reset_on && notes.is_some() {
             events.push(Event::Reset);
         }
         *notes = Some(WindowNotes {
@@ -135,13 +131,11 @@ fn observe(notes: &mut Option<WindowNotes>, reading: &WindowUsage, rules: &Rules
             resets_at_ms,
             warned: false,
             limit_notified: false,
-            reached_limit: false,
         });
     }
     let notes = notes.as_mut().expect("set above");
 
     if utilization >= rules.limit_at {
-        notes.reached_limit = true;
         if rules.limit_on && !notes.limit_notified {
             events.push(Event::Limited);
             notes.limit_notified = true;
@@ -189,8 +183,8 @@ fn text(
             format!("Its {name} usage is at {percent}%. Switch to another account."),
         ),
         (Language::En, Event::Reset) => (
-            format!("{label} is usable again"),
-            format!("Its {name} window has reset."),
+            format!("{label}'s {name} window has reset"),
+            format!("It is back to {percent}% used."),
         ),
         (Language::Fa, Event::Warning) => (
             format!("{label} به سقف مصرف نزدیک می‌شود"),
@@ -201,8 +195,8 @@ fn text(
             format!("مصرف {name} آن به {percent}٪ رسیده است. به حساب دیگری بروید."),
         ),
         (Language::Fa, Event::Reset) => (
-            format!("{label} دوباره قابل استفاده است"),
-            format!("پنجرهٔ {name} آن بازنشانی شد."),
+            format!("پنجرهٔ {name} {label} بازنشانی شد"),
+            format!("مصرف آن اکنون به {percent}٪ رسیده است."),
         ),
     }
 }

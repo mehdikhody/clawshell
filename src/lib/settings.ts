@@ -18,7 +18,7 @@ export type Settings = {
 	notifyWarning: boolean;
 	/** Notify when a window reaches the limit threshold. */
 	notifyLimited: boolean;
-	/** Notify when a window that was Limited resets. */
+	/** Notify when a window (5-hour or weekly) resets. */
 	notifyReset: boolean;
 	/** Percent of a window at which the warning fires; below the limit threshold, 1 to 100. */
 	warningThreshold: number;

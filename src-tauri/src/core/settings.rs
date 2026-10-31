@@ -38,7 +38,7 @@ pub struct Settings {
     pub notify_warning: bool,
     /// Notify when a window reaches the limit threshold.
     pub notify_limited: bool,
-    /// Notify when a window that was Limited resets.
+    /// Notify when a window (5-hour or weekly) resets.
     pub notify_reset: bool,
     /// Percent of a window at which the warning fires.
     pub warning_threshold: u8,
