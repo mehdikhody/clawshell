@@ -44,6 +44,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as Item from '$lib/components/ui/item';
 	import { Progress } from '$lib/components/ui/progress';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatTag } from '$lib/locale-state.svelte';
 	import { formatPercentValue } from '$lib/locale';
@@ -470,7 +471,24 @@
 			{/each}
 		</Item.Group>
 	{:else if !loaded}
-		<p class="py-10 text-center text-sm text-muted-foreground">{m.loading()}</p>
+		<!-- Two rows shaped like account rows stand in until the first list arrives. -->
+		<Item.Group class="gap-2" aria-busy="true">
+			{#each [0, 1] as n (n)}
+				<Item.Root data-testid="account-skeleton" variant="outline" size="sm" class="flex-wrap">
+					<Item.Media>
+						<Skeleton class="size-8" />
+					</Item.Media>
+					<Item.Content>
+						<Skeleton class="h-4 w-28" />
+						<Skeleton class="h-3 w-40" />
+					</Item.Content>
+					<div class="flex w-full flex-col gap-3">
+						<Skeleton class="h-2 w-full rounded-full" />
+						<Skeleton class="h-2 w-full rounded-full" />
+					</div>
+				</Item.Root>
+			{/each}
+		</Item.Group>
 	{:else if loaded && list.claudeFound}
 		<div class="flex flex-col items-center gap-1 py-10 text-center">
 			<p class="text-sm font-medium">{m.accounts_empty()}</p>

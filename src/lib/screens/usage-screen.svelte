@@ -13,6 +13,8 @@
 	import { heatmap as loadHeatmap, type Heatmap } from '$lib/heatmap';
 	import * as Item from '$lib/components/ui/item';
 	import { Progress } from '$lib/components/ui/progress';
+	import { Separator } from '$lib/components/ui/separator';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { getSettings } from '$lib/settings';
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatTag } from '$lib/locale-state.svelte';
@@ -30,6 +32,13 @@
 	let thresholds = $state<UsageThresholds>(defaultThresholds);
 	let cost = $state<MonthCost | null>(null);
 	let heatmap = $state<Heatmap | null>(null);
+	/**
+	 * Whether each lazily loaded section has had its first answer, or failed. Until then it shows
+	 * a skeleton; refreshes never bring one back.
+	 */
+	let heatmapReady = $state(false);
+	let costReady = $state(false);
+	let listReady = $state(false);
 	/** The month is a scan of transcripts, so pushed changes reread it at most this often. */
 	const COST_REREAD_MS = 60_000;
 	let costReadAt = 0;
@@ -58,6 +67,8 @@
 			list = await listAccounts();
 		} catch {
 			// The core pushes the next snapshot when it can.
+		} finally {
+			listReady = true;
 		}
 	}
 
@@ -65,16 +76,20 @@
 		costReadAt = Date.now();
 		// Independent reads of the same transcripts: one failing must not hide the other.
 		await Promise.all([
-			monthCost().then(
-				(next) => (cost = next ?? cost),
-				() => {
-					// Keep whatever was shown; the next load tries again.
-				}
-			),
-			loadHeatmap().then(
-				(next) => (heatmap = next ?? heatmap),
-				() => {}
-			)
+			monthCost()
+				.then(
+					(next) => (cost = next ?? cost),
+					() => {
+						// Keep whatever was shown; the next load tries again.
+					}
+				)
+				.finally(() => (costReady = true)),
+			loadHeatmap()
+				.then(
+					(next) => (heatmap = next ?? heatmap),
+					() => {}
+				)
+				.finally(() => (heatmapReady = true))
 		]);
 	}
 
@@ -91,6 +106,7 @@
 		const tick = setInterval(() => (now = Date.now()), 1000);
 		const unlisten = onAccountsChanged((next) => {
 			list = next;
+			listReady = true;
 			if (Date.now() - costReadAt >= COST_REREAD_MS) void loadCost();
 		});
 		return () => {
@@ -105,11 +121,47 @@
 		<h1 class="text-base font-semibold">{m.tab_usage()}</h1>
 	</header>
 
-	{#if heatmap && hasHeatmapData(heatmap)}
+	{#if !heatmapReady}
+		<Item.Root data-testid="skeleton-heatmap" variant="outline" size="sm" aria-busy="true">
+			<Item.Content>
+				<Skeleton class="h-4 w-24" />
+				<!-- Same grid as the heatmap: 7 rows, 9 weeks of 1.75rem cells. -->
+				<div
+					class="mx-auto grid w-max auto-cols-[1.75rem] grid-flow-col grid-rows-[repeat(7,1.75rem)] gap-1 py-1"
+				>
+					{#each { length: 63 } as _, i (i)}
+						<Skeleton data-testid="skeleton-day" class="size-7 rounded-sm" />
+					{/each}
+				</div>
+				<Skeleton class="ms-auto h-3 w-40" />
+			</Item.Content>
+		</Item.Root>
+	{:else if heatmap && hasHeatmapData(heatmap)}
 		<UsageHeatmap {heatmap} />
 	{/if}
 
-	{#if list}
+	{#if !listReady}
+		<Item.Root data-testid="skeleton-pooled" variant="outline" size="sm" aria-busy="true">
+			<Item.Content>
+				{#each [0, 1] as n (n)}
+					{#if n > 0}
+						<Item.Separator />
+					{/if}
+					<div class="flex flex-col gap-1">
+						<div class="flex items-baseline justify-between">
+							<Skeleton class="h-4 w-16" />
+							<Skeleton class="h-6 w-12" />
+						</div>
+						<Skeleton data-testid="skeleton-bar" class="h-2 w-full rounded-full" />
+						<div class="flex items-center justify-between">
+							<Skeleton class="h-3 w-32" />
+							<Skeleton class="h-3 w-24" />
+						</div>
+					</div>
+				{/each}
+			</Item.Content>
+		</Item.Root>
+	{:else if list}
 		{#if hasSignedIn}
 			<Item.Root variant="outline" size="sm">
 				<Item.Content>
@@ -126,7 +178,33 @@
 		{/if}
 	{/if}
 
-	{#if cost && cost.accounts.length > 0}
+	{#if !costReady}
+		<Item.Root data-testid="skeleton-cost" variant="outline" size="sm" aria-busy="true">
+			<Item.Content>
+				<div class="flex items-baseline justify-between">
+					<Skeleton class="h-4 w-24" />
+					<Skeleton class="h-6 w-16" />
+				</div>
+				<div class="flex flex-col gap-1.5">
+					<Skeleton class="h-3 w-full" />
+					<Skeleton class="h-3 w-full" />
+					<Skeleton class="h-3 w-full" />
+				</div>
+				<Separator class="my-2" />
+				<div class="flex flex-col gap-4">
+					{#each [0, 1] as n (n)}
+						<div data-testid="skeleton-account-row" class="flex flex-col gap-2">
+							<div class="flex items-baseline justify-between">
+								<Skeleton class="h-3 w-24" />
+								<Skeleton class="h-3 w-20" />
+							</div>
+							<Skeleton class="h-2 w-full rounded-full" />
+						</div>
+					{/each}
+				</div>
+			</Item.Content>
+		</Item.Root>
+	{:else if cost && cost.accounts.length > 0}
 		<MonthCostCard {cost} />
 	{/if}
 </section>

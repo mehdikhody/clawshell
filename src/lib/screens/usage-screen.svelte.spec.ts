@@ -8,7 +8,11 @@ import { mockTauri, type IpcHandlers } from '$lib/test/tauri-ipc';
 import { pooledWindow } from '$lib/test/pooled';
 import { accountCost, monthCost } from '$lib/test/cost';
 import { heatmapOf, values } from '$lib/test/heatmap';
+import { deferred } from '$lib/test/deferred';
+import type { Heatmap } from '$lib/heatmap';
+import type { MonthCost as MonthCostType } from '$lib/cost';
 import { emptyPooled, type AccountList, type PooledRemaining } from '$lib/accounts';
+import { autoRefresh } from '$lib/auto-refresh.svelte';
 import { switchLocale } from '$lib/locale-state.svelte';
 import { intlLocale } from '$lib/locale';
 import UsageScreen from './usage-screen.svelte';
@@ -567,5 +571,115 @@ describe('UsageScreen in Persian', () => {
 		expect(title.element().getBoundingClientRect().left).toBeGreaterThan(
 			percent.element().getBoundingClientRect().left
 		);
+	});
+});
+
+describe('UsageScreen skeletons', () => {
+	const heatmapSkeleton = () => page.getByTestId('skeleton-heatmap');
+	const costSkeleton = () => page.getByTestId('skeleton-cost');
+	const pooledSkeleton = () => page.getByTestId('skeleton-pooled');
+
+	it('holds the heatmap place with a day grid until its first answer, then swaps in the grid', async () => {
+		const answer = deferred<Heatmap>();
+		mount(listWith(emptyPooled), { heatmap: () => answer.promise });
+
+		await expect.element(heatmapSkeleton()).toBeVisible();
+		expect(heatmapSkeleton().getByTestId('skeleton-day').elements()).toHaveLength(63);
+
+		answer.resolve(heatmapOf({ '2026-06-10': { usd: values([['Work', 1]]) } }));
+
+		await expect.element(page.getByRole('group', { name: 'Last 9 weeks' })).toBeVisible();
+		await expect.element(heatmapSkeleton()).not.toBeInTheDocument();
+	});
+
+	it('holds the This month place with a card of rows until its first answer', async () => {
+		const answer = deferred<MonthCostType>();
+		mount(listWith(emptyPooled), { month_cost: () => answer.promise });
+
+		await expect.element(costSkeleton()).toBeVisible();
+		expect(costSkeleton().getByTestId('skeleton-account-row').elements()).toHaveLength(2);
+
+		answer.resolve(monthCost({ accounts: [accountCost('Work')] }));
+
+		await expect.element(page.getByText('This month')).toBeVisible();
+		await expect.element(costSkeleton()).not.toBeInTheDocument();
+	});
+
+	it('holds the pooled usage place with two bars until the list arrives', async () => {
+		const answer = deferred<AccountList>();
+		mount(listWith(emptyPooled), { list_accounts: () => answer.promise });
+
+		await expect.element(pooledSkeleton()).toBeVisible();
+		expect(pooledSkeleton().getByTestId('skeleton-bar').elements()).toHaveLength(2);
+		await expect.element(page.getByText('No signed-in accounts')).not.toBeInTheDocument();
+
+		answer.resolve(
+			listWith({
+				fiveHour: pooledWindow({ remainingPercent: 80, available: 1, total: 1 }),
+				weekly: pooledWindow({ remainingPercent: 80, available: 1, total: 1 })
+			})
+		);
+
+		await expect.element(page.getByRole('progressbar', { name: '5-hour' })).toBeVisible();
+		await expect.element(pooledSkeleton()).not.toBeInTheDocument();
+	});
+
+	it('removes a section that comes back empty or failed, leaving no placeholder behind', async () => {
+		const heat = deferred<Heatmap>();
+		const month = deferred<MonthCostType>();
+		mount(listWith(emptyPooled), { heatmap: () => heat.promise, month_cost: () => month.promise });
+		await expect.element(heatmapSkeleton()).toBeVisible();
+		await expect.element(costSkeleton()).toBeVisible();
+
+		heat.resolve(heatmapOf());
+		month.reject(new Error('boom'));
+
+		await expect.element(heatmapSkeleton()).not.toBeInTheDocument();
+		await expect.element(costSkeleton()).not.toBeInTheDocument();
+		await expect.element(page.getByText('Last 9 weeks')).not.toBeInTheDocument();
+		await expect.element(page.getByText('This month')).not.toBeInTheDocument();
+	});
+
+	it('removes the cost placeholder when the month has no accounts', async () => {
+		mount(listWith(emptyPooled), { month_cost: () => monthCost({ accounts: [] }) });
+
+		await expect.element(page.getByText('No usage data yet').first()).toBeVisible();
+		await expect.element(costSkeleton()).not.toBeInTheDocument();
+		await expect.element(page.getByText('This month')).not.toBeInTheDocument();
+	});
+
+	it('never brings a placeholder back on a refresh, and keeps the old data meanwhile', async () => {
+		const month = monthCost({ accounts: [accountCost('Work')] });
+		const next = deferred<MonthCostType>();
+		let reads = 0;
+		const pooled = {
+			fiveHour: pooledWindow({ remainingPercent: 80, available: 1, total: 1 }),
+			weekly: pooledWindow({ remainingPercent: 80, available: 1, total: 1 })
+		};
+		const tauri = mount(listWith(pooled), {
+			month_cost: () => (++reads === 1 ? month : next.promise),
+			heatmap: () => heatmapOf({ '2026-06-10': { usd: values([['Work', 1]]) } })
+		});
+		await expect.element(page.getByText('This month')).toBeVisible();
+		await expect.element(page.getByRole('group', { name: 'Last 9 weeks' })).toBeVisible();
+
+		autoRefresh.tick += 1;
+		await vi.waitFor(() =>
+			expect(tauri.calls.filter((c) => c.cmd === 'month_cost')).toHaveLength(2)
+		);
+
+		await expect.element(page.getByText('This month')).toBeVisible();
+		await expect.element(page.getByRole('group', { name: 'Last 9 weeks' })).toBeVisible();
+		await expect.element(page.getByRole('progressbar', { name: '5-hour' })).toBeVisible();
+		expect(document.querySelector('[data-slot=skeleton]')).toBeNull();
+		next.resolve(month);
+	});
+
+	it('keeps placeholders still under reduced motion', async () => {
+		mount(listWith(emptyPooled), { heatmap: () => new Promise(() => {}) });
+
+		await expect.element(heatmapSkeleton()).toBeVisible();
+		const bar = heatmapSkeleton().element().querySelector('[data-slot=skeleton]')!;
+		expect(bar.classList.contains('motion-reduce:animate-none')).toBe(true);
 	});
 });

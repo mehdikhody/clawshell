@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import { emit } from '@tauri-apps/api/event';
 import '../../routes/layout.css';
 import { mockTauri, type IpcHandlers } from '$lib/test/tauri-ipc';
+import { deferred } from '$lib/test/deferred';
 import { emptyPooled, type AccountList } from '$lib/accounts';
 import { addRequest } from '$lib/add-account-request.svelte';
 
@@ -740,6 +741,41 @@ describe('AccountsScreen', () => {
 				.toHaveAttribute('aria-disabled', 'true');
 			expect(tauri.calls.some((c) => c.cmd === 'launch_account')).toBe(false);
 		});
+	});
+});
+
+describe('AccountsScreen loading', () => {
+	const skeletons = () => page.getByTestId('account-skeleton');
+
+	it('shows two account-shaped placeholder rows until the list arrives', async () => {
+		const answer = deferred<AccountList>();
+		mount({ list_accounts: () => answer.promise });
+
+		await expect.element(skeletons().first()).toBeVisible();
+		expect(skeletons().elements()).toHaveLength(2);
+		await expect.element(page.getByText('Loading…')).not.toBeInTheDocument();
+
+		answer.resolve(threeAccounts);
+
+		await expect.element(page.getByRole('listitem').first()).toBeVisible();
+		await expect.element(skeletons()).not.toBeInTheDocument();
+	});
+
+	it('replaces the placeholders with the empty state when there are no accounts', async () => {
+		mount({}, { ...threeAccounts, accounts: [] });
+
+		await expect.element(page.getByText('No accounts yet')).toBeVisible();
+		await expect.element(skeletons()).not.toBeInTheDocument();
+	});
+
+	it('never brings the placeholders back on a refresh', async () => {
+		mount();
+		await expect.element(page.getByRole('listitem').first()).toBeVisible();
+
+		await emit('accounts-changed', { ...threeAccounts, accounts: [] });
+
+		await expect.element(page.getByText('No accounts yet')).toBeVisible();
+		await expect.element(skeletons()).not.toBeInTheDocument();
 	});
 });
 
