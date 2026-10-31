@@ -56,7 +56,8 @@ pub fn run() {
             commands::open_account_folder,
             commands::delete_account,
             commands::refresh_usage,
-            commands::month_cost
+            commands::month_cost,
+            commands::heatmap
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

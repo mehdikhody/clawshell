@@ -25,6 +25,8 @@ pub const PROFILE_URL: &str = "https://api.anthropic.com/api/oauth/profile";
 pub const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
 const OAUTH_BETA: &str = "oauth-2025-04-20";
 const HISTORY_FILE: &str = "plan-usage-history.json";
+/// How long this session's polls are remembered for the heatmap.
+const POLL_MEMORY_MS: i64 = 31 * 86_400_000;
 
 /// Where a snapshot's numbers came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -104,6 +106,9 @@ pub(super) struct AccountUsage {
     next_due_ms: i64,
     failures: u32,
     saturated_since_ms: Option<i64>,
+    /// Weekly readings from this session's successful polls, `(epoch ms, %)`,
+    /// kept for the heatmap. Only the last `POLL_MEMORY_MS` is held.
+    weekly_polls: Vec<(i64, f64)>,
 }
 
 impl AccountUsage {
@@ -113,6 +118,12 @@ impl AccountUsage {
             .last_attempt_ms
             .map_or(i64::MIN, |at| at.saturating_add(ms(MIN_INTERVAL)));
         spaced.max(self.blocked_until_ms.unwrap_or(i64::MIN))
+    }
+
+    fn record_weekly(&mut self, at_ms: i64, percent: f64) {
+        self.weekly_polls.push((at_ms, percent));
+        self.weekly_polls
+            .retain(|(at, _)| at_ms.saturating_sub(*at) <= POLL_MEMORY_MS);
     }
 
     fn saturated_floor_active(&self, now_ms: i64) -> bool {
@@ -246,6 +257,9 @@ impl Core {
                 s.blocked_until_ms = None;
                 let seed = jitter_seed(id, now);
                 let interval = adaptive_interval(snapshot.max_utilization(), running);
+                if let Some(w) = &snapshot.weekly {
+                    s.record_weekly(now, w.utilization);
+                }
                 s.snapshot = Some(snapshot);
                 apply_saturated_floor(next_poll_delay(interval, jitter_unit(seed)), floor_active)
             }
@@ -441,4 +455,47 @@ fn fallback(
         (None, Some(h)) => Some(from_history(h)),
         (None, None) => None,
     }
+}
+
+impl Core {
+    /// Every weekly reading we have per account, `(epoch ms, %)`: Claude's own
+    /// `plan-usage-history.json` plus this session's polls. Unreadable files
+    /// contribute nothing.
+    pub(super) fn weekly_readings(
+        &self,
+        accounts: &[super::Account],
+    ) -> HashMap<String, Vec<(i64, f64)>> {
+        let state = self.usage.lock().unwrap();
+        accounts
+            .iter()
+            .map(|a| {
+                let mut readings = read_weekly_history(&a.path);
+                if let Some(s) = state.accounts.get(&a.id) {
+                    readings.extend_from_slice(&s.weekly_polls);
+                }
+                (a.id.clone(), readings)
+            })
+            .collect()
+    }
+}
+
+/// Every weekly sample of `plan-usage-history.json`, `(epoch ms, %)`.
+fn read_weekly_history(profile: &Path) -> Vec<(i64, f64)> {
+    let Ok(text) = std::fs::read_to_string(profile.join(HISTORY_FILE)) else {
+        return Vec::new();
+    };
+    let Ok(json) = serde_json::from_str::<Value>(&text) else {
+        return Vec::new();
+    };
+    json.get("samples")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|sample| {
+            Some((
+                sample.get("t")?.as_i64()?,
+                sample.pointer("/u/sd")?.as_f64()?,
+            ))
+        })
+        .collect()
 }

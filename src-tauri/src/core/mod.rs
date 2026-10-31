@@ -18,7 +18,7 @@ pub use accounts::{
     Account, AccountList, AddError, DeleteError, LaunchError, LaunchOutcome, OpenFolderError,
     RenameError, Status,
 };
-pub use cost::{AccountCost, MonthCost, NoEstimate};
+pub use cost::{AccountCost, Heatmap, MonthCost, NoEstimate};
 pub use pooled::{PooledRemaining, PooledWindow};
 pub use usage::{RefreshOutcome, UsageSnapshot, UsageSource};
 
