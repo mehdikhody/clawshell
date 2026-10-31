@@ -2,6 +2,10 @@
 
 clawshell runs several Claude Desktop sign-ins side by side on one Windows machine and shows their limits and cost together.
 
+**Disclaimer**:
+The statement of what clawshell is and does, which a user accepts before clawshell starts working. Each wording has a version, and a new version must be accepted again.
+_Avoid_: Terms, EULA, consent
+
 ## Accounts
 
 **Account**:

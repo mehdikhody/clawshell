@@ -2,7 +2,7 @@
 
 Status: ready-for-agent
 
-Four features: Quit Claude, session copy, three new languages with a separate Calendar setting, and skeleton loading. Terms follow `GLOSSARY.md`; the decisions behind them are ADRs 0002, 0003 and 0004.
+Five features: Quit Claude, session copy, three new languages with a separate Calendar setting, skeleton loading, and a disclaimer accepted on first use. Terms follow `GLOSSARY.md`; the decisions behind them are ADRs 0002, 0003 and 0004.
 
 ## Problem Statement
 
@@ -10,6 +10,7 @@ Four features: Quit Claude, session copy, three new languages with a separate Ca
 - **Session copy.** When one account hits its limit in the middle of a Code session, the work is stuck in that account. Its transcript is already on disk, but the other accounts' Code tabs don't list it, so there's no way to carry on elsewhere.
 - **Languages.** clawshell speaks English and Persian only. The language also fixes the calendar: Persian always means Jalali, and English always means Gregorian, even for people who date things differently.
 - **Loading.** The Usage tab shows nothing until each section arrives, then the sections pop in and push each other down. The Accounts tab shows one "Loading…" line.
+- **Disclaimer.** clawshell is unofficial. It reads Claude's sign-ins, starts and ends Claude, and from v0.3.0 writes into Claude's profiles. Nothing tells a new user any of this before it starts working.
 
 ## Solution
 
@@ -17,6 +18,7 @@ Four features: Quit Claude, session copy, three new languages with a separate Ca
 - **Copy sessions:** a context-menu item opens a dialog. You tick Code sessions, pick a target account, and clawshell writes those sessions' records into the target's profile. The source keeps them, and both accounts continue the same transcript.
 - **Languages:** Arabic, Russian and Simplified Chinese join English and Persian. A new Calendar setting (Automatic, Gregorian, Jalali, Hijri, Chinese lunar) decides how dates are written, which digits every number uses, which day weeks start on, and what This month means.
 - **Skeletons:** shadcn-svelte Skeleton placeholders, shaped like the content they stand for, fill every lazily loaded section until its first answer arrives.
+- **Disclaimer:** on first use, a dialog shows the disclaimer with Accept and Exit. Exit quits clawshell. Accept saves the acceptance with the disclaimer's version, so the dialog only comes back when a release changes the text.
 
 ## User Stories
 
@@ -59,6 +61,16 @@ Four features: Quit Claude, session copy, three new languages with a separate Ca
 30. As a user, I want automatic refreshes to keep the old data on screen instead of flashing placeholders.
 31. As a user, I want a section with no data to disappear after its placeholder, as it does today.
 32. As a user who prefers reduced motion, I want the placeholders to stay still.
+
+### Disclaimer
+33. As a new user, I want to read what clawshell is and does before it starts working, so that I can decide whether to use it.
+34. As a user, I want Exit to close clawshell at once, so that declining leaves it doing nothing.
+35. As a user, I want Accept to be remembered, so that I don't see the dialog on every start.
+36. As a user, I want to see the dialog again only when its text changes, so that I agree to what it says now.
+37. As a user, I want the dialog in my language, the one detected from Windows on first run.
+38. As a user, I want the dialog to stay put (no close button, and Esc or clicking outside do nothing), so that I can't skip it by accident. Closing the window counts as Exit.
+39. As a user whose clawshell starts with Windows, I want the window and dialog shown even if clawshell is set to start hidden, so that it never runs unaccepted in the tray.
+40. As a user who clicks an account shortcut or a sign-in link before accepting, I want that action carried out after I accept.
 
 ## Implementation Decisions
 
@@ -104,6 +116,24 @@ Four features: Quit Claude, session copy, three new languages with a separate Ca
 - **Accounts tab.** While `!loaded`, show two skeleton rows shaped like an account row (icon, name, email line, two usage bars) instead of `m.loading()`. Once the list loads, accounts without usage show "No usage yet" as today; the core isn't changed.
 - Refreshes (auto-refresh, the core pushing a new snapshot, manual refresh) never go back to skeletons.
 
+### Disclaimer
+- **Storage.** A `DISCLAIMER_VERSION` constant in the core starts at `1`. `settings.json` gains `disclaimerAccepted: number | null`, default `null`. The disclaimer counts as accepted when the saved value is at least `DISCLAIMER_VERSION`. Bump the constant whenever the text changes in a meaningful way. Existing users have no saved value, so they see the dialog once after updating to v0.3.0.
+- **Before acceptance**, only the window runs. `setup` in `lib.rs` builds the core and always shows the main window, ignoring `start_hidden`/boot. Everything else waits until acceptance: `watch_accounts`, `poll_usage`, `tray::build`, `keep_link_handler`, and the command-line shortcut and link handling. The window's own background work waits too: the updater check in `update.svelte.ts` and the auto-refresh timers. The screens may render behind the dialog using read-only commands.
+- **Held launch arguments.** Shortcut and `claude://` arguments from the first launch, and from second instances (`single_instance`), are queued while the disclaimer is pending. After acceptance they're applied in order through `open_from_command_line` / `route_from_command_line`.
+- **Commands.**
+  - `disclaimer_status` returns `{ accepted, version }`.
+  - `accept_disclaimer` saves `DISCLAIMER_VERSION`, starts the deferred background work (the rest of `setup`, factored into one `start_background(app, core)` that runs once), and replays the held arguments.
+  - `decline_disclaimer` calls `app.exit(0)`.
+- **Dialog.** `disclaimer-dialog.svelte`, built on `AlertDialog`, is mounted in the root layout. While the disclaimer isn't accepted it's open, with no close button, and Esc and clicking outside do nothing. It has two buttons, Exit (outline) and Accept (primary). Its text is in the current language (detected on first run, see Languages), with no language picker. Right to left in Persian and Arabic.
+- **Window close.** While the disclaimer is pending, `CloseRequested` on the main window exits, whatever `close_to_tray` says.
+- **Text (English draft; message keys `disclaimer_title`, `disclaimer_body`, `disclaimer_accept`, `disclaimer_exit`, translated into all five languages):**
+  - Title: "Before you start"
+  - Body:
+    - "clawshell is an unofficial tool. It is not made, endorsed or supported by Anthropic."
+    - "To work, it reads each account's Claude sign-in to fetch usage and cost from Anthropic, starts and ends Claude Desktop, and changes files in Claude's profiles, for example when copying sessions. A Claude update can break any of this."
+    - "You use it at your own risk. It's your responsibility to use Claude and multiple accounts within Anthropic's terms."
+  - Buttons: "Accept", "Exit"
+
 ## Testing Decisions
 
 - **Core (Rust, `src-tauri/tests/`):**
@@ -124,6 +154,15 @@ Four features: Quit Claude, session copy, three new languages with a separate Ca
   - The Calendar dropdown sits under Language and keeps a pinned value across language changes.
   - Extra usage is labelled under Jalali.
   - Skeletons show before the first answer, disappear on empty data, and don't come back on refresh.
+- **Disclaimer (core):**
+  - The disclaimer is unaccepted with no settings file, accepted at the current version, and unaccepted again after a version bump.
+  - `accept_disclaimer` saves the version and starts the background work exactly once.
+  - Held arguments are replayed in order after acceptance.
+- **Disclaimer (component):**
+  - The dialog shows when unaccepted and is absent when accepted.
+  - Esc and clicking outside don't close it.
+  - Accept calls `accept_disclaimer`; Exit calls `decline_disclaimer`.
+  - Persian and Arabic render right to left.
 - **Manual:** copy a real session between two signed-in accounts and into and out of the default account. Restart the target and continue the session there. Check the This month figure in each calendar.
 
 ## Out of Scope
@@ -136,6 +175,7 @@ Four features: Quit Claude, session copy, three new languages with a separate Ca
 - Traditional Chinese, and calendars beyond the five listed.
 - Native-speaker review of the new translations before release.
 - Telling "usage not fetched yet" apart from "no usage" on the Accounts tab.
+- A language picker in the disclaimer dialog, and a way to reread the disclaimer after accepting it.
 
 ## Further Notes
 
