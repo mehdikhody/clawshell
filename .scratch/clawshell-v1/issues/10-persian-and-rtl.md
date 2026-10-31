@@ -4,10 +4,10 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The language picker switches between en and fa at runtime and persists
-- [ ] fa sets the RTL direction and mirrors the layout correctly
-- [ ] Numbers, percentages, currency and dates are formatted with Persian digits in fa
-- [ ] All strings existing at the time are translated in both locales
-- [ ] UI tests cover RTL direction and Persian-digit formatting
+- [x] The language picker switches between en and fa at runtime and persists
+- [x] fa sets the RTL direction and mirrors the layout correctly
+- [x] Numbers, percentages, currency and dates are formatted with Persian digits in fa
+- [x] All strings existing at the time are translated in both locales
+- [x] UI tests cover RTL direction and Persian-digit formatting

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { intlLocale } from './locale';
 import { formatAgo, formatCountdown, formatReset } from './usage';
 
 // Local-time dates keep these independent of the machine's time zone.
@@ -25,6 +26,21 @@ describe('formatReset', () => {
 	it('returns an empty string for a missing or unreadable time', () => {
 		expect(formatReset(null, now, 'en-US')).toBe('');
 		expect(formatReset('not a date', now, 'en-US')).toBe('');
+	});
+});
+
+describe('formatReset in Persian', () => {
+	const fa = intlLocale('fa');
+	const now = at(2026, 6, 15, 12);
+
+	it('writes the clock time in Persian digits', () => {
+		expect(formatReset(at(2026, 6, 15, 15, 0).toISOString(), now, fa)).toBe('۱۵:۰۰');
+	});
+
+	it('keeps Gregorian dates, with Persian digits', () => {
+		// 25 June 2026 is 4 Tir 1405 on the Persian calendar; the spec keeps Gregorian.
+		const text = formatReset(at(2026, 6, 25, 9, 30).toISOString(), now, fa);
+		expect(text).toBe('۲۵ ژوئن، ۹:۳۰');
 	});
 });
 
@@ -59,5 +75,19 @@ describe('formatCountdown', () => {
 
 	it('clamps negative waits to zero', () => {
 		expect(formatCountdown(-5)).toBe('0:00');
+	});
+});
+
+describe('formatAgo in Persian', () => {
+	it('uses Persian digits', () => {
+		const now = 1_781_524_800_000;
+		expect(formatAgo(now - 5 * 60_000, now, intlLocale('fa'))).toBe('۵ دقیقه پیش');
+	});
+});
+
+describe('formatCountdown in Persian', () => {
+	it('uses Persian digits and keeps the zero padding', () => {
+		expect(formatCountdown(151_000, intlLocale('fa'))).toBe('۲:۳۱');
+		expect(formatCountdown(180_000, intlLocale('fa'))).toBe('۳:۰۰');
 	});
 });

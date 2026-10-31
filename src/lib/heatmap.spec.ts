@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { cellsFor, formatPercent, intensity, parseDay, type HeatmapDay } from './heatmap';
+import { intlLocale } from './locale';
+import {
+	cellsFor,
+	formatDay,
+	formatPercent,
+	intensity,
+	parseDay,
+	type HeatmapDay
+} from './heatmap';
 
 const day = (date: string): HeatmapDay => ({ date, usd: null, percent: null });
 
@@ -64,5 +72,21 @@ describe('formatPercent', () => {
 	it('rounds to a whole percent', () => {
 		expect(formatPercent(34.6, 'en-US')).toBe('35%');
 		expect(formatPercent(0, 'en-US')).toBe('0%');
+	});
+});
+
+describe('formatDay', () => {
+	it('writes a short date', () => {
+		expect(formatDay('2026-06-15', 'en-US')).toBe('Jun 15');
+	});
+
+	it('writes a Gregorian date in Persian digits', () => {
+		expect(formatDay('2026-06-15', intlLocale('fa'))).toBe('۱۵ ژوئن');
+	});
+});
+
+describe('formatPercent in Persian', () => {
+	it('uses Persian digits and the Persian percent sign', () => {
+		expect(formatPercent(34.6, intlLocale('fa'))).toBe('۳۵٪');
 	});
 });

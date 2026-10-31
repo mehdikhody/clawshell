@@ -22,8 +22,8 @@ pub use accounts::{
 };
 pub use cost::{AccountCost, Heatmap, MonthCost, NoEstimate};
 pub use pooled::{PooledRemaining, PooledWindow};
-pub use settings::{OverrideAware, Settings, SettingsError};
-pub use shell::{CloseAction, TrayEntry};
+pub use settings::{Language, OverrideAware, Settings, SettingsError};
+pub use shell::{CloseAction, TrayEntry, TrayLabels};
 pub use usage::{RefreshOutcome, UsageSnapshot, UsageSource};
 
 use ports::{Clock, HttpClient, OsAdapters, ProcessInspector, Roots, TokenReader};

@@ -2,7 +2,7 @@
 //! they can be tested: what Close does, whether a launch shows the window,
 //! and what the tray menu offers.
 
-use super::{Core, Status};
+use super::{Core, Language, Status};
 use std::io;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,7 +26,36 @@ pub enum TrayEntry {
     Quit,
 }
 
+/// The fixed words of the tray menu, in the saved language.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrayLabels {
+    pub open: &'static str,
+    pub add_account: &'static str,
+    pub quit: &'static str,
+}
+
+impl Language {
+    fn tray_labels(self) -> TrayLabels {
+        match self {
+            Language::En => TrayLabels {
+                open: "Open clawshell",
+                add_account: "Add account",
+                quit: "Quit",
+            },
+            Language::Fa => TrayLabels {
+                open: "باز کردن clawshell",
+                add_account: "افزودن حساب",
+                quit: "خروج",
+            },
+        }
+    }
+}
+
 impl Core {
+    pub fn tray_labels(&self) -> TrayLabels {
+        self.settings().language.tray_labels()
+    }
+
     /// What the window's close button does, per "close to tray".
     pub fn close_action(&self) -> CloseAction {
         if self.settings().close_to_tray {

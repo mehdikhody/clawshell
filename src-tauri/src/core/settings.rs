@@ -10,6 +10,15 @@ use std::path::{Path, PathBuf};
 const APP_DATA_DIR: &str = "clawshell";
 const FILE: &str = "settings.json";
 
+/// The interface language, saved as `en` or `fa`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Language {
+    #[default]
+    En,
+    Fa,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -19,6 +28,8 @@ pub struct Settings {
     pub start_hidden: bool,
     /// The close button hides the window to the tray; off, it quits.
     pub close_to_tray: bool,
+    /// The language of the window and the tray menu.
+    pub language: Language,
     /// Where `Claude.exe` is, when detection can't find it.
     pub claude_path: Option<PathBuf>,
 }
@@ -29,6 +40,7 @@ impl Default for Settings {
             launch_at_boot: false,
             start_hidden: false,
             close_to_tray: true,
+            language: Language::En,
             claude_path: None,
         }
     }

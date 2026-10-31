@@ -3,7 +3,7 @@
 
 mod support;
 
-use clawshell_lib::core::{CloseAction, TrayEntry};
+use clawshell_lib::core::{CloseAction, Language, TrayEntry};
 use support::Harness;
 
 const ID_A: &str = "3f2b8c1e-5a4d-4e7b-9c10-2d6f8a9b0c11";
@@ -114,4 +114,32 @@ fn an_account_whose_folder_is_gone_is_not_offered_in_the_tray() {
             TrayEntry::Quit
         ]
     );
+}
+
+// Tray labels follow the language setting
+
+#[test]
+fn tray_labels_are_english_by_default() {
+    let h = Harness::new();
+
+    let labels = h.core().tray_labels();
+
+    assert_eq!(labels.open, "Open clawshell");
+    assert_eq!(labels.add_account, "Add account");
+    assert_eq!(labels.quit, "Quit");
+}
+
+#[test]
+fn tray_labels_switch_to_persian_with_the_language_setting() {
+    let h = Harness::new();
+    let core = h.core();
+    let mut settings = core.settings();
+    settings.language = Language::Fa;
+    core.update_settings(settings).unwrap();
+
+    let labels = h.core().tray_labels();
+
+    assert_eq!(labels.open, "باز کردن clawshell");
+    assert_eq!(labels.add_account, "افزودن حساب");
+    assert_eq!(labels.quit, "خروج");
 }

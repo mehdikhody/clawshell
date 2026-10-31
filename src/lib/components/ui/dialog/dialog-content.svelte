@@ -2,6 +2,7 @@
 	import { Dialog as DialogPrimitive } from "bits-ui";
 	import IconX from '@tabler/icons-svelte/icons/x';
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { m } from "$lib/paraglide/messages.js";
 	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
 	import DialogOverlay from "./dialog-overlay.svelte";
 	import DialogPortal from "./dialog-portal.svelte";
@@ -37,9 +38,9 @@
 		{#if showCloseButton}
 			<DialogPrimitive.Close data-slot="dialog-close">
 				{#snippet child({ props })}
-					<Button variant="ghost" class="absolute top-4 right-4" size="icon-sm" {...props}>
+					<Button variant="ghost" class="absolute top-4 end-4" size="icon-sm" {...props}>
 						<IconX  />
-						<span class="sr-only">Close</span>
+						<span class="sr-only">{m.window_close()}</span>
 					</Button>
 				{/snippet}
 			</DialogPrimitive.Close>

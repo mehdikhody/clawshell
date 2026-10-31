@@ -6,6 +6,7 @@ import '../../routes/layout.css';
 import { mockTauri, type IpcHandlers } from '$lib/test/tauri-ipc';
 import { emptyPooled, type AccountList } from '$lib/accounts';
 
+import { switchLocale } from '$lib/locale-state.svelte';
 import AccountsScreen from './accounts-screen.svelte';
 
 let restore: () => void;
@@ -624,5 +625,57 @@ describe('AccountsScreen usage', () => {
 			await expect.element(page.getByText(/Next refresh allowed in/)).toBeVisible();
 			await expect.element(page.getByRole('button', { name: 'Refresh usage' })).toBeDisabled();
 		});
+	});
+});
+
+describe('AccountsScreen in Persian', () => {
+	afterEach(() => switchLocale('en'));
+
+	const withUsage = {
+		claudeFound: true,
+		refreshAllowedAt: null,
+		pooled: emptyPooled,
+		accounts: [
+			{
+				id: 'id-1',
+				label: 'Work',
+				status: 'idle',
+				running: false,
+				email: null,
+				usage: {
+					fiveHour: { utilization: 42, resetsAt: new Date(2030, 0, 1, 15, 0).toISOString() },
+					weekly: { utilization: 17.4, resetsAt: null },
+					extraUsage: null,
+					fetchedAtMs: Date.now() - 5 * 60_000,
+					source: 'stale'
+				}
+			}
+		]
+	} as unknown as AccountList;
+
+	it('translates the rows and writes usage and dates in Persian digits', async () => {
+		switchLocale('fa');
+		mount({}, withUsage);
+
+		const row = page.getByRole('listitem').nth(0);
+		await expect.element(row).toHaveTextContent('آماده');
+		await expect.element(row).toHaveTextContent('۴۲٪');
+		await expect.element(row).toHaveTextContent('۱۷٪');
+		await expect.element(row).toHaveTextContent('۱ ژانویه، ۱۵:۰۰');
+		await expect.element(row).toHaveTextContent('۵ دقیقه پیش');
+		expect(row.element().textContent).not.toMatch(/[0-9]/);
+	});
+
+	it('puts the status badge on the left of a right-aligned name', async () => {
+		switchLocale('fa');
+		mount({}, withUsage);
+
+		const row = page.getByRole('listitem').nth(0);
+		const name = row.getByText('Work');
+		const badge = row.getByText('آماده');
+		await expect.element(name).toBeVisible();
+		expect(name.element().getBoundingClientRect().left).toBeGreaterThan(
+			badge.element().getBoundingClientRect().left
+		);
 	});
 });

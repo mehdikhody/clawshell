@@ -8,6 +8,7 @@ import { pooledWindow } from '$lib/test/pooled';
 import { accountCost, monthCost } from '$lib/test/cost';
 import { heatmapOf, values } from '$lib/test/heatmap';
 import { emptyPooled, type AccountList, type PooledRemaining } from '$lib/accounts';
+import { switchLocale } from '$lib/locale-state.svelte';
 import UsageScreen from './usage-screen.svelte';
 
 let restore: () => void;
@@ -454,5 +455,83 @@ describe('UsageScreen heatmap', () => {
 		await page.getByRole('button', { name: 'Refresh usage' }).click();
 
 		await vi.waitFor(() => expect(tauri.calls.filter((c) => c.cmd === 'heatmap')).toHaveLength(2));
+	});
+});
+
+describe('UsageScreen in Persian', () => {
+	afterEach(() => switchLocale('en'));
+
+	it('translates the screen and writes percentages and counts in Persian digits', async () => {
+		switchLocale('fa');
+		mount(
+			listWith(
+				{
+					fiveHour: pooledWindow({ remainingPercent: 80, available: 2, total: 3 }),
+					weekly: pooledWindow({ remainingPercent: 55.4, available: 2, total: 3 })
+				},
+				['idle', 'idle', 'limited']
+			)
+		);
+
+		await expect.element(page.getByRole('heading', { name: 'مصرف' })).toBeVisible();
+		await expect.element(page.getByText('۸۰٪', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('۵۵٪', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('۲ از ۳ حساب در دسترس').first()).toBeVisible();
+	});
+
+	it('writes the month in Persian digits', async () => {
+		switchLocale('fa');
+		const work = accountCost('Work', {
+			estimateUsd: 1,
+			extraUsd: 12.5,
+			totalUsd: 13.5,
+			share: 0.82
+		});
+		mount(listWith(emptyPooled), {
+			month_cost: () =>
+				monthCost({ estimateUsd: 1, extraUsd: 12.5, totalUsd: 13.5, accounts: [work] })
+		});
+
+		await expect.element(page.getByText('این ماه')).toBeVisible();
+		await expect.element(page.getByText('$۱۳٫۵۰', { exact: false }).first()).toBeVisible();
+		await expect.element(page.getByText('۸۲٪')).toBeVisible();
+	});
+
+	it('fills a bar from the right edge', async () => {
+		switchLocale('fa');
+		mount(
+			listWith({
+				fiveHour: pooledWindow({ remainingPercent: 25, available: 1, total: 1 }),
+				weekly: pooledWindow({ remainingPercent: 25, available: 1, total: 1 })
+			})
+		);
+
+		const bar = page.getByRole('progressbar', { name: '۵ ساعته' });
+		await expect.element(bar).toBeVisible();
+		const track = bar.element().getBoundingClientRect();
+		const fill = bar
+			.element()
+			.querySelector('[data-slot=progress-indicator]')!
+			.getBoundingClientRect();
+		// The filled quarter is the right-hand quarter: the fill box is pushed right by the empty 75%.
+		expect(Math.round(fill.left - track.left)).toBe(Math.round(track.width * 0.75));
+	});
+
+	it('keeps the layout in right-to-left order', async () => {
+		switchLocale('fa');
+		mount(
+			listWith({
+				fiveHour: pooledWindow({ remainingPercent: 50, available: 1, total: 1 }),
+				weekly: pooledWindow({ remainingPercent: 50, available: 1, total: 1 })
+			})
+		);
+
+		const title = page.getByText('۵ ساعته').first();
+		const percent = page.getByText('۵۰٪').first();
+		await expect.element(title).toBeVisible();
+		// The title starts on the right and the figure ends on the left.
+		expect(title.element().getBoundingClientRect().left).toBeGreaterThan(
+			percent.element().getBoundingClientRect().left
+		);
 	});
 });

@@ -34,7 +34,8 @@
 	import * as Item from '$lib/components/ui/item';
 	import { Progress } from '$lib/components/ui/progress';
 	import { m } from '$lib/paraglide/messages.js';
-	import { getLocale } from '$lib/paraglide/runtime.js';
+	import { formatTag } from '$lib/locale-state.svelte';
+	import { formatPercentValue } from '$lib/locale';
 	import { formatAgo, formatCountdown, formatReset } from '$lib/usage';
 
 	let list = $state<AccountList>({
@@ -214,7 +215,7 @@
 
 	{#if refreshWaitMs > 0}
 		<p class="text-xs text-muted-foreground">
-			{m.refresh_next({ time: formatCountdown(refreshWaitMs) })}
+			{m.refresh_next({ time: formatCountdown(refreshWaitMs, formatTag()) })}
 		</p>
 	{/if}
 
@@ -330,11 +331,13 @@
 				aria-label={label}
 				class={window.utilization >= 100 ? '*:data-[slot=progress-indicator]:bg-destructive' : ''}
 			/>
-			<span class="w-9 shrink-0 text-end tabular-nums">{Math.round(window.utilization)}%</span>
+			<span class="w-9 shrink-0 text-end tabular-nums"
+				>{formatPercentValue(Math.round(window.utilization), formatTag())}</span
+			>
 		</div>
 		{#if window.resetsAt}
 			<p class="ps-16 text-[11px] text-muted-foreground">
-				{m.usage_resets({ time: formatReset(window.resetsAt, new Date(now), getLocale()) })}
+				{m.usage_resets({ time: formatReset(window.resetsAt, new Date(now), formatTag()) })}
 			</p>
 		{/if}
 	{/if}
@@ -344,7 +347,7 @@
 	{@render usageWindow(m.usage_five_hour(), usage.fiveHour)}
 	{@render usageWindow(m.usage_weekly(), usage.weekly)}
 	{#if usage.source !== 'live'}
-		{@const ago = formatAgo(usage.fetchedAtMs, now, getLocale())}
+		{@const ago = formatAgo(usage.fetchedAtMs, now, formatTag())}
 		<p class="text-[11px] text-muted-foreground">
 			{usage.source === 'stale' ? m.usage_stale({ ago }) : m.usage_local_history({ ago })}
 		</p>

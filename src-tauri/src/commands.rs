@@ -247,6 +247,7 @@ pub fn get_settings(core: State<'_, Arc<Core>>) -> Settings {
 /// Saves the whole settings object, or refuses it and saves nothing.
 #[tauri::command]
 pub fn update_settings(
+    app: AppHandle,
     core: State<'_, Arc<Core>>,
     feed: State<'_, AccountFeed>,
     settings: Settings,
@@ -254,5 +255,7 @@ pub fn update_settings(
     let saved = core.update_settings(settings)?;
     // A new Claude.exe path can change whether Claude counts as found.
     feed.publish();
+    // The tray menu follows the saved language.
+    crate::tray::refresh(&app, &core);
     Ok(saved)
 }
