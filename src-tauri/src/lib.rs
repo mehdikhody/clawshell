@@ -2,6 +2,7 @@ pub mod core;
 
 mod adapters;
 mod commands;
+mod link_registry;
 mod shell_link;
 mod taskbar;
 mod tray;
@@ -10,6 +11,7 @@ use adapters::{
     AUTOSTART_ARG, DesktopTokens, SysinfoLister, SystemClock, Toast, UreqHttp, WindowsLocator,
     WindowsOs,
 };
+use core::link::link_argument;
 use core::ports::{ClaudeLocator, ProcessLister, Roots};
 use core::process::DesktopProcesses;
 use core::shortcuts::account_to_open;
@@ -45,7 +47,9 @@ pub fn run() {
         // Must be registered first: a second launch focuses the running window.
         // A shortcut click lands here too: it opens its account instead.
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            if !tray::open_from_command_line(app, &args) {
+            if !tray::route_from_command_line(app, &args)
+                && !tray::open_from_command_line(app, &args)
+            {
                 tray::show_main_window(app);
             }
         }))
@@ -82,12 +86,17 @@ pub fn run() {
             let boot = args.iter().any(|arg| arg == AUTOSTART_ARG);
             // A shortcut click opens its account, not clawshell's window.
             let clicked = account_to_open(&args).is_some();
-            if !clicked && core.shows_window_at_launch(boot) {
+            // Likewise a sign-in link that started clawshell.
+            let linked = link_argument(&args).is_some();
+            if !clicked && !linked && core.shows_window_at_launch(boot) {
                 tray::show_main_window(app.handle());
             }
+            // Take the link handler back if Claude rewrote it while clawshell was closed.
+            core.keep_link_handler();
             app.manage(feed);
             app.manage(core);
             tray::open_from_command_line(app.handle(), &args);
+            tray::route_from_command_line(app.handle(), &args);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -104,7 +113,8 @@ pub fn run() {
             commands::month_cost,
             commands::heatmap,
             commands::get_settings,
-            commands::update_settings
+            commands::update_settings,
+            commands::set_sign_in_routing
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

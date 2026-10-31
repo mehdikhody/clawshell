@@ -4,7 +4,7 @@
 use crate::core::{
     Account, AccountList, AddError, ColourError, Core, DeleteError, Heatmap, LaunchError,
     LaunchOptions, LaunchOptionsError, LaunchOutcome, MonthCost, OpenFolderError, RefreshOutcome,
-    RenameError, Settings, SettingsError, ShortcutError,
+    RenameError, RoutingChange, RoutingError, Settings, SettingsError, ShortcutError,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
@@ -12,6 +12,8 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, State};
 
 pub const ACCOUNTS_CHANGED: &str = "accounts-changed";
+/// Sent once, after the first successful Add: the UI offers sign-in routing.
+pub const ROUTING_OFFER: &str = "routing-offer";
 const WATCH_INTERVAL: Duration = Duration::from_secs(2);
 /// How often the scheduler looks for accounts whose usage poll is due. The
 /// core decides which are; most ticks do nothing.
@@ -233,8 +235,39 @@ pub fn list_accounts(core: State<'_, Arc<Core>>) -> Result<AccountList, CommandE
 }
 
 #[tauri::command]
-pub fn add_account(core: State<'_, Arc<Core>>) -> Result<Account, CommandError> {
-    Ok(core.add_account()?)
+pub fn add_account(app: AppHandle, core: State<'_, Arc<Core>>) -> Result<Account, CommandError> {
+    let account = core.add_account()?;
+    offer_routing_if_due(&app, &core);
+    Ok(account)
+}
+
+/// After an Add: on the very first one, asks the UI to offer sign-in routing.
+/// Returns whether it did, so the caller can bring the window forward.
+pub fn offer_routing_if_due(app: &AppHandle, core: &Core) -> bool {
+    let due = core.take_routing_offer();
+    if due {
+        let _ = app.emit(ROUTING_OFFER, ());
+    }
+    due
+}
+
+impl From<RoutingError> for CommandError {
+    fn from(e: RoutingError) -> Self {
+        match e {
+            RoutingError::Registry(e) => CommandError::new("routing-failed", e.to_string()),
+            RoutingError::Io(e) => CommandError::new("io", e.to_string()),
+        }
+    }
+}
+
+/// Turns sign-in routing on or off. The answer says whether the user still
+/// has to pick clawshell on the Default Apps page (the Store build).
+#[tauri::command]
+pub fn set_sign_in_routing(
+    core: State<'_, Arc<Core>>,
+    enabled: bool,
+) -> Result<RoutingChange, CommandError> {
+    Ok(core.set_sign_in_routing(enabled)?)
 }
 
 #[tauri::command]
@@ -288,6 +321,8 @@ pub fn watch_accounts(feed: AccountFeed) {
     std::thread::spawn(move || {
         loop {
             std::thread::sleep(WATCH_INTERVAL);
+            // Claude rewriting its link handler is noticed on the next tick.
+            feed.core.keep_link_handler();
             feed.publish();
         }
     });

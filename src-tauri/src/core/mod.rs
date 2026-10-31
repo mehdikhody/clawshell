@@ -7,12 +7,14 @@ pub mod cost;
 pub mod desktop_token;
 pub mod install;
 pub mod launch_options;
+pub mod link;
 mod notifications;
 mod paths;
 pub mod polling;
 pub mod pooled;
 pub mod ports;
 pub mod process;
+pub mod routing;
 mod settings;
 mod shell;
 pub mod shortcuts;
@@ -27,6 +29,7 @@ pub use accounts::{
 pub use cost::{AccountCost, Heatmap, MonthCost, NoEstimate};
 pub use launch_options::{EnvVar, LaunchOptions, LaunchOptionsError};
 pub use pooled::{PooledRemaining, PooledWindow};
+pub use routing::{RouteError, RoutingChange, RoutingError};
 pub use settings::{Language, OverrideAware, Settings, SettingsError};
 pub use shell::{CloseAction, TrayEntry, TrayLabels};
 pub use shortcuts::ShortcutError;
@@ -77,6 +80,12 @@ pub struct Core {
     /// The taskbar identity (AppUserModelID) each running account's window
     /// has been given, by account id.
     taskbar: Mutex<HashMap<String, String>>,
+    /// Held while sign-in routing is turned on or off or its handler is
+    /// kept, so the watcher never re-takes a handler that is being restored.
+    routing_gate: Mutex<()>,
+    /// Which accounts clawshell started or focused, and when, for picking the
+    /// target of a sign-in link.
+    launches: Mutex<routing::Launches>,
 }
 
 impl Core {
@@ -89,6 +98,8 @@ impl Core {
             prices: Mutex::new(None),
             fired: Mutex::new(fired),
             taskbar: Mutex::default(),
+            routing_gate: Mutex::new(()),
+            launches: Mutex::default(),
         }
     }
 

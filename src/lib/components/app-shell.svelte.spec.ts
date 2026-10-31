@@ -1,6 +1,7 @@
 import { page } from 'vitest/browser';
 import { afterEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { emit } from '@tauri-apps/api/event';
 import '../../routes/layout.css';
 import { switchLocale } from '$lib/locale-state.svelte';
 import type { Settings } from '$lib/settings';
@@ -26,7 +27,8 @@ const saved: Settings = {
 	notifyLimited: true,
 	notifyReset: true,
 	warningThreshold: 80,
-	limitThreshold: 100
+	limitThreshold: 100,
+	signInRouting: false
 };
 const leftOf = (locator: { element(): Element }) => locator.element().getBoundingClientRect().left;
 
@@ -74,6 +76,20 @@ describe('AppShell', () => {
 		const commands = tauri.calls.map((c) => c.cmd);
 		expect(commands).toContain('plugin:window|minimize');
 		expect(commands).toContain('plugin:window|close');
+	});
+});
+
+describe('AppShell sign-in routing offer', () => {
+	it('offers routing on any tab when the core announces the first Add', async () => {
+		({ restore } = mockTauri(core));
+		render(AppShell);
+		await expect.element(page.getByRole('tab', { name: 'Usage' })).toBeVisible();
+
+		await emit('routing-offer');
+
+		await expect
+			.element(page.getByText('Route browser sign-ins to the right account?'))
+			.toBeVisible();
 	});
 });
 

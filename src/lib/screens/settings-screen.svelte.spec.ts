@@ -24,7 +24,8 @@ const defaults: Settings = {
 	notifyLimited: true,
 	notifyReset: true,
 	warningThreshold: 80,
-	limitThreshold: 100
+	limitThreshold: 100,
+	signInRouting: false
 };
 
 function mount(stored: Settings = defaults, overrides: IpcHandlers = {}) {
@@ -248,5 +249,105 @@ describe('SettingsScreen', () => {
 
 		expect(updates(tauri.calls)).toHaveLength(0);
 		await expect.element(field).toHaveValue(80);
+	});
+
+	describe('sign-in routing', () => {
+		const routingCalls = (calls: { cmd: string; args: unknown }[]) =>
+			calls.filter((c) => c.cmd === 'set_sign_in_routing').map((c) => c.args);
+		const routing = (on: boolean, needsDefaultAppsChoice = false) => ({
+			set_sign_in_routing: () => ({
+				settings: { ...defaults, signInRouting: on },
+				needsDefaultAppsChoice
+			})
+		});
+
+		it('shows the switch in the state the core saved', async () => {
+			mount({ ...defaults, signInRouting: true });
+
+			await expect.element(page.getByRole('switch', { name: 'Sign-in routing' })).toBeChecked();
+		});
+
+		it('turns routing on through its own command, not the general save', async () => {
+			const tauri = mount(defaults, routing(true));
+
+			await page.getByRole('switch', { name: 'Sign-in routing' }).click();
+
+			await expect.element(page.getByRole('switch', { name: 'Sign-in routing' })).toBeChecked();
+			expect(routingCalls(tauri.calls)).toEqual([{ enabled: true }]);
+			expect(updates(tauri.calls)).toHaveLength(0);
+		});
+
+		it('turns routing off', async () => {
+			const tauri = mount({ ...defaults, signInRouting: true }, routing(false));
+
+			await page.getByRole('switch', { name: 'Sign-in routing' }).click();
+
+			await expect.element(page.getByRole('switch', { name: 'Sign-in routing' })).not.toBeChecked();
+			expect(routingCalls(tauri.calls)).toEqual([{ enabled: false }]);
+		});
+
+		it('guides the one Default Apps choice the Store build leaves', async () => {
+			mount(defaults, routing(true, true));
+
+			await page.getByRole('switch', { name: 'Sign-in routing' }).click();
+
+			await expect.element(page.getByText('One choice left in Windows')).toBeVisible();
+			await expect.element(page.getByText(/set the claude link type to clawshell/i)).toBeVisible();
+		});
+
+		it('says nothing about Default Apps when no choice is left', async () => {
+			mount(defaults, routing(true, false));
+
+			await page.getByRole('switch', { name: 'Sign-in routing' }).click();
+
+			await expect.element(page.getByRole('switch', { name: 'Sign-in routing' })).toBeChecked();
+			await expect.element(page.getByText('One choice left in Windows')).not.toBeInTheDocument();
+		});
+
+		it('drops the Default Apps note when routing is turned off again', async () => {
+			let on = true;
+			mount(defaults, {
+				set_sign_in_routing: () => {
+					const change = {
+						settings: { ...defaults, signInRouting: on },
+						needsDefaultAppsChoice: on
+					};
+					on = !on;
+					return change;
+				}
+			});
+
+			await page.getByRole('switch', { name: 'Sign-in routing' }).click();
+			await expect.element(page.getByText('One choice left in Windows')).toBeVisible();
+			await page.getByRole('switch', { name: 'Sign-in routing' }).click();
+
+			await expect.element(page.getByText('One choice left in Windows')).not.toBeInTheDocument();
+		});
+
+		it('puts the switch back and says so when Windows refuses', async () => {
+			mount(defaults, {
+				set_sign_in_routing: () => {
+					throw { code: 'routing-failed', message: 'access denied' };
+				}
+			});
+
+			await page.getByRole('switch', { name: 'Sign-in routing' }).click();
+
+			await expect.element(page.getByRole('alert')).toHaveTextContent(/sign-in routing/i);
+			await expect.element(page.getByRole('switch', { name: 'Sign-in routing' })).not.toBeChecked();
+		});
+
+		it('keeps the new routing state in later general saves', async () => {
+			const tauri = mount(defaults, routing(true));
+
+			await page.getByRole('switch', { name: 'Sign-in routing' }).click();
+			await page.getByRole('switch', { name: 'Close to tray' }).click();
+
+			expect(updates(tauri.calls).at(-1)).toEqual({
+				...defaults,
+				signInRouting: true,
+				closeToTray: false
+			});
+		});
 	});
 });

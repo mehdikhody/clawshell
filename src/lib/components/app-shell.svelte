@@ -11,6 +11,7 @@
 	import SettingsScreen from '$lib/screens/settings-screen.svelte';
 	import UsageScreen from '$lib/screens/usage-screen.svelte';
 	import { getSettings } from '$lib/settings';
+	import RoutingOffer from './routing-offer.svelte';
 	import TopBar from './top-bar.svelte';
 
 	let tab = $state('usage');
@@ -71,5 +72,6 @@
 				</Tabs.Content>
 			</Tabs.Root>
 		</div>
+		<RoutingOffer />
 	{/key}
 {/if}

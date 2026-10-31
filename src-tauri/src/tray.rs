@@ -1,6 +1,7 @@
 //! The tray icon and its menu. What the menu offers is decided by the core
 //! (`Core::tray_entries`); this only draws it and routes clicks back.
 
+use crate::core::link::link_argument;
 use crate::core::shortcuts::account_to_open;
 use crate::core::{Core, TrayEntry};
 use std::sync::Arc;
@@ -36,6 +37,23 @@ pub fn open_from_command_line(app: &AppHandle, args: &[String]) -> bool {
         if matches!(core.open_requested(&args), Some(Err(_))) {
             show_main_window(&app);
         }
+        refresh(&app, &core);
+    });
+    true
+}
+
+/// Forwards the `claude://` link a launch carries (Windows runs clawshell
+/// with the link as its argument) to the account that asked for it. Returns
+/// false when `args` carry no link. A refused or failed link is dropped
+/// without a trace: nothing about it is logged or shown.
+pub fn route_from_command_line(app: &AppHandle, args: &[String]) -> bool {
+    let Some(link) = link_argument(args).map(str::to_string) else {
+        return false;
+    };
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let core = app.state::<Arc<Core>>().inner().clone();
+        let _ = core.route_link(&link);
         refresh(&app, &core);
     });
     true
@@ -137,7 +155,10 @@ fn on_menu_click(app: &AppHandle, id: &str) {
             std::thread::spawn(move || {
                 let core = app.state::<Arc<Core>>().inner().clone();
                 // The window explains a missing Claude Desktop.
-                if core.add_account().is_err() {
+                // The first Add also asks the window to offer sign-in routing.
+                let added = core.add_account().is_ok();
+                let offered = added && crate::commands::offer_routing_if_due(&app, &core);
+                if !added || offered {
                     show_main_window(&app);
                 }
                 refresh(&app, &core);

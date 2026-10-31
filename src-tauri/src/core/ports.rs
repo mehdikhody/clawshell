@@ -3,6 +3,7 @@
 //! Tests supply fakes (see `tests/support`); the app supplies Windows adapters.
 
 use super::desktop_token::AccessToken;
+use super::link::ClaudeLink;
 use std::collections::HashSet;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -195,10 +196,49 @@ pub trait Shortcuts: Send + Sync {
     fn delete(&self, path: &Path) -> io::Result<()>;
 }
 
+/// One `claude://` link to hand to a Claude process. The link is never shown
+/// by `Debug`, and neither are the environment values.
+#[derive(Clone, PartialEq, Eq)]
+pub struct LinkForward {
+    pub exe: PathBuf,
+    /// The launch arguments, in order, without the link: the user-data-dir
+    /// switch of the target account (none for the original Claude) and its
+    /// extra flags. The adapter appends the link.
+    pub args: Vec<String>,
+    /// Environment variables set on this child process only.
+    pub env: Vec<(String, String)>,
+    pub link: ClaudeLink,
+}
+
+impl std::fmt::Debug for LinkForward {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let names: Vec<_> = self.env.iter().map(|(name, _)| name).collect();
+        f.debug_struct("LinkForward")
+            .field("exe", &self.exe)
+            .field("args", &self.args)
+            .field("env_names", &names)
+            .finish_non_exhaustive()
+    }
+}
+
+/// The user's `claude://` link handler, and the links clawshell forwards.
+/// Everything here is per-user (HKCU); nothing needs administrator rights.
 pub trait LinkHandlerRegistry: Send + Sync {
-    fn current_handler(&self) -> Option<String>;
-    /// `None` restores the original handler.
-    fn set_handler(&self, command: Option<&str>) -> io::Result<()>;
+    /// Whether clawshell is the registered `claude://` handler right now.
+    fn is_registered(&self) -> bool;
+    /// An opaque copy of whatever the user has registered for `claude://`
+    /// (including nothing at all), good for a later exact restore.
+    fn snapshot_handler(&self) -> io::Result<String>;
+    /// Registers clawshell as the `claude://` handler.
+    fn register_handler(&self) -> io::Result<()>;
+    /// Puts back exactly what `snapshot` recorded and removes everything
+    /// `register_handler` added.
+    fn restore_handler(&self, snapshot: &str) -> io::Result<()>;
+    /// Opens the Windows Default Apps page for clawshell, where the user makes
+    /// the one choice Windows will not let a program make for them.
+    fn open_default_apps(&self) -> io::Result<()>;
+    /// Starts Claude with the link, without waiting for it.
+    fn forward_link(&self, forward: &LinkForward) -> io::Result<()>;
 }
 
 pub trait Autostart: Send + Sync {

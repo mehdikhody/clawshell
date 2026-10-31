@@ -4,6 +4,19 @@ use super::ports::ClaudeInstall;
 use std::path::Path;
 
 const INSTALLER_DIR: &str = "AnthropicClaude";
+/// The folder Windows keeps Store (MSIX) apps in.
+const STORE_APPS_DIR: &str = "WindowsApps";
+
+/// Whether this is the Store/MSIX build, which lives under `WindowsApps`.
+/// Windows keeps its `claude://` choice out of reach of programs, so the user
+/// has to make it on the Default Apps page.
+pub fn is_store_install(install: &ClaudeInstall) -> bool {
+    install.exe.components().any(|part| {
+        part.as_os_str()
+            .to_str()
+            .is_some_and(|name| name.eq_ignore_ascii_case(STORE_APPS_DIR))
+    })
+}
 
 /// Store/MSIX build: `store_package` is the package's install folder (from its
 /// package registration); the exe sits at `app\Claude.exe`. Installer build:

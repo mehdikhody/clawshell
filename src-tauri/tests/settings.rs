@@ -24,6 +24,7 @@ fn a_fresh_install_has_the_default_settings() {
             notify_reset: true,
             warning_threshold: 80,
             limit_threshold: 100,
+            sign_in_routing: false,
         }
     );
 }

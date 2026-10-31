@@ -126,5 +126,15 @@
 	"error_env_name_duplicate": "یک نام متغیر دو بار آمده است.",
 	"error_env_value_invalid": "مقدار نمی‌تواند نویسهٔ NUL داشته باشد.",
 	"error_flag_reserved": "‎--user-data-dir را clawshell تعیین می‌کند و قابل تغییر نیست.",
-	"error_launch_options_failed": "ذخیرهٔ متغیرها و پرچم‌ها ممکن نشد"
+	"error_launch_options_failed": "ذخیرهٔ متغیرها و پرچم‌ها ممکن نشد",
+	"settings_sign_in_routing": "مسیریابی ورود",
+	"settings_sign_in_routing_hint": "ورودهای مرورگر را به حسابی می‌فرستد که آن را درخواست کرده است. خاموش کردن، مدیریت پیوند خود Claude را برمی‌گرداند.",
+	"routing_default_apps_title": "یک انتخاب در ویندوز باقی مانده است",
+	"routing_default_apps_body": "ویندوز صفحهٔ برنامه‌های پیش‌فرض را باز کرد. زیر clawshell، نوع پیوند claude را روی clawshell بگذارید.",
+	"routing_offer_title": "ورودهای مرورگر به حساب درست برسند؟",
+	"routing_offer_body": "وقتی ورود در مرورگر تمام می‌شود، clawshell آن را به حسابی می‌فرستد که در حال ورود به آن بودید، نه به Claude اصلی شما. بعداً می‌توانید این را در تنظیمات عوض کنید.",
+	"routing_offer_accept": "روشن کن",
+	"routing_offer_decline": "فعلاً نه",
+	"routing_offer_done": "متوجه شدم",
+	"error_routing_failed": "تغییر مسیریابی ورود ممکن نشد"
 }
