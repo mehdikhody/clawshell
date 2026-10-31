@@ -35,6 +35,8 @@ jobs:
 
       - run: npm ci
 
+      - run: npx playwright install chromium --only-shell
+
       - run: npm test
 
       - uses: tauri-apps/tauri-action@v0
