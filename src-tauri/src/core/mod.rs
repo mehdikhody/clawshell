@@ -4,6 +4,7 @@
 mod account_error;
 pub mod accounts;
 pub mod badge;
+pub mod copy_target;
 pub mod cost;
 pub mod default_profile;
 pub mod desktop_token;
@@ -29,6 +30,7 @@ pub use accounts::{
     Account, AccountList, AddError, ColourError, DeleteError, LaunchError, LaunchOutcome,
     NewAccount, OpenFolderError, RenameError, Status,
 };
+pub use copy_target::CopyBlocker;
 pub use cost::{AccountCost, Heatmap, MonthCost, NoEstimate};
 pub use launch_options::{EnvVar, LaunchOptions, LaunchOptionsError};
 pub use pooled::{PooledRemaining, PooledWindow};

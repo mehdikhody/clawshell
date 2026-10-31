@@ -23,7 +23,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub const PRICES_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
-const SESSIONS_DIR: &str = "claude-code-sessions";
+pub(super) const SESSIONS_DIR: &str = "claude-code-sessions";
 /// Prices change rarely: one fetch serves an hour of refreshes.
 const PRICES_TTL: Duration = Duration::from_secs(3_600);
 /// After a failed fetch, wait before asking again.

@@ -7,6 +7,9 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
  */
 export type AccountStatus = 'running' | 'idle' | 'signed-out' | 'limited' | 'missing';
 
+/** Why an account can't receive session copies yet. */
+export type CopyBlocker = 'sign-in' | 'open-code-tab';
+
 /** `stale`: the last live numbers, kept after a failed poll. `local-history`: from Claude's own file. */
 export type UsageSource = 'live' | 'stale' | 'local-history';
 
@@ -51,6 +54,8 @@ export type Account = {
 	/** The badge colour, `#rrggbb`. */
 	colour: string;
 	status: AccountStatus;
+	/** Why this account can't receive session copies; null when it can. */
+	copyBlocker: CopyBlocker | null;
 	/** A Claude Desktop window is open on this account, whatever the badge says. */
 	running: boolean;
 	email: string | null;

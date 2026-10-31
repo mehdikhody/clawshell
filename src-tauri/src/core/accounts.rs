@@ -3,6 +3,7 @@
 
 use super::account_error::{AccountError, wrap_account_error};
 use super::badge::{PALETTE, app_user_model_id, badge_letter, is_valid_colour};
+use super::copy_target::{CopyBlocker, copy_blocker};
 use super::default_profile::{DEFAULT_ID, default_profile_dir};
 use super::launch_options::{EnvVar, LaunchOptions, LaunchOptionsError, launch_args, validate};
 use super::paths::same_path;
@@ -51,6 +52,8 @@ pub struct Account {
     /// The badge colour, `#rrggbb`.
     pub colour: String,
     pub status: Status,
+    /// Why this account can't receive session copies; none when it can.
+    pub copy_blocker: Option<CopyBlocker>,
     /// A Claude Desktop process uses this profile, whatever the badge says.
     pub running: bool,
     /// The sign-in's email, once the profile endpoint has answered.
@@ -140,7 +143,11 @@ impl Core {
                 let email = known.and_then(|u| u.email.clone());
                 let snapshot = known.and_then(|u| u.snapshot.clone());
                 let options = records.options_of(&profile.id);
-                account_of(profile, label, colour, &running, email, snapshot, options)
+                let mut account =
+                    account_of(profile, label, colour, &running, email, snapshot, options);
+                let ids = known.and_then(|u| u.ids.as_ref());
+                account.copy_blocker = copy_blocker(account.status, &account.path, ids);
+                account
             })
             .collect();
 
@@ -156,6 +163,7 @@ impl Core {
                 badge: badge_letter(&r.label),
                 colour: colour_in(&records, &r.id),
                 status: Status::Missing,
+                copy_blocker: Some(CopyBlocker::SignIn),
                 running: false,
                 email: None,
                 usage: None,
@@ -440,6 +448,7 @@ fn account_of(
         label,
         colour,
         status,
+        copy_blocker: copy_blocker(status, &profile.path, None),
         running: is_running,
         email,
         usage,

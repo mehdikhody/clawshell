@@ -24,6 +24,7 @@ const account = (id: string, label: string, status: string, colour = BLUE) => ({
 	badge: label.charAt(0).toUpperCase(),
 	colour,
 	status,
+	copyBlocker: null,
 	running: status === 'running',
 	email: null,
 	usage: null,

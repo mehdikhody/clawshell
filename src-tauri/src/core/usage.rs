@@ -8,6 +8,7 @@
 
 use super::Core;
 use super::accounts::Status;
+use super::copy_target::SessionIds;
 use super::polling::{
     MIN_INTERVAL, SATURATED_FLOOR_FOR, adaptive_interval, apply_saturated_floor, failure_backoff,
     jitter_unit, next_poll_delay, parse_retry_after, rate_limit_wait,
@@ -99,6 +100,8 @@ pub struct RefreshOutcome {
 #[derive(Default)]
 pub(super) struct AccountUsage {
     pub email: Option<String>,
+    /// The account and organisation uuids the profile endpoint reported.
+    pub ids: Option<SessionIds>,
     pub snapshot: Option<UsageSnapshot>,
     last_attempt_ms: Option<i64>,
     /// A 429 told us to stay away until then (manual refresh obeys it too).
@@ -141,8 +144,8 @@ pub(super) struct UsageState {
 enum Fetched {
     Live {
         snapshot: UsageSnapshot,
-        /// Only asked for when the account has none yet.
-        email: Option<String>,
+        /// Only asked for when the account has no email yet.
+        profile: Option<ProfileAnswer>,
     },
     /// The token is expired (or unreadable): no request was made.
     NoUsableToken,
@@ -152,6 +155,12 @@ enum Fetched {
         retry_after: Option<u64>,
     },
     Failed,
+}
+
+/// What the profile endpoint said about the signed-in account.
+struct ProfileAnswer {
+    email: Option<String>,
+    ids: Option<SessionIds>,
 }
 
 fn ms(d: Duration) -> i64 {
@@ -250,23 +259,28 @@ impl Core {
 
     fn refresh_account(&self, id: &str, path: &Path, running: bool, now: i64) {
         let history = read_history(path);
-        let needs_email = self
+        let needs_profile = self
             .usage
             .lock()
             .unwrap()
             .accounts
             .get(id)
             .is_none_or(|s| s.email.is_none());
-        let fetched = self.fetch(path, now, needs_email);
+        let fetched = self.fetch(path, now, needs_profile);
 
         let mut state = self.usage.lock().unwrap();
         let s = state.accounts.entry(id.to_string()).or_default();
         s.last_attempt_ms = Some(now);
         let floor_active = s.saturated_floor_active(now);
         let wait = match fetched {
-            Fetched::Live { snapshot, email } => {
-                if email.is_some() {
-                    s.email = email;
+            Fetched::Live { snapshot, profile } => {
+                if let Some(profile) = profile {
+                    if profile.email.is_some() {
+                        s.email = profile.email;
+                    }
+                    if profile.ids.is_some() {
+                        s.ids = profile.ids;
+                    }
                 }
                 s.failures = 0;
                 s.blocked_until_ms = None;
@@ -303,7 +317,7 @@ impl Core {
         s.next_due_ms = now.saturating_add(ms(wait));
     }
 
-    fn fetch(&self, path: &Path, now: i64, needs_email: bool) -> Fetched {
+    fn fetch(&self, path: &Path, now: i64, needs_profile: bool) -> Fetched {
         let Some(token) = self.ports.tokens.read_token(path) else {
             return Fetched::NoUsableToken;
         };
@@ -321,8 +335,8 @@ impl Core {
             }) => match parse_usage(&body, now) {
                 Some(snapshot) => Fetched::Live {
                     snapshot,
-                    email: needs_email
-                        .then(|| self.fetch_email(&token.access_token))
+                    profile: needs_profile
+                        .then(|| self.fetch_profile(&token.access_token))
                         .flatten(),
                 },
                 None => Fetched::Failed,
@@ -335,7 +349,7 @@ impl Core {
         }
     }
 
-    fn fetch_email(&self, access_token: &str) -> Option<String> {
+    fn fetch_profile(&self, access_token: &str) -> Option<ProfileAnswer> {
         let response = self
             .ports
             .http
@@ -345,10 +359,15 @@ impl Core {
             return None;
         }
         let body: Value = serde_json::from_str(&response.body).ok()?;
-        body.pointer("/account/email")?
-            .as_str()
-            .filter(|e| !e.is_empty())
-            .map(str::to_string)
+        let text = |pointer: &str| body.pointer(pointer).and_then(Value::as_str);
+        Some(ProfileAnswer {
+            email: text("/account/email")
+                .filter(|e| !e.is_empty())
+                .map(str::to_string),
+            ids: text("/account/uuid")
+                .zip(text("/organization/uuid"))
+                .and_then(|(account, organization)| SessionIds::parse(account, organization)),
+        })
     }
 }
 
