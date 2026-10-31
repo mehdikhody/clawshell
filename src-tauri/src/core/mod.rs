@@ -1,8 +1,16 @@
 //! clawshell's domain core. Independent of Tauri: every outside dependency
 //! arrives through a port in [`ports`], so tests drive it with fakes.
 
+pub mod accounts;
 pub mod desktop_token;
+pub mod install;
+mod paths;
 pub mod ports;
+pub mod process;
+mod signin;
+mod store;
+
+pub use accounts::{Account, AccountList, AddError, LaunchError, LaunchOutcome, Status};
 
 use ports::{Clock, HttpClient, OsAdapters, ProcessInspector, Roots, TokenReader};
 use std::io;

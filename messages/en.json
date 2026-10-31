@@ -5,5 +5,17 @@
 	"tab_accounts": "Accounts",
 	"tab_settings": "Settings",
 	"window_minimize": "Minimize",
-	"window_close": "Close"
+	"window_close": "Close",
+	"accounts_title": "Accounts",
+	"accounts_add": "Add account",
+	"accounts_empty": "No accounts yet",
+	"accounts_empty_hint": "Add one to sign in to another Claude account.",
+	"accounts_hint": "Double-click an account to open it.",
+	"status_running": "Running",
+	"status_idle": "Idle",
+	"status_signed_out": "Signed out",
+	"claude_missing_title": "Claude Desktop not found",
+	"claude_missing_body": "Install Claude Desktop, then reopen clawshell.",
+	"error_add_failed": "Couldn't add the account",
+	"error_launch_failed": "Couldn't open the account"
 }

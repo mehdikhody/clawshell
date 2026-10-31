@@ -5,5 +5,17 @@
 	"tab_accounts": "حساب‌ها",
 	"tab_settings": "تنظیمات",
 	"window_minimize": "کوچک کردن",
-	"window_close": "بستن"
+	"window_close": "بستن",
+	"accounts_title": "حساب‌ها",
+	"accounts_add": "افزودن حساب",
+	"accounts_empty": "هنوز حسابی نیست",
+	"accounts_empty_hint": "برای ورود به حساب دیگری از Claude یک حساب اضافه کنید.",
+	"accounts_hint": "برای باز کردن حساب روی آن دو بار کلیک کنید.",
+	"status_running": "در حال اجرا",
+	"status_idle": "آماده",
+	"status_signed_out": "خارج‌شده",
+	"claude_missing_title": "Claude Desktop پیدا نشد",
+	"claude_missing_body": "Claude Desktop را نصب کنید و clawshell را دوباره باز کنید.",
+	"error_add_failed": "افزودن حساب ممکن نشد",
+	"error_launch_failed": "باز کردن حساب ممکن نشد"
 }

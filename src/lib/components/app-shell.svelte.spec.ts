@@ -6,11 +6,14 @@ import { mockTauri } from '$lib/test/tauri-ipc';
 import AppShell from './app-shell.svelte';
 
 let restore: () => void;
+
+// The Accounts tab asks the core for its list as soon as it mounts.
+const core = { list_accounts: () => ({ claudeFound: true, accounts: [] }) };
 afterEach(() => restore?.());
 
 describe('AppShell', () => {
 	it('shows the Usage, Accounts and Settings tabs and switches screens', async () => {
-		({ restore } = mockTauri());
+		({ restore } = mockTauri(core));
 		render(AppShell);
 
 		const usage = page.getByRole('tab', { name: 'Usage' });
@@ -30,7 +33,7 @@ describe('AppShell', () => {
 	});
 
 	it('shows the app name and minimize and close buttons, but no maximize', async () => {
-		({ restore } = mockTauri());
+		({ restore } = mockTauri(core));
 		render(AppShell);
 
 		await expect.element(page.getByText('clawshell')).toBeVisible();
@@ -42,7 +45,7 @@ describe('AppShell', () => {
 	});
 
 	it('minimizes and closes the window through the top bar', async () => {
-		const tauri = mockTauri();
+		const tauri = mockTauri(core);
 		({ restore } = tauri);
 		render(AppShell);
 

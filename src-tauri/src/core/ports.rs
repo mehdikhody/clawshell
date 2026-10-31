@@ -63,10 +63,39 @@ pub trait ProcessInspector: Send + Sync {
     fn running_profiles(&self) -> HashSet<PathBuf>;
 }
 
+/// One running OS process, as the process lister sees it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub exe: Option<PathBuf>,
+    pub args: Vec<String>,
+}
+
+/// Raw process listing; the Windows adapter wraps the OS process table.
+pub trait ProcessLister: Send + Sync {
+    fn processes(&self) -> Vec<ProcessInfo>;
+}
+
 // OS adapters: thin Windows wrappers, verified by hand rather than automated.
 
+/// A located Claude Desktop build.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClaudeInstall {
+    /// The `Claude.exe` to start.
+    pub exe: PathBuf,
+    /// Folder holding the build. A process counts as Claude Desktop only when
+    /// its executable lives under here (Code CLI children live elsewhere).
+    pub root: PathBuf,
+}
+
+pub trait ClaudeLocator: Send + Sync {
+    /// Finds Claude Desktop (Store/MSIX or installer build); `None` when absent.
+    fn locate(&self) -> Option<ClaudeInstall>;
+}
+
 pub trait Launcher: Send + Sync {
-    fn launch(&self, profile: &Path) -> io::Result<()>;
+    /// Starts `exe` with `profile` as its user-data-dir, without waiting for it.
+    fn launch(&self, exe: &Path, profile: &Path) -> io::Result<()>;
 }
 
 pub trait WindowFocus: Send + Sync {
@@ -99,7 +128,8 @@ pub trait Notifier: Send + Sync {
 
 /// All OS adapters behind one injectable handle.
 pub trait OsAdapters:
-    Launcher
+    ClaudeLocator
+    + Launcher
     + WindowFocus
     + TaskbarIdentity
     + Shortcuts
