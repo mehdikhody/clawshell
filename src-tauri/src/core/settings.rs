@@ -44,6 +44,10 @@ pub struct Settings {
     pub warning_threshold: u8,
     /// Percent of a window at which it counts as Limited.
     pub limit_threshold: u8,
+    /// Browser sign-in links (`claude://`) land in the account that asked
+    /// for them. Changed only by `Core::set_sign_in_routing`, which also does
+    /// the registry work; a general settings save leaves it as it is.
+    pub sign_in_routing: bool,
 }
 
 impl Default for Settings {
@@ -59,6 +63,7 @@ impl Default for Settings {
             notify_reset: true,
             warning_threshold: DEFAULT_WARNING_THRESHOLD,
             limit_threshold: DEFAULT_LIMIT_THRESHOLD,
+            sign_in_routing: false,
         }
     }
 }
@@ -86,7 +91,7 @@ impl Settings {
         self
     }
 
-    fn save(&self, local_app_data: &Path) -> io::Result<()> {
+    pub(super) fn save(&self, local_app_data: &Path) -> io::Result<()> {
         let path = file(local_app_data);
         std::fs::create_dir_all(path.parent().expect("file sits in a folder"))?;
         let tmp = path.with_extension("json.tmp");
@@ -120,9 +125,12 @@ impl Core {
     }
 
     /// Replaces the settings. Nothing is saved unless every part is accepted.
-    pub fn update_settings(&self, new: Settings) -> Result<Settings, SettingsError> {
+    pub fn update_settings(&self, mut new: Settings) -> Result<Settings, SettingsError> {
         let local = &self.ports.roots.local_app_data;
         let old = Settings::load(local);
+        // Routing has its own switch; a screen holding older settings must
+        // not undo it.
+        new.sign_in_routing = old.sign_in_routing;
         // Validate before touching Windows, so a refusal changes nothing.
         if !thresholds_valid(&new) {
             return Err(SettingsError::InvalidThresholds);

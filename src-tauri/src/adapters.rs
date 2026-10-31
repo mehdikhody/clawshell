@@ -5,6 +5,7 @@ use crate::core::desktop_token::{AccessToken, read_access_token};
 use crate::core::install::detect_install;
 use crate::core::ports::*;
 use crate::core::process::DesktopProcesses;
+use crate::link_registry;
 use crate::shell_link;
 use crate::taskbar::{badge_ico, badge_windows};
 use std::collections::HashMap;
@@ -163,21 +164,32 @@ impl ClaudeLocator for WindowsOs {
     }
 }
 
+/// Starts Claude detached, without waiting. `last_arg` goes after `args`.
+fn spawn_claude(
+    exe: &Path,
+    args: &[String],
+    last_arg: Option<&str>,
+    env: &[(String, String)],
+) -> io::Result<()> {
+    let mut command = Command::new(exe);
+    command
+        .args(args)
+        .args(last_arg)
+        // The account's variables reach this child only, not clawshell.
+        .envs(env.iter().map(|(name, value)| (name, value)))
+        // Must not leak into Electron: it would run Claude as plain Node,
+        // so not even an account's own setting may bring it back.
+        .env_remove("ELECTRON_RUN_AS_NODE")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+    command.spawn().map(drop)
+}
+
 impl Launcher for WindowsOs {
     fn launch(&self, spec: &LaunchSpec) -> io::Result<()> {
-        let mut command = Command::new(&spec.exe);
-        command
-            .args(&spec.args)
-            // The account's variables reach this child only, not clawshell.
-            .envs(spec.env.iter().map(|(name, value)| (name, value)))
-            // Must not leak into Electron: it would run Claude as plain Node,
-            // so not even an account's own setting may bring it back.
-            .env_remove("ELECTRON_RUN_AS_NODE")
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
-        command.spawn().map(drop)
+        spawn_claude(&spec.exe, &spec.args, None, &spec.env)
     }
 }
 
@@ -310,12 +322,44 @@ impl Shortcuts for WindowsOs {
         }
     }
 }
-impl LinkHandlerRegistry for WindowsOs {
-    fn current_handler(&self) -> Option<String> {
-        None
+impl WindowsOs {
+    /// What Windows runs for a `claude://` link: this very exe.
+    fn handler_command() -> io::Result<String> {
+        Ok(link_registry::handler_command(&std::env::current_exe()?))
     }
-    fn set_handler(&self, _command: Option<&str>) -> io::Result<()> {
-        Ok(())
+}
+
+impl LinkHandlerRegistry for WindowsOs {
+    fn is_registered(&self) -> bool {
+        // An exe that can't be named can't be compared: leave the registry alone.
+        Self::handler_command().map_or(true, |command| link_registry::is_registered(&command))
+    }
+    fn snapshot_handler(&self) -> io::Result<String> {
+        Ok(link_registry::snapshot()?.to_text())
+    }
+    fn register_handler(&self) -> io::Result<()> {
+        link_registry::register(&Self::handler_command()?)
+    }
+    fn restore_handler(&self, snapshot: &str) -> io::Result<()> {
+        link_registry::restore(&link_registry::Snapshot::from_text(snapshot)?)
+    }
+    fn open_default_apps(&self) -> io::Result<()> {
+        Command::new("explorer.exe")
+            .arg(link_registry::DEFAULT_APPS_URI)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map(drop)
+    }
+    fn forward_link(&self, forward: &LinkForward) -> io::Result<()> {
+        // The link is one argument, never a shell string, and is validated.
+        spawn_claude(
+            &forward.exe,
+            &forward.args,
+            Some(forward.link.as_str()),
+            &forward.env,
+        )
     }
 }
 impl Autostart for WindowsOs {

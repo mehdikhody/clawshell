@@ -15,10 +15,10 @@ See spec: Launching and windows (Sign-in routing).
 
 **Blocked by:** 03, 09
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The offer appears on the first Add; the Settings toggle turns routing on and off
-- [ ] A sign-in link is routed according to the order above
+- [x] The offer appears on the first Add; the Settings toggle turns routing on and off
+- [x] A sign-in link is routed according to the order above
 - [ ] Turning it off leaves the registry exactly as before; the Store-build Default Apps step is guided
-- [ ] Non-`claude://` or malformed links are refused; no link contents appear in any log
+- [x] Non-`claude://` or malformed links are refused; no link contents appear in any log
 - [ ] Core tests cover the target-selection order and link validation; the registry and Default Apps steps are checked by hand on Windows 11

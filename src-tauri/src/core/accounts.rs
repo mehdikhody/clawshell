@@ -238,7 +238,7 @@ impl Core {
     /// Asks the OS to badge the window Claude is about to create, so the
     /// identity is in place before it first shows. Best effort: the watcher
     /// tick applies it again once the window is up.
-    fn identify_new_window(&self, account: &Account) {
+    pub(super) fn identify_new_window(&self, account: &Account) {
         let aumid = app_user_model_id(&account.id, account.badge, &account.colour);
         let _ = self.apply_identity(account, &aumid);
     }
@@ -313,6 +313,8 @@ impl Core {
             LaunchOptions::default(),
         );
         self.identify_new_window(&account);
+        // A new account has no sign-in yet: its browser sign-in link is next.
+        self.launches.lock().unwrap().note(&account.id, true);
         Ok(account)
     }
 
@@ -403,9 +405,11 @@ impl Core {
             .find(|p| p.id == id)
             .ok_or(LaunchError::UnknownAccount)?;
 
+        let signed_out = !is_signed_in(&profile.path);
         let running = self.ports.processes.running_profiles();
         if running.iter().any(|p| same_path(p, &profile.path)) && self.ports.os.focus(&profile.path)
         {
+            self.launches.lock().unwrap().note(id, signed_out);
             return Ok(LaunchOutcome::Focused);
         }
 
@@ -426,6 +430,7 @@ impl Core {
                     .collect(),
             })
             .map_err(LaunchError::Io)?;
+        self.launches.lock().unwrap().note(id, signed_out);
         if let Ok(Some(account)) = self.find_account(id) {
             self.identify_new_window(&account);
         }

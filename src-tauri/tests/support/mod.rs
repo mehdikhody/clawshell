@@ -318,7 +318,26 @@ pub struct FakeOs {
     pub taskbar: Mutex<Vec<AppliedIdentity>>,
     /// Makes the taskbar port fail, as when the window is not up yet.
     pub taskbar_fails: Mutex<bool>,
+    /// The command registered for `claude://`; `None` means nothing is.
+    pub handler: Mutex<Option<String>>,
+    /// Whether the fake registry holds the extra keys `register_handler` adds.
+    pub handler_extras: Mutex<bool>,
+    /// Every call to the link-handler registry, by name, in order.
+    pub registry_calls: Mutex<Vec<String>>,
+    /// Makes registering the handler fail, as a locked-down registry would.
+    pub register_fails: Mutex<bool>,
+    /// Makes restoring the handler fail.
+    pub restore_fails: Mutex<bool>,
+    /// How many times the Default Apps page was opened.
+    pub default_apps_opened: Mutex<u32>,
+    /// Every link handed on to a Claude process, in order.
+    pub forwarded: Mutex<Vec<LinkForward>>,
 }
+
+/// What the fake registry holds once clawshell has taken over `claude://`.
+pub const CLAWSHELL_HANDLER: &str = "clawshell.exe \"%1\"";
+/// Claude's own handler, as the fake registry starts out.
+pub const CLAUDE_HANDLER: &str = "Claude.exe \"%1\"";
 
 impl Default for FakeOs {
     fn default() -> Self {
@@ -342,6 +361,13 @@ impl Default for FakeOs {
             notifications: Mutex::default(),
             taskbar: Mutex::default(),
             taskbar_fails: Mutex::new(false),
+            handler: Mutex::new(Some(CLAUDE_HANDLER.to_string())),
+            handler_extras: Mutex::new(false),
+            registry_calls: Mutex::default(),
+            register_fails: Mutex::new(false),
+            restore_fails: Mutex::new(false),
+            default_apps_opened: Mutex::new(0),
+            forwarded: Mutex::default(),
         }
     }
 }
@@ -443,11 +469,60 @@ impl Shortcuts for FakeOs {
         }
     }
 }
-impl LinkHandlerRegistry for FakeOs {
-    fn current_handler(&self) -> Option<String> {
-        None
+impl FakeOs {
+    fn note(&self, call: &str) {
+        self.registry_calls.lock().unwrap().push(call.to_string());
     }
-    fn set_handler(&self, _command: Option<&str>) -> io::Result<()> {
+
+    /// Claude rewrites its own handler, as an update or a launch does.
+    pub fn claude_rewrites_handler(&self, command: &str) {
+        *self.handler.lock().unwrap() = Some(command.to_string());
+    }
+
+    /// Everything the fake registry holds for `claude://`, to compare before
+    /// and after a round trip.
+    pub fn registry_state(&self) -> (Option<String>, bool) {
+        (
+            self.handler.lock().unwrap().clone(),
+            *self.handler_extras.lock().unwrap(),
+        )
+    }
+}
+impl LinkHandlerRegistry for FakeOs {
+    fn is_registered(&self) -> bool {
+        self.handler.lock().unwrap().as_deref() == Some(CLAWSHELL_HANDLER)
+    }
+    fn snapshot_handler(&self) -> io::Result<String> {
+        self.note("snapshot");
+        Ok(match &*self.handler.lock().unwrap() {
+            Some(command) => format!("present:{command}"),
+            None => "absent".to_string(),
+        })
+    }
+    fn register_handler(&self) -> io::Result<()> {
+        self.note("register");
+        if *self.register_fails.lock().unwrap() {
+            return Err(io::Error::other("registry is locked"));
+        }
+        *self.handler.lock().unwrap() = Some(CLAWSHELL_HANDLER.to_string());
+        *self.handler_extras.lock().unwrap() = true;
+        Ok(())
+    }
+    fn restore_handler(&self, snapshot: &str) -> io::Result<()> {
+        self.note("restore");
+        if *self.restore_fails.lock().unwrap() {
+            return Err(io::Error::other("registry is locked"));
+        }
+        *self.handler.lock().unwrap() = snapshot.strip_prefix("present:").map(str::to_string);
+        *self.handler_extras.lock().unwrap() = false;
+        Ok(())
+    }
+    fn open_default_apps(&self) -> io::Result<()> {
+        *self.default_apps_opened.lock().unwrap() += 1;
+        Ok(())
+    }
+    fn forward_link(&self, forward: &LinkForward) -> io::Result<()> {
+        self.forwarded.lock().unwrap().push(forward.clone());
         Ok(())
     }
 }

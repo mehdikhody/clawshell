@@ -126,5 +126,15 @@
 	"error_env_name_duplicate": "A variable name is used twice.",
 	"error_env_value_invalid": "A value can not hold a NUL character.",
 	"error_flag_reserved": "--user-data-dir is set by clawshell and can not be changed.",
-	"error_launch_options_failed": "Couldn't save the environment and flags"
+	"error_launch_options_failed": "Couldn't save the environment and flags",
+	"settings_sign_in_routing": "Sign-in routing",
+	"settings_sign_in_routing_hint": "Send browser sign-ins to the account that asked for them. Off puts Claude's own link handling back.",
+	"routing_default_apps_title": "One choice left in Windows",
+	"routing_default_apps_body": "Windows opened Default Apps. Under clawshell, set the claude link type to clawshell.",
+	"routing_offer_title": "Route browser sign-ins to the right account?",
+	"routing_offer_body": "When a sign-in finishes in your browser, clawshell sends it to the account you were signing in to, not your original Claude. You can change this later in Settings.",
+	"routing_offer_accept": "Turn on",
+	"routing_offer_decline": "Not now",
+	"routing_offer_done": "Got it",
+	"error_routing_failed": "Couldn't change sign-in routing"
 }

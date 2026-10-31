@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import IconInfoCircle from '@tabler/icons-svelte/icons/info-circle';
 	import { errorCode } from '$lib/accounts';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
@@ -11,7 +12,7 @@
 	import { active, switchLocale } from '$lib/locale-state.svelte';
 	import { Switch } from '$lib/components/ui/switch';
 	import { m } from '$lib/paraglide/messages.js';
-	import { getSettings, updateSettings, type Settings } from '$lib/settings';
+	import { getSettings, setSignInRouting, updateSettings, type Settings } from '$lib/settings';
 
 	/** What the core has saved. It changes only when the core accepts an update. */
 	let settings = $state<Settings | null>(null);
@@ -24,8 +25,24 @@
 		'claude-path-missing': () => m.error_claude_path_missing(),
 		'claude-path-not-a-file': () => m.error_claude_path_not_a_file(),
 		'claude-path-not-claude': () => m.error_claude_path_not_claude(),
-		'invalid-thresholds': () => m.error_thresholds_invalid()
+		'invalid-thresholds': () => m.error_thresholds_invalid(),
+		'routing-failed': () => m.error_routing_failed()
 	};
+
+	/** The Store build leaves one choice on the Default Apps page, which has just been opened. */
+	let defaultAppsNote = $state(false);
+
+	/** Routing has its own command: it also edits the registry, and the core says what is left to do. */
+	async function changeRouting(enabled: boolean) {
+		failure = null;
+		try {
+			const change = await setSignInRouting(enabled);
+			settings = change.settings;
+			defaultAppsNote = enabled && change.needsDefaultAppsChoice;
+		} catch (error) {
+			failure = failureText[errorCode(error) ?? '']?.() ?? m.error_settings_save_failed();
+		}
+	}
 
 	onMount(async () => {
 		try {
@@ -163,6 +180,28 @@
 		{#each switches as row (row.key)}
 			{@render switchRow(row)}
 		{/each}
+
+		<Item.Root variant="outline">
+			<Item.Content>
+				<Item.Title
+					><Label for="setting-signInRouting">{m.settings_sign_in_routing()}</Label></Item.Title
+				>
+				<Item.Description>{m.settings_sign_in_routing_hint()}</Item.Description>
+			</Item.Content>
+			<Item.Actions>
+				<Switch
+					id="setting-signInRouting"
+					bind:checked={() => settings!.signInRouting, (checked) => void changeRouting(checked)}
+				/>
+			</Item.Actions>
+		</Item.Root>
+		{#if defaultAppsNote}
+			<Alert.Root role="status">
+				<IconInfoCircle />
+				<Alert.Title>{m.routing_default_apps_title()}</Alert.Title>
+				<Alert.Description>{m.routing_default_apps_body()}</Alert.Description>
+			</Alert.Root>
+		{/if}
 
 		<h2 class="mt-2 text-sm font-medium">{m.settings_notifications()}</h2>
 		{#each alerts as row (row.key)}
