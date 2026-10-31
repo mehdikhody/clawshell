@@ -28,6 +28,7 @@ aes-gcm = "0.10"
 base64 = "0.22"
 sysinfo = { version = "0.40.1", default-features = false, features = ["system"] }
 ureq = "2"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
 [target."cfg(windows)".dependencies]
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security_Cryptography", "Win32_UI_WindowsAndMessaging"] }

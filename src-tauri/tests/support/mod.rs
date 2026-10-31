@@ -90,6 +90,25 @@ impl Fixture {
         path
     }
 
+    /// Writes a Claude Code session file the way Desktop keeps them under
+    /// `claude-code-sessions/{account}/{org}/`.
+    pub fn add_session(&self, profile_id: &str, cli_session_id: &str, prior: &[&str]) {
+        let dir = self.local_app_data().join(format!(
+            "clawshell-{profile_id}/claude-code-sessions/acct/org"
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let body = serde_json::json!({
+            "sessionId": format!("local_{cli_session_id}"),
+            "cliSessionId": cli_session_id,
+            "priorCliSessionIds": prior,
+        });
+        fs::write(
+            dir.join(format!("local_{cli_session_id}.json")),
+            body.to_string(),
+        )
+        .unwrap();
+    }
+
     /// Writes a JSONL transcript under the shared `projects` folder.
     pub fn add_transcript(&self, relative: &str, lines: &[&str]) {
         let path = self.projects_dir().join(relative);
@@ -180,13 +199,20 @@ impl HttpClient for FakeHttp {
 /// A clock that only moves when the test says so.
 pub struct FakeClock {
     now: Mutex<SystemTime>,
+    utc_offset_secs: Mutex<i32>,
 }
 
 impl FakeClock {
     pub fn at_unix_secs(secs: u64) -> Arc<Self> {
         Arc::new(FakeClock {
             now: Mutex::new(UNIX_EPOCH + Duration::from_secs(secs)),
+            utc_offset_secs: Mutex::new(0),
         })
+    }
+
+    /// Sets the local time zone as an offset from UTC, in hours.
+    pub fn set_utc_offset_hours(&self, hours: i32) {
+        *self.utc_offset_secs.lock().unwrap() = hours * 3_600;
     }
 
     pub fn advance(&self, by: Duration) {
@@ -197,6 +223,10 @@ impl FakeClock {
 impl Clock for FakeClock {
     fn now(&self) -> SystemTime {
         *self.now.lock().unwrap()
+    }
+
+    fn utc_offset_secs(&self, _at: SystemTime) -> i32 {
+        *self.utc_offset_secs.lock().unwrap()
     }
 }
 

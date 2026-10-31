@@ -63,6 +63,12 @@ pub trait HttpClient: Send + Sync {
 
 pub trait Clock: Send + Sync {
     fn now(&self) -> SystemTime;
+
+    /// Seconds the local time zone is ahead of UTC at `at` (daylight saving
+    /// included). A day boundary is local midnight, so cost buckets by this.
+    fn utc_offset_secs(&self, _at: SystemTime) -> i32 {
+        0
+    }
 }
 
 /// Profile folder -> access token and its expiry, or none when signed out.

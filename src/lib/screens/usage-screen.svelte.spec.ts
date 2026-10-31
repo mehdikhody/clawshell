@@ -1,10 +1,11 @@
 import { page } from 'vitest/browser';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { emit } from '@tauri-apps/api/event';
 import '../../routes/layout.css';
 import { mockTauri, type IpcHandlers } from '$lib/test/tauri-ipc';
 import { pooledWindow } from '$lib/test/pooled';
+import { accountCost, monthCost } from '$lib/test/cost';
 import { emptyPooled, type AccountList, type PooledRemaining } from '$lib/accounts';
 import UsageScreen from './usage-screen.svelte';
 
@@ -185,5 +186,112 @@ describe('UsageScreen manual refresh', () => {
 		await expect.element(page.getByRole('button', { name: 'Refresh usage' })).toBeDisabled();
 		await expect.element(page.getByText(/Next refresh allowed in 2:3\d/)).toBeVisible();
 		expect(tauri.calls.some((c) => c.cmd === 'refresh_usage')).toBe(false);
+	});
+});
+
+describe('UsageScreen this month', () => {
+	const work = accountCost('Work', { estimateUsd: 1, extraUsd: 12.5, totalUsd: 13.5, share: 0.82 });
+	const spare = accountCost('Spare', { estimateUsd: 3, totalUsd: 3, share: 0.18 });
+	const month = monthCost({
+		estimateUsd: 4,
+		extraUsd: 12.5,
+		totalUsd: 16.5,
+		accounts: [work, spare]
+	});
+
+	it('asks the core for the month on load', async () => {
+		const tauri = mount(listWith(emptyPooled), { month_cost: () => month });
+
+		await expect.element(page.getByText('This month')).toBeVisible();
+		expect(tauri.calls.filter((c) => c.cmd === 'month_cost')).toHaveLength(1);
+	});
+
+	it('shows the month total with the Code estimate labelled and extra usage apart', async () => {
+		mount(listWith(emptyPooled), { month_cost: () => month });
+
+		await expect.element(page.getByText('$16.50', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('$4.00 est.')).toBeVisible();
+		await expect.element(page.getByText('Code tab')).toBeVisible();
+		await expect.element(page.getByText('Extra usage')).toBeVisible();
+		await expect.element(page.getByText('$12.50', { exact: true }).first()).toBeVisible();
+	});
+
+	it('lists each account with its dollars and share', async () => {
+		mount(listWith(emptyPooled), { month_cost: () => month });
+
+		const rows = page.getByRole('listitem');
+		await expect.element(rows.filter({ hasText: 'Work' })).toHaveTextContent('$13.50');
+		await expect.element(rows.filter({ hasText: 'Work' })).toHaveTextContent('82%');
+		await expect.element(rows.filter({ hasText: 'Spare' })).toHaveTextContent('$3.00');
+		await expect.element(rows.filter({ hasText: 'Spare' })).toHaveTextContent('18%');
+	});
+
+	it('says there is no estimate, never $0, when prices could not be fetched', async () => {
+		mount(listWith(emptyPooled), {
+			month_cost: () =>
+				monthCost({
+					estimateUsd: null,
+					noEstimate: 'prices-unavailable',
+					totalUsd: null,
+					extraUsd: 3,
+					accounts: [accountCost('Work', { estimateUsd: null, extraUsd: 3, totalUsd: null })]
+				})
+		});
+
+		await expect.element(page.getByText('No estimate', { exact: true })).toBeVisible();
+		await expect.element(page.getByText(/Couldn't fetch model prices/)).toBeVisible();
+		await expect.element(page.getByText('$0.00')).not.toBeInTheDocument();
+		// Real extra-usage spend is still shown.
+		await expect.element(page.getByText('$3.00').first()).toBeVisible();
+	});
+
+	it('notes messages left out for lack of a price', async () => {
+		mount(listWith(emptyPooled), { month_cost: () => ({ ...month, unpricedMessages: 7 }) });
+
+		await expect.element(page.getByText(/7 messages/)).toBeVisible();
+	});
+
+	it('shows a zero month as $0.00 when there is simply no spend', async () => {
+		mount(listWith(emptyPooled), {
+			month_cost: () => monthCost({ accounts: [accountCost('Work')] })
+		});
+
+		await expect.element(page.getByText('$0.00', { exact: true }).first()).toBeVisible();
+		await expect.element(page.getByText('No estimate')).not.toBeInTheDocument();
+	});
+
+	it('does not rescan the transcripts on every pushed change', async () => {
+		const tauri = mount(listWith(emptyPooled), { month_cost: () => month });
+		await expect.element(page.getByText('$16.50', { exact: true })).toBeVisible();
+
+		await emit('accounts-changed', listWith(emptyPooled));
+		await emit('accounts-changed', listWith(emptyPooled));
+
+		expect(tauri.calls.filter((c) => c.cmd === 'month_cost')).toHaveLength(1);
+	});
+
+	it('reads the month again after a manual refresh', async () => {
+		const tauri = mount(listWith(emptyPooled), {
+			month_cost: () => month,
+			refresh_usage: () => ({ refreshed: 1, refreshAllowedAt: Date.now() + 3 * MIN })
+		});
+		await expect.element(page.getByText('$16.50', { exact: true })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Refresh usage' }).click();
+
+		await vi.waitFor(() =>
+			expect(tauri.calls.filter((c) => c.cmd === 'month_cost')).toHaveLength(2)
+		);
+	});
+
+	it('shows no cost section when the core cannot report one', async () => {
+		mount(listWith(emptyPooled), {
+			month_cost: () => {
+				throw new Error('boom');
+			}
+		});
+
+		await expect.element(page.getByText('No usage data yet').first()).toBeVisible();
+		await expect.element(page.getByText('This month')).not.toBeInTheDocument();
 	});
 });
