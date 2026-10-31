@@ -54,5 +54,12 @@
 	"usage_soonest_reset": "Resets {time}",
 	"usage_pooled_stale": "Includes stale data, updated {ago}",
 	"usage_empty": "No signed-in accounts",
-	"usage_empty_hint": "Sign in to an account on the Accounts tab to see your combined usage."
+	"usage_empty_hint": "Sign in to an account on the Accounts tab to see your combined usage.",
+	"cost_title": "This month",
+	"cost_code_tab": "Code tab",
+	"cost_estimated": "{amount} est.",
+	"cost_extra_usage": "Extra usage",
+	"cost_no_estimate": "No estimate",
+	"cost_prices_unavailable": "Couldn't fetch model prices, so there is no Code-tab estimate. Check your connection and refresh.",
+	"cost_unpriced": "{count} messages use models without a known price and are left out."
 }

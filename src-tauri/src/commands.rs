@@ -2,8 +2,8 @@
 //! changes to the UI.
 
 use crate::core::{
-    Account, AccountList, AddError, Core, DeleteError, LaunchError, LaunchOutcome, OpenFolderError,
-    RefreshOutcome, RenameError,
+    Account, AccountList, AddError, Core, DeleteError, LaunchError, LaunchOutcome, MonthCost,
+    OpenFolderError, RefreshOutcome, RenameError,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
@@ -175,6 +175,16 @@ pub async fn refresh_usage(
     })
     .await
     .map_err(|e| CommandError::new("io", e.to_string()))
+}
+
+/// This month's dollars. Fetches the price list when it has to, so it runs off
+/// the UI thread.
+#[tauri::command]
+pub async fn month_cost(core: State<'_, Arc<Core>>) -> Result<MonthCost, CommandError> {
+    let core = core.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || core.month_cost())
+        .await
+        .map_err(|e| CommandError::new("io", e.to_string()))
 }
 
 /// Polls the account list and emits `accounts-changed` whenever it differs,

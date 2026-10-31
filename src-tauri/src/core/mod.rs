@@ -2,6 +2,7 @@
 //! arrives through a port in [`ports`], so tests drive it with fakes.
 
 pub mod accounts;
+pub mod cost;
 pub mod desktop_token;
 pub mod install;
 mod paths;
@@ -17,6 +18,7 @@ pub use accounts::{
     Account, AccountList, AddError, DeleteError, LaunchError, LaunchOutcome, OpenFolderError,
     RenameError, Status,
 };
+pub use cost::{AccountCost, MonthCost, NoEstimate};
 pub use pooled::{PooledRemaining, PooledWindow};
 pub use usage::{RefreshOutcome, UsageSnapshot, UsageSource};
 
@@ -57,6 +59,8 @@ pub struct Core {
     usage: Mutex<usage::UsageState>,
     /// Held for a whole refresh so two refreshes never overlap.
     refresh_gate: Mutex<()>,
+    /// The last price-list fetch, so a refresh does not refetch it.
+    prices: Mutex<Option<cost::PriceCache>>,
 }
 
 impl Core {
@@ -65,6 +69,7 @@ impl Core {
             ports,
             usage: Mutex::default(),
             refresh_gate: Mutex::new(()),
+            prices: Mutex::new(None),
         }
     }
 

@@ -8,11 +8,11 @@ A per-account list shows each account's dollars and share. If prices can't be fe
 
 **Blocked by:** 03, 05
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Transcripts map to the right account; transcripts from other or unknown sessions are ignored
-- [ ] Duplicate streamed records are counted once
-- [ ] The month total = Code estimate + extra usage, with the estimate labelled
-- [ ] The per-account breakdown sums to the total
-- [ ] Offline or price-fetch failure shows "no estimate" rather than $0
-- [ ] Core tests cover mapping, dedup, pricing, month bucketing (local day) and the offline case; UI tests cover the headline and breakdown
+- [x] Transcripts map to the right account; transcripts from other or unknown sessions are ignored
+- [x] Duplicate streamed records are counted once
+- [x] The month total = Code estimate + extra usage, with the estimate labelled
+- [x] The per-account breakdown sums to the total
+- [x] Offline or price-fetch failure shows "no estimate" rather than $0
+- [x] Core tests cover mapping, dedup, pricing, month bucketing (local day) and the offline case; UI tests cover the headline and breakdown

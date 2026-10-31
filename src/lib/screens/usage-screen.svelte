@@ -9,6 +9,8 @@
 		type AccountList,
 		type PooledWindow
 	} from '$lib/accounts';
+	import MonthCostCard from '$lib/components/month-cost.svelte';
+	import { monthCost, type MonthCost } from '$lib/cost';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as Item from '$lib/components/ui/item';
@@ -18,6 +20,10 @@
 	import { formatAgo, formatCountdown, formatReset } from '$lib/usage';
 
 	let list = $state<AccountList | null>(null);
+	let cost = $state<MonthCost | null>(null);
+	/** The month is a scan of transcripts, so pushed changes reread it at most this often. */
+	const COST_REREAD_MS = 60_000;
+	let costReadAt = 0;
 	let refreshing = $state(false);
 	let failure = $state<string | null>(null);
 	/** Ticks every second so "updated X ago" and the refresh wait stay current. */
@@ -36,6 +42,15 @@
 		}
 	}
 
+	async function loadCost() {
+		costReadAt = Date.now();
+		try {
+			cost = (await monthCost()) ?? null;
+		} catch {
+			// Keep whatever was shown; the next load tries again.
+		}
+	}
+
 	async function refreshNow() {
 		refreshing = true;
 		failure = null;
@@ -46,14 +61,18 @@
 			failure = m.error_refresh_failed();
 		} finally {
 			refreshing = false;
-			await load();
+			await Promise.all([load(), loadCost()]);
 		}
 	}
 
 	onMount(() => {
 		const tick = setInterval(() => (now = Date.now()), 1000);
 		void load();
-		const unlisten = onAccountsChanged((next) => (list = next));
+		void loadCost();
+		const unlisten = onAccountsChanged((next) => {
+			list = next;
+			if (Date.now() - costReadAt >= COST_REREAD_MS) void loadCost();
+		});
 		return () => {
 			clearInterval(tick);
 			void unlisten.then((stop) => stop()).catch(() => {});
@@ -98,6 +117,10 @@
 				<p class="text-xs text-muted-foreground">{m.usage_empty_hint()}</p>
 			</div>
 		{/if}
+	{/if}
+
+	{#if cost && cost.accounts.length > 0}
+		<MonthCostCard {cost} />
 	{/if}
 </section>
 

@@ -24,6 +24,11 @@ impl Clock for SystemClock {
     fn now(&self) -> SystemTime {
         SystemTime::now()
     }
+
+    fn utc_offset_secs(&self, at: SystemTime) -> i32 {
+        use chrono::{DateTime, Local, Offset};
+        DateTime::<Local>::from(at).offset().fix().local_minus_utc()
+    }
 }
 
 /// Reads the OS process table (executable and command line of each process).
@@ -250,8 +255,19 @@ impl OsAdapters for WindowsOs {}
 const OAUTH_API_PREFIX: &str = "https://api.anthropic.com/api/oauth/";
 const HTTP_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// Blocking HTTPS client for the profile and usage endpoints. It refuses any
-/// other address, follows no redirects, and never puts a URL, header or body
+/// A request may go out only to the OAuth API, or to the public price list
+/// without credentials.
+fn allowed(request: &HttpRequest) -> bool {
+    request.url.starts_with(OAUTH_API_PREFIX)
+        || (request.url == crate::core::cost::PRICES_URL
+            && request
+                .headers
+                .iter()
+                .all(|(name, _)| !name.eq_ignore_ascii_case("authorization")))
+}
+
+/// Blocking HTTPS client for the profile and usage endpoints and the public
+/// price list. It refuses any other address, follows no redirects, and never puts a URL, header or body
 /// into an error.
 pub struct UreqHttp {
     agent: ureq::Agent,
@@ -271,7 +287,7 @@ impl UreqHttp {
 
 impl HttpClient for UreqHttp {
     fn send(&self, request: HttpRequest) -> Result<HttpResponse, HttpError> {
-        if !request.url.starts_with(OAUTH_API_PREFIX) {
+        if !allowed(&request) {
             return Err(HttpError::Network("address not allowed".into()));
         }
         let mut call = self.agent.get(&request.url);
@@ -329,5 +345,34 @@ fn dpapi_unprotect(blob: &[u8]) -> Option<Vec<u8>> {
         let key = std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec();
         let _ = LocalFree(Some(HLOCAL(output.pbData.cast())));
         Some(key)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn request(url: &str, headers: &[(&str, &str)]) -> HttpRequest {
+        HttpRequest {
+            url: url.to_string(),
+            headers: headers
+                .iter()
+                .map(|(n, v)| (n.to_string(), v.to_string()))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn sends_requests_only_to_the_oauth_api_or_the_price_list() {
+        let oauth = "https://api.anthropic.com/api/oauth/usage";
+        assert!(allowed(&request(oauth, &[("Authorization", "Bearer x")])));
+        assert!(allowed(&request(crate::core::cost::PRICES_URL, &[])));
+        assert!(!allowed(&request("https://example.test/prices.json", &[])));
+    }
+
+    #[test]
+    fn never_sends_credentials_to_the_price_list() {
+        let url = crate::core::cost::PRICES_URL;
+        assert!(!allowed(&request(url, &[("authorization", "Bearer x")])));
     }
 }

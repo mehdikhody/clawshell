@@ -74,7 +74,7 @@ fn pool_window<'a>(
 }
 
 /// `2026-06-15T15:00:00.000000+00:00` (or `Z`, or no fraction) as epoch ms.
-fn rfc3339_ms(text: &str) -> Option<i64> {
+pub(super) fn rfc3339_ms(text: &str) -> Option<i64> {
     let (date, rest) = text.split_once(['T', 't', ' '])?;
     let mut ymd = date.split('-');
     let year: i64 = ymd.next()?.parse().ok()?;
@@ -108,7 +108,7 @@ fn rfc3339_ms(text: &str) -> Option<i64> {
 }
 
 /// Days since 1970-01-01 for a proleptic Gregorian date.
-fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
+pub(super) fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
     let y = if month <= 2 { year - 1 } else { year };
     let era = y.div_euclid(400);
     let yoe = y - era * 400;
