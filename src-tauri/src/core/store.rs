@@ -1,6 +1,7 @@
 //! clawshell's own account records: labels live in `clawshell/accounts.json`
 //! under local app data, kept apart from the profile folders themselves.
 
+use super::badge::{is_valid_colour, next_colour};
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -14,6 +15,9 @@ const FIRST_LABEL_NUMBER: u32 = 2;
 pub struct Record {
     pub id: String,
     pub label: String,
+    /// `#rrggbb`; none in records saved before colours existed.
+    #[serde(default)]
+    pub colour: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -64,6 +68,44 @@ impl Records {
         }
     }
 
+    pub fn colour_of(&self, id: &str) -> Option<&str> {
+        self.accounts
+            .iter()
+            .find(|r| r.id == id)
+            .and_then(|r| r.colour.as_deref())
+    }
+
+    /// Recolours `id`; false when no record has that id.
+    pub fn set_colour(&mut self, id: &str, colour: &str) -> bool {
+        match self.accounts.iter_mut().find(|r| r.id == id) {
+            Some(record) => {
+                record.colour = Some(colour.to_string());
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Gives every record that has no usable colour yet (saved before colours
+    /// existed) the next unused one; true when any was given.
+    pub fn assign_missing_colours(&mut self) -> bool {
+        let mut changed = false;
+        for i in 0..self.accounts.len() {
+            // A hand-edited colour that is not `#rrggbb` is replaced too: it
+            // ends up in a style attribute.
+            if !self.accounts[i]
+                .colour
+                .as_deref()
+                .is_some_and(is_valid_colour)
+            {
+                let colour = next_colour(self.accounts.iter().filter_map(|r| r.colour.as_deref()));
+                self.accounts[i].colour = Some(colour.to_string());
+                changed = true;
+            }
+        }
+        changed
+    }
+
     pub fn remove(&mut self, id: &str) {
         self.accounts.retain(|r| r.id != id);
     }
@@ -79,9 +121,11 @@ impl Records {
     /// Records `id` under a fresh default label and returns that label.
     pub fn add(&mut self, id: &str) -> String {
         let label = self.next_label();
+        let colour = next_colour(self.accounts.iter().filter_map(|r| r.colour.as_deref()));
         self.accounts.push(Record {
             id: id.to_string(),
             label: label.clone(),
+            colour: Some(colour.to_string()),
         });
         label
     }

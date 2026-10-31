@@ -22,6 +22,8 @@
 	"menu_rename": "تغییر نام",
 	"menu_open_folder": "باز کردن پوشه",
 	"menu_delete": "حذف",
+	"menu_badge_colour": "رنگ نشان",
+	"error_colour_failed": "تغییر رنگ ممکن نشد",
 	"action_cancel": "انصراف",
 	"rename_title": "تغییر نام حساب",
 	"rename_field": "نام",

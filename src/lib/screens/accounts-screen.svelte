@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import IconAlertTriangle from '@tabler/icons-svelte/icons/alert-triangle';
+	import IconCheck from '@tabler/icons-svelte/icons/check';
 	import IconDots from '@tabler/icons-svelte/icons/dots';
 	import IconFolderOpen from '@tabler/icons-svelte/icons/folder-open';
+	import IconPalette from '@tabler/icons-svelte/icons/palette';
 	import IconPencil from '@tabler/icons-svelte/icons/pencil';
 	import IconPlus from '@tabler/icons-svelte/icons/plus';
 	import IconRefresh from '@tabler/icons-svelte/icons/refresh';
@@ -18,6 +20,7 @@
 		openAccountFolder,
 		refreshUsage,
 		renameAccount,
+		setAccountColour,
 		type Account,
 		type AccountList,
 		type AccountStatus,
@@ -42,6 +45,7 @@
 		claudeFound: true,
 		refreshAllowedAt: null,
 		pooled: emptyPooled,
+		palette: [],
 		accounts: []
 	});
 	let loaded = $state(false);
@@ -139,6 +143,17 @@
 			await renameAccount(account.id, label);
 		} catch (error) {
 			failure = describe(error, m.error_rename_failed());
+		} finally {
+			await refresh();
+		}
+	}
+
+	async function changeColour(account: Account, colour: string) {
+		failure = null;
+		try {
+			await setAccountColour(account.id, colour);
+		} catch (error) {
+			failure = describe(error, m.error_colour_failed());
 		} finally {
 			await refresh();
 		}
@@ -251,6 +266,14 @@
 						}
 					}}
 				>
+					<Item.Media>
+						<span
+							data-slot="account-badge"
+							aria-hidden="true"
+							class="flex size-8 items-center justify-center rounded-md text-sm font-semibold text-white"
+							style:background-color={account.colour}>{account.badge}</span
+						>
+					</Item.Media>
 					<Item.Content>
 						<Item.Title>{account.label}</Item.Title>
 						{#if account.status === 'missing'}
@@ -302,6 +325,28 @@
 									<IconFolderOpen />
 									{m.menu_open_folder()}
 								</DropdownMenu.Item>
+								<DropdownMenu.Sub>
+									<DropdownMenu.SubTrigger>
+										<IconPalette />
+										{m.menu_badge_colour()}
+									</DropdownMenu.SubTrigger>
+									<DropdownMenu.SubContent>
+										<div class="grid grid-cols-5 gap-1 p-1">
+											{#each list.palette as colour (colour)}
+												<DropdownMenu.Item
+													aria-label={colour}
+													class="size-7 justify-center rounded-full p-0 text-white focus:ring-2 focus:ring-ring"
+													style="background-color: {colour}"
+													onSelect={() => changeColour(account, colour)}
+												>
+													{#if colour === account.colour}
+														<IconCheck />
+													{/if}
+												</DropdownMenu.Item>
+											{/each}
+										</div>
+									</DropdownMenu.SubContent>
+								</DropdownMenu.Sub>
 								<DropdownMenu.Separator />
 								<DropdownMenu.Item variant="destructive" onSelect={() => askDelete(account)}>
 									<IconTrash />

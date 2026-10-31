@@ -127,7 +127,12 @@ pub trait WindowFocus: Send + Sync {
 }
 
 pub trait TaskbarIdentity: Send + Sync {
-    fn apply(&self, profile: &Path, badge: char, colour: &str) -> io::Result<()>;
+    /// Gives the profile's Claude window the AppUserModelID `aumid` and a
+    /// taskbar icon badged with `badge` on `colour` (`#rrggbb`). The core
+    /// derives the id, so a new letter or colour is a new id. Called again
+    /// with the same arguments, it changes nothing. A window that does not
+    /// exist yet is badged as soon as it is created, before it first shows.
+    fn apply(&self, profile: &Path, aumid: &str, badge: char, colour: &str) -> io::Result<()>;
 }
 
 pub trait Shortcuts: Send + Sync {

@@ -2,6 +2,7 @@
 //! arrives through a port in [`ports`], so tests drive it with fakes.
 
 pub mod accounts;
+pub mod badge;
 pub mod cost;
 pub mod desktop_token;
 pub mod install;
@@ -18,8 +19,8 @@ mod store;
 pub mod usage;
 
 pub use accounts::{
-    Account, AccountList, AddError, DeleteError, LaunchError, LaunchOutcome, OpenFolderError,
-    RenameError, Status,
+    Account, AccountList, AddError, ColourError, DeleteError, LaunchError, LaunchOutcome,
+    OpenFolderError, RenameError, Status,
 };
 pub use cost::{AccountCost, Heatmap, MonthCost, NoEstimate};
 pub use pooled::{PooledRemaining, PooledWindow};
@@ -28,6 +29,7 @@ pub use shell::{CloseAction, TrayEntry, TrayLabels};
 pub use usage::{RefreshOutcome, UsageSnapshot, UsageSource};
 
 use ports::{Clock, HttpClient, OsAdapters, ProcessInspector, Roots, TokenReader};
+use std::collections::HashMap;
 use std::io;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -68,6 +70,9 @@ pub struct Core {
     prices: Mutex<Option<cost::PriceCache>>,
     /// What each window has already notified, saved so a restart repeats nothing.
     fired: Mutex<notifications::Fired>,
+    /// The taskbar identity (AppUserModelID) each running account's window
+    /// has been given, by account id.
+    taskbar: Mutex<HashMap<String, String>>,
 }
 
 impl Core {
@@ -79,6 +84,7 @@ impl Core {
             refresh_gate: Mutex::new(()),
             prices: Mutex::new(None),
             fired: Mutex::new(fired),
+            taskbar: Mutex::default(),
         }
     }
 

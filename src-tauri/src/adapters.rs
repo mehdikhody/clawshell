@@ -5,6 +5,8 @@ use crate::core::desktop_token::{AccessToken, read_access_token};
 use crate::core::install::detect_install;
 use crate::core::ports::*;
 use crate::core::process::DesktopProcesses;
+use crate::taskbar::badge_windows;
+use std::collections::HashMap;
 use std::io;
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -131,6 +133,9 @@ pub struct WindowsOs {
     lister: Arc<dyn ProcessLister>,
     /// Shows a Windows toast; supplied by the app, which owns the Tauri handle.
     toast: Toast,
+    /// Per profile, the newest taskbar identity request. A watcher waiting for
+    /// a window gives up when a newer request has replaced its own.
+    watching: Arc<Mutex<HashMap<PathBuf, u64>>>,
 }
 
 /// Title and body in, a Windows notification out.
@@ -146,6 +151,7 @@ impl WindowsOs {
             locator,
             lister,
             toast,
+            watching: Arc::default(),
         }
     }
 }
@@ -234,8 +240,43 @@ fn focus_window_of(pids: &[u32]) -> bool {
     }
 }
 
+/// How often, and for how long, a window that does not exist yet is waited
+/// for. Short polls so the id lands before Claude first shows the window.
+const WINDOW_POLL: Duration = Duration::from_millis(100);
+const WINDOW_WAIT: Duration = Duration::from_secs(60);
+
 impl TaskbarIdentity for WindowsOs {
-    fn apply(&self, _profile: &Path, _badge: char, _colour: &str) -> io::Result<()> {
+    fn apply(&self, profile: &Path, aumid: &str, badge: char, colour: &str) -> io::Result<()> {
+        // Any watcher still waiting on this profile is out of date now.
+        let generation = {
+            let mut watching = self.watching.lock().unwrap();
+            let next = watching.get(profile).copied().unwrap_or(0) + 1;
+            watching.insert(profile.to_path_buf(), next);
+            next
+        };
+        let inspector = DesktopProcesses::new(self.lister.clone(), self.locator.clone());
+        if badge_windows(&inspector.pids_for(profile), aumid, badge, colour) > 0 {
+            return Ok(());
+        }
+
+        // No window yet (Claude is still starting): badge it the moment it
+        // appears, which is before it first shows.
+        let watching = self.watching.clone();
+        let (profile, aumid, colour) =
+            (profile.to_path_buf(), aumid.to_string(), colour.to_string());
+        std::thread::spawn(move || {
+            let start = Instant::now();
+            while start.elapsed() < WINDOW_WAIT {
+                std::thread::sleep(WINDOW_POLL);
+                if watching.lock().unwrap().get(&profile) != Some(&generation) {
+                    return;
+                }
+                let pids = inspector.pids_for(&profile);
+                if badge_windows(&pids, &aumid, badge, &colour) > 0 {
+                    return;
+                }
+            }
+        });
         Ok(())
     }
 }

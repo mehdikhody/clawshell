@@ -2,6 +2,7 @@ pub mod core;
 
 mod adapters;
 mod commands;
+mod taskbar;
 mod tray;
 
 use adapters::{
@@ -85,6 +86,7 @@ pub fn run() {
             commands::add_account,
             commands::launch_account,
             commands::rename_account,
+            commands::set_account_colour,
             commands::open_account_folder,
             commands::delete_account,
             commands::refresh_usage,

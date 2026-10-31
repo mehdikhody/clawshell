@@ -1,6 +1,7 @@
 //! Accounts: listing with status, adding, launching, renaming, opening the
 //! folder and deleting.
 
+use super::badge::{PALETTE, app_user_model_id, badge_letter, is_valid_colour};
 use super::paths::same_path;
 use super::pooled::{PooledRemaining, pool_remaining};
 use super::signin::is_signed_in;
@@ -35,6 +36,11 @@ pub struct Account {
     /// The uuid in the `clawshell-{uuid}` folder name; permanent.
     pub id: String,
     pub label: String,
+    /// The first letter of the label, in capitals; shown on the row and the
+    /// taskbar icon.
+    pub badge: char,
+    /// The badge colour, `#rrggbb`.
+    pub colour: String,
     pub status: Status,
     /// A Claude Desktop process uses this profile, whatever the badge says.
     pub running: bool,
@@ -56,6 +62,8 @@ pub struct AccountList {
     pub refresh_allowed_at: Option<i64>,
     /// The 5-hour and weekly windows pooled over the signed-in accounts.
     pub pooled: PooledRemaining,
+    /// The colours the picker offers.
+    pub palette: Vec<&'static str>,
     pub accounts: Vec<Account>,
 }
 
@@ -81,6 +89,7 @@ impl Core {
             claude_found: self.claude_install().is_some(),
             refresh_allowed_at: self.refresh_allowed_at(&accounts),
             pooled: pool_remaining(&accounts),
+            palette: PALETTE.to_vec(),
             accounts,
         })
     }
@@ -102,10 +111,11 @@ impl Core {
                     .label_of(&profile.id)
                     .unwrap_or_default()
                     .to_string();
+                let colour = colour_in(&records, &profile.id);
                 let known = usage.accounts.get(&profile.id);
                 let email = known.and_then(|u| u.email.clone());
                 let snapshot = known.and_then(|u| u.snapshot.clone());
-                account_of(profile, label, &running, email, snapshot)
+                account_of(profile, label, colour, &running, email, snapshot)
             })
             .collect();
 
@@ -117,6 +127,8 @@ impl Core {
             .map(|r| Account {
                 id: r.id.clone(),
                 label: r.label.clone(),
+                badge: badge_letter(&r.label),
+                colour: colour_in(&records, &r.id),
                 status: Status::Missing,
                 running: false,
                 email: None,
@@ -147,7 +159,75 @@ impl Core {
         }
         records.save(local)?;
         account.label = label.to_string();
+        account.badge = badge_letter(label);
+        // A new initial is a new identity for a running window.
+        self.apply_taskbar_identities(std::slice::from_ref(&account));
         Ok(account)
+    }
+
+    /// Picks the account's badge colour (`#rrggbb`). A running window takes
+    /// the new colour on its taskbar button at once.
+    pub fn set_account_colour(&self, id: &str, colour: &str) -> Result<Account, ColourError> {
+        if !is_valid_colour(colour) {
+            return Err(ColourError::InvalidColour);
+        }
+        let colour = colour.to_ascii_lowercase();
+        let mut account = self.find_account(id)?.ok_or(ColourError::UnknownAccount)?;
+        let local = &self.ports.roots.local_app_data;
+        let mut records = Records::load(local);
+        if !records.set_colour(id, &colour) {
+            return Err(ColourError::UnknownAccount);
+        }
+        records.save(local)?;
+        account.colour = colour;
+        self.apply_taskbar_identities(std::slice::from_ref(&account));
+        Ok(account)
+    }
+
+    /// Gives each running account's Claude window its own taskbar identity
+    /// (AppUserModelID and badged icon), once per identity. A renamed initial
+    /// or a new colour changes the identity, so the window is applied again
+    /// and its taskbar group recomputed. Runs on every watcher tick, which
+    /// also catches windows opened outside clawshell.
+    pub fn sync_taskbar_identities(&self) -> io::Result<()> {
+        let accounts = self.known_accounts()?;
+        self.apply_taskbar_identities(&accounts);
+        Ok(())
+    }
+
+    /// Applies the identity of every running account in `accounts` whose
+    /// window has not got it yet. An account that is not running is
+    /// forgotten, so its next window is applied afresh.
+    pub fn apply_taskbar_identities(&self, accounts: &[Account]) {
+        let mut applied = self.taskbar.lock().unwrap();
+        for account in accounts {
+            if !account.running {
+                applied.remove(&account.id);
+                continue;
+            }
+            let aumid = app_user_model_id(&account.id, account.badge, &account.colour);
+            if applied.get(&account.id) == Some(&aumid) {
+                continue;
+            }
+            // Not recorded on failure, so the next tick tries again.
+            if self.apply_identity(account, &aumid).is_ok() {
+                applied.insert(account.id.clone(), aumid);
+            }
+        }
+    }
+
+    fn apply_identity(&self, account: &Account, aumid: &str) -> io::Result<()> {
+        self.ports
+            .os
+            .apply(&account.path, aumid, account.badge, &account.colour)
+    }
+
+    /// Asks the OS to badge the window Claude is about to create, so the
+    /// identity is in place before it first shows. Best effort: the watcher
+    /// tick applies it again once the window is up.
+    fn identify_new_window(&self, account: &Account) {
+        let aumid = app_user_model_id(&account.id, account.badge, &account.colour);
+        let _ = self.apply_identity(account, &aumid);
     }
 
     /// Shows the account's `clawshell-{uuid}` folder in Explorer.
@@ -196,6 +276,7 @@ impl Core {
         let path = local.join(format!("{PROFILE_PREFIX}{id}"));
         std::fs::create_dir_all(&path)?;
         let label = records.add(&id);
+        let colour = colour_in(&records, &id);
         records.save(local)?;
 
         self.ports
@@ -204,13 +285,9 @@ impl Core {
             .map_err(AddError::Launch)?;
 
         let running = self.ports.processes.running_profiles();
-        Ok(account_of(
-            Profile { id, path },
-            label,
-            &running,
-            None,
-            None,
-        ))
+        let account = account_of(Profile { id, path }, label, colour, &running, None, None);
+        self.identify_new_window(&account);
+        Ok(account)
     }
 
     /// Records for every profile folder; folders clawshell created but never
@@ -218,23 +295,30 @@ impl Core {
     fn synced_records(&self, profiles: &[Profile]) -> Records {
         let local = &self.ports.roots.local_app_data;
         let mut records = Records::load(local);
-        let mut adopted = false;
+        let mut changed = false;
         for profile in profiles {
             if records.label_of(&profile.id).is_none() {
                 records.add(&profile.id);
-                adopted = true;
+                changed = true;
             }
         }
-        if adopted {
+        changed |= records.assign_missing_colours();
+        if changed {
             let _ = records.save(local);
         }
         records
     }
 }
 
+/// The record's colour; every record has one once the records are synced.
+fn colour_in(records: &Records, id: &str) -> String {
+    records.colour_of(id).unwrap_or(PALETTE[0]).to_string()
+}
+
 fn account_of(
     profile: Profile,
     label: String,
+    colour: String,
     running: &HashSet<PathBuf>,
     email: Option<String>,
     usage: Option<UsageSnapshot>,
@@ -251,7 +335,9 @@ fn account_of(
     };
     Account {
         id: profile.id,
+        badge: badge_letter(&label),
         label,
+        colour,
         status,
         running: is_running,
         email,
@@ -302,6 +388,9 @@ impl Core {
             .os
             .launch(&install.exe, &profile.path)
             .map_err(LaunchError::Io)?;
+        if let Ok(Some(account)) = self.find_account(id) {
+            self.identify_new_window(&account);
+        }
         Ok(LaunchOutcome::Started)
     }
 }
@@ -322,6 +411,20 @@ pub enum RenameError {
 impl From<io::Error> for RenameError {
     fn from(e: io::Error) -> Self {
         RenameError::Io(e)
+    }
+}
+
+#[derive(Debug)]
+pub enum ColourError {
+    UnknownAccount,
+    /// Not `#rrggbb`.
+    InvalidColour,
+    Io(io::Error),
+}
+
+impl From<io::Error> for ColourError {
+    fn from(e: io::Error) -> Self {
+        ColourError::Io(e)
     }
 }
 

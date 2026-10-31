@@ -12,9 +12,14 @@ import AccountsScreen from './accounts-screen.svelte';
 let restore: () => void;
 afterEach(() => restore?.());
 
-const account = (id: string, label: string, status: string) => ({
+const BLUE = '#2563eb';
+const palette = [BLUE, '#dc2626', '#16a34a'];
+
+const account = (id: string, label: string, status: string, colour = BLUE) => ({
 	id,
 	label,
+	badge: label.charAt(0).toUpperCase(),
+	colour,
 	status,
 	running: status === 'running',
 	email: null,
@@ -25,6 +30,7 @@ const threeAccounts: AccountList = {
 	claudeFound: true,
 	refreshAllowedAt: null,
 	pooled: emptyPooled,
+	palette,
 	accounts: [
 		account('id-run', 'Account 2', 'running'),
 		account('id-idle', 'Work', 'idle'),
@@ -40,6 +46,92 @@ function mount(overrides: IpcHandlers = {}, list: AccountList = threeAccounts) {
 }
 
 describe('AccountsScreen', () => {
+	describe('badge', () => {
+		const badgeOf = (index: number) =>
+			page.getByRole('listitem').nth(index).element().querySelector('[data-slot="account-badge"]')!;
+
+		it('shows each row with the first letter of its name on its colour', async () => {
+			mount(
+				{},
+				{
+					...threeAccounts,
+					accounts: [
+						account('id-run', 'Account 2', 'running', '#2563eb'),
+						account('id-idle', 'work', 'idle', '#dc2626')
+					] as AccountList['accounts']
+				}
+			);
+			await expect.element(page.getByRole('listitem').nth(1)).toBeVisible();
+
+			expect(badgeOf(0).textContent?.trim()).toBe('A');
+			expect(getComputedStyle(badgeOf(0)).backgroundColor).toBe('rgb(37, 99, 235)');
+			expect(badgeOf(1).textContent?.trim()).toBe('W');
+			expect(getComputedStyle(badgeOf(1)).backgroundColor).toBe('rgb(220, 38, 38)');
+		});
+
+		it('follows a rename to a new initial', async () => {
+			mount();
+			await expect.element(page.getByRole('listitem').nth(1)).toBeVisible();
+			expect(badgeOf(1).textContent?.trim()).toBe('W');
+
+			await emit('accounts-changed', {
+				...threeAccounts,
+				accounts: [
+					account('id-run', 'Account 2', 'running'),
+					account('id-idle', 'Home', 'idle'),
+					account('id-out', 'Account 4', 'signed-out')
+				]
+			});
+
+			await expect.poll(() => badgeOf(1).textContent?.trim()).toBe('H');
+		});
+
+		it('offers the palette in the menu and changes the colour', async () => {
+			let colour = BLUE;
+			const tauri = mount({
+				set_account_colour: (args) => {
+					colour = (args as { colour: string }).colour;
+					return account('id-idle', 'Work', 'idle', colour);
+				},
+				list_accounts: () => ({
+					...threeAccounts,
+					accounts: [
+						account('id-run', 'Account 2', 'running'),
+						account('id-idle', 'Work', 'idle', colour),
+						account('id-out', 'Account 4', 'signed-out')
+					]
+				})
+			});
+
+			await page.getByRole('button', { name: 'Actions for Work' }).click();
+			await page.getByRole('menuitem', { name: 'Badge colour' }).click();
+			await expect.element(page.getByRole('menuitem', { name: '#16a34a' })).toBeVisible();
+			await expect.element(page.getByRole('menuitem', { name: '#2563eb' })).toBeVisible();
+			await page.getByRole('menuitem', { name: '#dc2626' }).click();
+
+			expect(tauri.calls.filter((c) => c.cmd === 'set_account_colour')).toEqual([
+				{ cmd: 'set_account_colour', args: { id: 'id-idle', colour: '#dc2626' } }
+			]);
+			await expect
+				.poll(() => getComputedStyle(badgeOf(1)).backgroundColor)
+				.toBe('rgb(220, 38, 38)');
+		});
+
+		it('shows a clear message when the colour cannot be changed', async () => {
+			mount({
+				set_account_colour: () => {
+					throw { code: 'io', message: 'disk full' };
+				}
+			});
+
+			await page.getByRole('button', { name: 'Actions for Work' }).click();
+			await page.getByRole('menuitem', { name: 'Badge colour' }).click();
+			await page.getByRole('menuitem', { name: '#dc2626' }).click();
+
+			await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't change the colour");
+		});
+	});
+
 	it('lists each account as a row with its name and status', async () => {
 		mount();
 
@@ -54,7 +146,10 @@ describe('AccountsScreen', () => {
 	});
 
 	it('shows an empty state when there are no accounts yet', async () => {
-		mount({}, { claudeFound: true, refreshAllowedAt: null, pooled: emptyPooled, accounts: [] });
+		mount(
+			{},
+			{ claudeFound: true, refreshAllowedAt: null, pooled: emptyPooled, palette, accounts: [] }
+		);
 
 		await expect.element(page.getByText('No accounts yet')).toBeVisible();
 	});
@@ -131,7 +226,7 @@ describe('AccountsScreen', () => {
 	it('explains that Claude cannot be found and blocks Add', async () => {
 		const tauri = mount(
 			{},
-			{ claudeFound: false, refreshAllowedAt: null, pooled: emptyPooled, accounts: [] }
+			{ claudeFound: false, refreshAllowedAt: null, pooled: emptyPooled, palette, accounts: [] }
 		);
 
 		await expect.element(page.getByText('Claude Desktop not found')).toBeVisible();
@@ -167,13 +262,14 @@ describe('AccountsScreen', () => {
 	describe('account menu', () => {
 		const menuOf = (label: string) => page.getByRole('button', { name: `Actions for ${label}` });
 
-		it('gives every row a menu with Rename, Open folder and Delete', async () => {
+		it('gives every row a menu with Rename, Open folder, Badge colour and Delete', async () => {
 			mount();
 
 			await menuOf('Work').click();
 
 			await expect.element(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible();
 			await expect.element(page.getByRole('menuitem', { name: 'Open folder' })).toBeVisible();
+			await expect.element(page.getByRole('menuitem', { name: 'Badge colour' })).toBeVisible();
 			await expect.element(page.getByRole('menuitem', { name: 'Delete' })).toBeVisible();
 			await expect.element(menuOf('Account 2')).toBeVisible();
 			await expect.element(menuOf('Account 4')).toBeVisible();
@@ -367,6 +463,7 @@ describe('AccountsScreen', () => {
 			claudeFound: true,
 			refreshAllowedAt: null,
 			pooled: emptyPooled,
+			palette,
 			accounts: [
 				account('id-idle', 'Work', 'idle'),
 				account('id-gone', 'Old laptop', 'missing')

@@ -296,6 +296,10 @@ pub struct FakeOs {
     pub autostart_fails: Mutex<bool>,
     /// Every `(title, body)` handed to the notifier, in order.
     pub notifications: Mutex<Vec<(String, String)>>,
+    /// Every taskbar identity handed to the port, in order.
+    pub taskbar: Mutex<Vec<AppliedIdentity>>,
+    /// Makes the taskbar port fail, as when the window is not up yet.
+    pub taskbar_fails: Mutex<bool>,
 }
 
 impl Default for FakeOs {
@@ -310,6 +314,8 @@ impl Default for FakeOs {
             autostart: Mutex::default(),
             autostart_fails: Mutex::new(false),
             notifications: Mutex::default(),
+            taskbar: Mutex::default(),
+            taskbar_fails: Mutex::new(false),
         }
     }
 }
@@ -350,8 +356,26 @@ impl WindowFocus for FakeOs {
         *self.has_window.lock().unwrap()
     }
 }
+/// One call to the taskbar identity port.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppliedIdentity {
+    pub profile: PathBuf,
+    pub aumid: String,
+    pub badge: char,
+    pub colour: String,
+}
+
 impl TaskbarIdentity for FakeOs {
-    fn apply(&self, _profile: &Path, _badge: char, _colour: &str) -> io::Result<()> {
+    fn apply(&self, profile: &Path, aumid: &str, badge: char, colour: &str) -> io::Result<()> {
+        if *self.taskbar_fails.lock().unwrap() {
+            return Err(io::Error::other("no window yet"));
+        }
+        self.taskbar.lock().unwrap().push(AppliedIdentity {
+            profile: profile.to_path_buf(),
+            aumid: aumid.to_string(),
+            badge,
+            colour: colour.to_string(),
+        });
         Ok(())
     }
 }
