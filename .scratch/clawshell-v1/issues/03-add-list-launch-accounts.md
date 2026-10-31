@@ -10,12 +10,12 @@ See spec: Domain vocabulary, Launching and windows.
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Add creates a uniquely named `clawshell-{uuid}` folder and opens Claude at sign-in
-- [ ] New accounts are labelled Account 2, Account 3… with no duplicates
-- [ ] The Accounts tab lists accounts with Running / Idle / Signed out, and statuses update when a Claude window opens or closes
-- [ ] Double-click starts a stopped account and focuses a running one (no second copy)
-- [ ] Original Claude data and `ClaudeProfile-*` folders are never listed or touched
-- [ ] Core tests cover add, naming, status derivation and the running check via a faked process inspector
-- [ ] UI tests cover the row list, double-click invoking launch, and Add
+- [x] Add creates a uniquely named `clawshell-{uuid}` folder and opens Claude at sign-in
+- [x] New accounts are labelled Account 2, Account 3… with no duplicates
+- [x] The Accounts tab lists accounts with Running / Idle / Signed out, and statuses update when a Claude window opens or closes
+- [x] Double-click starts a stopped account and focuses a running one (no second copy)
+- [x] Original Claude data and `ClaudeProfile-*` folders are never listed or touched
+- [x] Core tests cover add, naming, status derivation and the running check via a faked process inspector
+- [x] UI tests cover the row list, double-click invoking launch, and Add

@@ -53,6 +53,27 @@ impl Fixture {
         path
     }
 
+    /// Marks a profile as signed in the way Claude Desktop records it.
+    pub fn sign_in(&self, id: &str) {
+        let path = self
+            .local_app_data()
+            .join(format!("clawshell-{id}/config.json"));
+        fs::write(path, r#"{"windowSizeWasSignedIn": true}"#).unwrap();
+    }
+
+    /// Overwrites a profile's `config.json` verbatim.
+    pub fn write_config(&self, id: &str, json: &str) {
+        let path = self
+            .local_app_data()
+            .join(format!("clawshell-{id}/config.json"));
+        fs::write(path, json).unwrap();
+    }
+
+    /// Path of a profile folder, as the core reports it.
+    pub fn profile_path(&self, id: &str) -> PathBuf {
+        self.local_app_data().join(format!("clawshell-{id}"))
+    }
+
     /// Creates a plain folder under local app data (e.g. the old switcher's).
     pub fn add_folder(&self, name: &str) -> PathBuf {
         let path = self.local_app_data().join(name);
@@ -154,23 +175,63 @@ impl ProcessInspector for FakeProcesses {
     }
 }
 
-/// Records OS calls instead of touching Windows.
+/// Raw process table faked at the lister port.
 #[derive(Default)]
-pub struct FakeOs {
-    pub launched: Mutex<Vec<PathBuf>>,
-    pub focused: Mutex<Vec<PathBuf>>,
+pub struct FakeProcessLister(pub Mutex<Vec<ProcessInfo>>);
+
+impl ProcessLister for FakeProcessLister {
+    fn processes(&self) -> Vec<ProcessInfo> {
+        self.0.lock().unwrap().clone()
+    }
 }
 
+/// Records OS calls instead of touching Windows.
+pub struct FakeOs {
+    /// What the locator finds; `None` simulates Claude not being installed.
+    pub install: Mutex<Option<ClaudeInstall>>,
+    /// `(exe, profile)` of every launch.
+    pub launched: Mutex<Vec<(PathBuf, PathBuf)>>,
+    pub focused: Mutex<Vec<PathBuf>>,
+    /// Whether `focus` finds a window to bring forward.
+    pub has_window: Mutex<bool>,
+}
+
+impl Default for FakeOs {
+    fn default() -> Self {
+        FakeOs {
+            install: Mutex::new(Some(fake_install())),
+            launched: Mutex::default(),
+            focused: Mutex::default(),
+            has_window: Mutex::new(true),
+        }
+    }
+}
+
+pub fn fake_install() -> ClaudeInstall {
+    ClaudeInstall {
+        exe: PathBuf::from("C:/Claude/app/Claude.exe"),
+        root: PathBuf::from("C:/Claude"),
+    }
+}
+
+impl ClaudeLocator for FakeOs {
+    fn locate(&self) -> Option<ClaudeInstall> {
+        self.install.lock().unwrap().clone()
+    }
+}
 impl Launcher for FakeOs {
-    fn launch(&self, profile: &Path) -> io::Result<()> {
-        self.launched.lock().unwrap().push(profile.to_path_buf());
+    fn launch(&self, exe: &Path, profile: &Path) -> io::Result<()> {
+        self.launched
+            .lock()
+            .unwrap()
+            .push((exe.to_path_buf(), profile.to_path_buf()));
         Ok(())
     }
 }
 impl WindowFocus for FakeOs {
     fn focus(&self, profile: &Path) -> bool {
         self.focused.lock().unwrap().push(profile.to_path_buf());
-        true
+        *self.has_window.lock().unwrap()
     }
 }
 impl TaskbarIdentity for FakeOs {
