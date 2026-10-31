@@ -23,7 +23,15 @@ export function hasUpdate(): boolean {
 	return updateState.current.status !== 'idle';
 }
 
-/** Checks the latest release once. A failed or offline check changes nothing. */
+/** Releases the plugin's handle on an update the state no longer holds. */
+async function release(update: Update | null): Promise<void> {
+	await update?.close().catch(() => {});
+}
+
+/**
+ * Checks the latest release once. A failed or offline check changes nothing.
+ * Whichever Update the state stops referencing is closed, so none leaks.
+ */
 export async function checkForUpdate(): Promise<void> {
 	let found: Update | null;
 	try {
@@ -31,13 +39,30 @@ export async function checkForUpdate(): Promise<void> {
 	} catch {
 		return;
 	}
+	const held = updateState.current;
 	// A running download or install owns the state; a check never interrupts it.
-	const { status } = updateState.current;
-	if (status === 'downloading' || status === 'installing') {
-		await found?.close().catch(() => {});
+	if (held.status === 'downloading' || held.status === 'installing') {
+		await release(found);
 		return;
 	}
-	updateState.current = found ? { status: 'available', update: found } : { status: 'idle' };
+	if (held.status === 'idle') {
+		if (found) updateState.current = { status: 'available', update: found };
+		return;
+	}
+	// Available or failed: the same version keeps the update already held.
+	if (found?.version === held.update.version) {
+		await release(found);
+		return;
+	}
+	if (found) {
+		updateState.current = { status: 'available', update: found };
+	} else if (held.status === 'failed') {
+		// A scheduled check must not wipe the error and its Retry.
+		return;
+	} else {
+		updateState.current = { status: 'idle' };
+	}
+	await release(held.update);
 }
 
 /** Checks now, then every 6 hours. Returns a function that stops the checks. */
@@ -80,6 +105,7 @@ export async function installUpdate(): Promise<void> {
 		updateState.current = { status: 'installing', update };
 		await relaunch();
 	} catch (error) {
+		console.error('Update failed', error);
 		updateState.current = { status: 'failed', update, message: messageOf(error) };
 	}
 }

@@ -6,7 +6,7 @@ import '../../routes/layout.css';
 import { switchLocale } from '$lib/locale-state.svelte';
 import type { Settings } from '$lib/settings';
 import { mockTauri } from '$lib/test/tauri-ipc';
-import { updateState } from '$lib/update.svelte';
+import { UPDATE_CHECK_MS, updateState } from '$lib/update.svelte';
 import AppShell from './app-shell.svelte';
 
 let restore: () => void;
@@ -117,6 +117,24 @@ describe('AppShell update badge', () => {
 		const badge = page.getByRole('button', { name: badgeName });
 		await expect.element(badge).toBeVisible();
 		expect(leftOf(badge)).toBeGreaterThan(leftOf(page.getByText('clawshell', { exact: true })));
+	});
+
+	it('stops checking for updates once the shell is gone', async () => {
+		vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+		try {
+			const tauri = mockTauri({ ...core, 'plugin:updater|check': () => null });
+			({ restore } = tauri);
+			const checks = () => tauri.calls.filter((c) => c.cmd === 'plugin:updater|check').length;
+			const screen = render(AppShell);
+			await vi.waitFor(() => expect(checks()).toBe(1));
+
+			screen.unmount();
+			await vi.advanceTimersByTimeAsync(UPDATE_CHECK_MS * 2);
+
+			expect(checks()).toBe(1);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it('names the badge in Persian when the saved language is Persian', async () => {

@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { Channel } from '@tauri-apps/api/core';
@@ -157,11 +157,40 @@ describe('update dialog', () => {
 		await page.getByRole('button', { name: 'Update', exact: true }).click();
 		await expect.element(page.getByRole('progressbar')).toBeVisible();
 
+		await userEvent.keyboard('{Escape}');
+		await userEvent.click(document.body, { position: { x: 2, y: 2 } });
+		await expect.element(dialog()).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Later' })).not.toBeInTheDocument();
 		await expect
 			.element(page.getByRole('button', { name: 'Update', exact: true }))
 			.not.toBeInTheDocument();
 		download.finish();
+	});
+
+	it('closes with Escape when nothing is downloading', async () => {
+		({ restore } = mockTauri());
+		updateState.current = { status: 'available', update: release() };
+		render(TopBar);
+		await badge().click();
+
+		await userEvent.keyboard('{Escape}');
+
+		await expect.element(dialog()).not.toBeInTheDocument();
+	});
+
+	it('does not reopen by itself when an update appears after the state went idle', async () => {
+		({ restore } = mockTauri());
+		updateState.current = { status: 'available', update: release() };
+		render(TopBar);
+		await badge().click();
+		await expect.element(dialog()).toBeVisible();
+
+		updateState.current = { status: 'idle' };
+		await expect.element(dialog()).not.toBeInTheDocument();
+		updateState.current = { status: 'available', update: release() };
+
+		await expect.element(badge()).toBeVisible();
+		await expect.element(dialog()).not.toBeInTheDocument();
 	});
 
 	it('shows the error and Retry when the download fails, and Retry downloads again', async () => {
@@ -180,7 +209,8 @@ describe('update dialog', () => {
 		await page.getByRole('button', { name: 'Update', exact: true }).click();
 
 		await expect.element(dialog().getByText('Update failed')).toBeVisible();
-		await expect.element(dialog().getByText('network down')).toBeVisible();
+		await expect.element(dialog().getByText(/current version is still running/)).toBeVisible();
+		await expect.element(dialog().getByText('network down')).not.toBeInTheDocument();
 		expect(tauri.calls.map((c) => c.cmd)).not.toContain('plugin:process|restart');
 
 		await page.getByRole('button', { name: 'Retry' }).click();
@@ -207,6 +237,24 @@ describe('update dialog', () => {
 
 		await expect.element(dialog()).not.toBeInTheDocument();
 		await expect.element(badge()).toBeVisible();
+	});
+
+	it('describes a failure in Persian, without the raw error', async () => {
+		({ restore } = mockTauri({
+			'plugin:updater|download_and_install': () => {
+				throw 'network down';
+			}
+		}));
+		switchLocale('fa');
+		updateState.current = { status: 'available', update: release() };
+		render(TopBar);
+		await page.getByRole('button', { name: 'به‌روزرسانی در دسترس است' }).click();
+
+		await page.getByRole('button', { name: 'به‌روزرسانی', exact: true }).click();
+
+		await expect.element(dialog().getByText('به‌روزرسانی انجام نشد')).toBeVisible();
+		await expect.element(dialog().getByText(/نسخه فعلی/)).toBeVisible();
+		await expect.element(dialog().getByText('network down')).not.toBeInTheDocument();
 	});
 
 	it('renders in Persian, right to left', async () => {

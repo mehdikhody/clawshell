@@ -147,5 +147,6 @@
 	"update_downloading": "Downloading update…",
 	"update_installing": "Installing and restarting…",
 	"update_failed": "Update failed",
+	"update_failed_detail": "Your current version is still running. Check your connection and try again.",
 	"update_retry": "Retry"
 }
