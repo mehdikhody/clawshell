@@ -53,6 +53,21 @@ impl Records {
             .map(|r| r.label.as_str())
     }
 
+    /// Relabels `id`; false when no record has that id.
+    pub fn rename(&mut self, id: &str, label: &str) -> bool {
+        match self.accounts.iter_mut().find(|r| r.id == id) {
+            Some(record) => {
+                record.label = label.to_string();
+                true
+            }
+            None => false,
+        }
+    }
+
+    pub fn remove(&mut self, id: &str) {
+        self.accounts.retain(|r| r.id != id);
+    }
+
     /// The smallest "Account N" (N >= 2) no record already uses.
     pub fn next_label(&self) -> String {
         (FIRST_LABEL_NUMBER..)

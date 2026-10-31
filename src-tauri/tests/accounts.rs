@@ -403,3 +403,319 @@ fn launching_without_claude_installed_says_so() {
 
     assert!(matches!(err, LaunchError::ClaudeNotFound));
 }
+
+// ---- rename ------------------------------------------------------------------
+
+use clawshell_lib::core::RenameError;
+
+fn labels(h: &Harness) -> Vec<(String, String)> {
+    h.core()
+        .list_accounts()
+        .unwrap()
+        .accounts
+        .into_iter()
+        .map(|a| (a.id, a.label))
+        .collect()
+}
+
+#[test]
+fn rename_changes_the_label_and_survives_a_restart() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+
+    let renamed = h.core().rename_account(ID_A, "Work").unwrap();
+
+    assert_eq!(renamed.label, "Work");
+    // A fresh Core over the same machine, as after an app restart.
+    assert_eq!(labels(&h), vec![(ID_A.to_string(), "Work".to_string())]);
+}
+
+#[test]
+fn rename_never_touches_the_folder_or_the_id() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.sign_in(ID_A);
+    h.core().list_accounts().unwrap(); // records land in the app-data folder
+    let before = folder_names(&h);
+
+    let renamed = h.core().rename_account(ID_A, "Personal").unwrap();
+
+    assert_eq!(renamed.id, ID_A);
+    assert_eq!(folder_names(&h), before);
+    assert!(h.fixture.profile_path(ID_A).join("config.json").is_file());
+    assert!(h.os.launched.lock().unwrap().is_empty());
+}
+
+#[test]
+fn rename_trims_and_refuses_an_empty_label() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+
+    assert_eq!(
+        h.core().rename_account(ID_A, "  Work  ").unwrap().label,
+        "Work"
+    );
+    assert!(matches!(
+        h.core().rename_account(ID_A, "   ").unwrap_err(),
+        RenameError::EmptyLabel
+    ));
+    assert_eq!(labels(&h), vec![(ID_A.to_string(), "Work".to_string())]);
+}
+
+#[test]
+fn rename_only_changes_the_named_account() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    let before = labels(&h);
+
+    h.core().rename_account(ID_B, "Work").unwrap();
+
+    let after = labels(&h);
+    assert_eq!(after[0], before[0]);
+    assert_eq!(after[1], (ID_B.to_string(), "Work".to_string()));
+}
+
+#[test]
+fn renaming_an_unknown_account_is_refused() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+
+    assert!(matches!(
+        h.core().rename_account(ID_B, "Work").unwrap_err(),
+        RenameError::UnknownAccount
+    ));
+}
+
+#[test]
+fn a_renamed_account_frees_its_default_label_for_the_next_one() {
+    // Account 2 renamed to Work: the next default label is Account 2 again;
+    // no two accounts end up sharing a default label.
+    let h = Harness::new();
+    let core = h.core();
+    let first = core.add_account().unwrap();
+    core.rename_account(&first.id, "Work").unwrap();
+
+    let second = core.add_account().unwrap();
+
+    assert_eq!(second.label, "Account 2");
+}
+
+// ---- open folder -------------------------------------------------------------
+
+use clawshell_lib::core::{DeleteError, OpenFolderError};
+
+#[test]
+fn open_folder_shows_the_accounts_own_profile_folder() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+
+    h.core().open_account_folder(ID_B).unwrap();
+
+    assert_eq!(
+        h.os.opened_folders.lock().unwrap().clone(),
+        vec![h.fixture.profile_path(ID_B)]
+    );
+}
+
+#[test]
+fn open_folder_for_an_unknown_account_opens_nothing() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+
+    for id in [ID_B, "..", "../Claude-Data"] {
+        assert!(matches!(
+            h.core().open_account_folder(id).unwrap_err(),
+            OpenFolderError::UnknownAccount
+        ));
+    }
+    assert!(h.os.opened_folders.lock().unwrap().is_empty());
+}
+
+#[test]
+fn open_folder_for_a_missing_folder_says_so_and_opens_nothing() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.core().list_accounts().unwrap();
+    std::fs::remove_dir_all(h.fixture.profile_path(ID_A)).unwrap();
+
+    assert!(matches!(
+        h.core().open_account_folder(ID_A).unwrap_err(),
+        OpenFolderError::FolderMissing
+    ));
+    assert!(h.os.opened_folders.lock().unwrap().is_empty());
+}
+
+// ---- delete ------------------------------------------------------------------
+
+fn ids(h: &Harness) -> Vec<String> {
+    labels(h).into_iter().map(|(id, _)| id).collect()
+}
+
+#[test]
+fn delete_removes_the_profile_folder_and_the_account_record() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.core().rename_account(ID_A, "Work").unwrap();
+
+    h.core().delete_account(ID_A).unwrap();
+
+    assert!(!h.fixture.profile_path(ID_A).exists());
+    assert!(h.fixture.profile_path(ID_B).is_dir());
+    assert_eq!(ids(&h), vec![ID_B.to_string()]);
+    // The record is gone too: a folder re-appearing is adopted afresh.
+    h.fixture.add_profile(ID_A);
+    let relabelled = labels(&h);
+    assert!(relabelled.iter().all(|(_, label)| label != "Work"));
+}
+
+#[test]
+fn delete_leaves_other_folders_alone() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_folder("ClaudeProfile-Account 2");
+    h.fixture.add_folder("Claude-Data");
+
+    h.core().delete_account(ID_A).unwrap();
+
+    let names = folder_names(&h);
+    assert!(names.contains(&"ClaudeProfile-Account 2".to_string()));
+    assert!(names.contains(&"Claude-Data".to_string()));
+    assert!(!names.contains(&format!("clawshell-{ID_A}")));
+}
+
+#[test]
+fn delete_is_refused_while_the_account_is_running() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.sign_in(ID_A);
+    run_claude_on(&h, ID_A);
+
+    let err = h.core().delete_account(ID_A).unwrap_err();
+
+    assert!(matches!(err, DeleteError::Running));
+    assert!(h.fixture.profile_path(ID_A).join("config.json").is_file());
+    assert_eq!(ids(&h), vec![ID_A.to_string()]);
+}
+
+#[test]
+fn delete_is_refused_while_a_signed_out_account_is_running() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    run_claude_on(&h, ID_A);
+
+    assert!(matches!(
+        h.core().delete_account(ID_A).unwrap_err(),
+        DeleteError::Running
+    ));
+    assert!(h.fixture.profile_path(ID_A).is_dir());
+}
+
+#[test]
+fn deleting_an_unknown_account_removes_nothing() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_folder("Claude-Data");
+
+    for id in [ID_B, "..", "../Claude-Data", "Claude-Data"] {
+        assert!(matches!(
+            h.core().delete_account(id).unwrap_err(),
+            DeleteError::UnknownAccount
+        ));
+    }
+    assert!(h.fixture.profile_path(ID_A).is_dir());
+    assert!(h.fixture.local_app_data().join("Claude-Data").is_dir());
+}
+
+#[test]
+fn delete_also_removes_the_accounts_shortcuts() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+
+    h.core().delete_account(ID_A).unwrap();
+
+    assert_eq!(
+        h.os.shortcuts_removed.lock().unwrap().clone(),
+        vec![h.fixture.profile_path(ID_A)]
+    );
+}
+
+// ---- missing folder ----------------------------------------------------------
+
+#[test]
+fn an_account_whose_folder_vanished_is_listed_as_missing() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.core().rename_account(ID_A, "Work").unwrap();
+    std::fs::remove_dir_all(h.fixture.profile_path(ID_A)).unwrap();
+
+    let accounts = h.core().list_accounts().unwrap().accounts;
+
+    assert_eq!(accounts.len(), 2);
+    assert_eq!(accounts[0].id, ID_A);
+    assert_eq!(accounts[0].label, "Work");
+    assert_eq!(accounts[0].status, Status::Missing);
+    assert!(!accounts[0].running);
+    assert_eq!(accounts[1].status, Status::SignedOut);
+}
+
+#[test]
+fn a_missing_account_can_be_removed_and_leaves_the_list() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.core().list_accounts().unwrap();
+    std::fs::remove_dir_all(h.fixture.profile_path(ID_A)).unwrap();
+
+    h.core().delete_account(ID_A).unwrap();
+
+    assert!(ids(&h).is_empty());
+}
+
+#[test]
+fn a_missing_account_can_still_be_renamed() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.core().list_accounts().unwrap();
+    std::fs::remove_dir_all(h.fixture.profile_path(ID_A)).unwrap();
+
+    h.core().rename_account(ID_A, "Old").unwrap();
+
+    assert_eq!(labels(&h), vec![(ID_A.to_string(), "Old".to_string())]);
+}
+
+#[test]
+fn a_missing_account_cannot_be_launched() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.core().list_accounts().unwrap();
+    std::fs::remove_dir_all(h.fixture.profile_path(ID_A)).unwrap();
+
+    assert!(matches!(
+        h.core().launch_account(ID_A).unwrap_err(),
+        LaunchError::UnknownAccount
+    ));
+    assert!(h.os.launched.lock().unwrap().is_empty());
+}
+
+#[test]
+fn a_tampered_record_with_a_path_like_id_is_never_listed_or_deleted() {
+    let h = Harness::new();
+    h.fixture.add_folder("Claude-Data");
+    let dir = h.fixture.local_app_data().join("clawshell");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("accounts.json"),
+        r#"{"accounts":[{"id":"../Claude-Data","label":"Evil"}]}"#,
+    )
+    .unwrap();
+
+    assert!(ids(&h).is_empty());
+    assert!(matches!(
+        h.core().delete_account("../Claude-Data").unwrap_err(),
+        DeleteError::UnknownAccount
+    ));
+    assert!(h.fixture.local_app_data().join("Claude-Data").is_dir());
+}

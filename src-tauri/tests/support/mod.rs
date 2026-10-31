@@ -192,6 +192,10 @@ pub struct FakeOs {
     /// `(exe, profile)` of every launch.
     pub launched: Mutex<Vec<(PathBuf, PathBuf)>>,
     pub focused: Mutex<Vec<PathBuf>>,
+    /// Every folder shown in the file manager.
+    pub opened_folders: Mutex<Vec<PathBuf>>,
+    /// Profiles whose shortcuts were removed.
+    pub shortcuts_removed: Mutex<Vec<PathBuf>>,
     /// Whether `focus` finds a window to bring forward.
     pub has_window: Mutex<bool>,
 }
@@ -202,6 +206,8 @@ impl Default for FakeOs {
             install: Mutex::new(Some(fake_install())),
             launched: Mutex::default(),
             focused: Mutex::default(),
+            opened_folders: Mutex::default(),
+            shortcuts_removed: Mutex::default(),
             has_window: Mutex::new(true),
         }
     }
@@ -228,6 +234,15 @@ impl Launcher for FakeOs {
         Ok(())
     }
 }
+impl FolderOpener for FakeOs {
+    fn open_folder(&self, folder: &Path) -> io::Result<()> {
+        self.opened_folders
+            .lock()
+            .unwrap()
+            .push(folder.to_path_buf());
+        Ok(())
+    }
+}
 impl WindowFocus for FakeOs {
     fn focus(&self, profile: &Path) -> bool {
         self.focused.lock().unwrap().push(profile.to_path_buf());
@@ -243,7 +258,11 @@ impl Shortcuts for FakeOs {
     fn create(&self, _profile: &Path, _label: &str) -> io::Result<()> {
         Ok(())
     }
-    fn remove(&self, _profile: &Path) -> io::Result<()> {
+    fn remove(&self, profile: &Path) -> io::Result<()> {
+        self.shortcuts_removed
+            .lock()
+            .unwrap()
+            .push(profile.to_path_buf());
         Ok(())
     }
 }

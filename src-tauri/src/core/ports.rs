@@ -98,6 +98,11 @@ pub trait Launcher: Send + Sync {
     fn launch(&self, exe: &Path, profile: &Path) -> io::Result<()>;
 }
 
+pub trait FolderOpener: Send + Sync {
+    /// Shows `folder` in the file manager (Explorer), without waiting for it.
+    fn open_folder(&self, folder: &Path) -> io::Result<()>;
+}
+
 pub trait WindowFocus: Send + Sync {
     /// Brings the profile's window forward; false when it has none.
     fn focus(&self, profile: &Path) -> bool;
@@ -130,6 +135,7 @@ pub trait Notifier: Send + Sync {
 pub trait OsAdapters:
     ClaudeLocator
     + Launcher
+    + FolderOpener
     + WindowFocus
     + TaskbarIdentity
     + Shortcuts

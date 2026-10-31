@@ -1,17 +1,17 @@
-# Graph Report - 03-add-list-launch-accounts  (2026-10-31)
+# Graph Report - 04-rename-open-folder-delete  (2026-10-31)
 
 ## Corpus Check
-- 541 files · ~924,649 words
+- 585 files · ~930,058 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 25 file(s) not represented in the graph (top: (none) 14, .css 5, .sha256 4)
 
 ## Summary
-- 5166 nodes · 6733 edges · 445 communities (357 shown, 88 thin omitted)
+- 5368 nodes · 7184 edges · 445 communities (358 shown, 87 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 208 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `30fe2484`
+- Built from commit: `3598d036`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -20,12 +20,12 @@
 - .agents/skills/hallmark/scripts/sloplint.mjs
 - hooks.server.ts
 - accounts-screen.svelte.spec.ts
-- app-shell.svelte
-- src_lib_utils_cn
+- dialog-content.svelte
+- utils.ts
 - default.json
 - .claude/skills/hallmark/scripts/sloplint.mjs
 - .claude/skills/hallmark/scripts/refcheck.mjs
-- lib.rs
+- core/mod.rs
 - ssr
 - clawshell
 - src/app.html (SvelteKit app shell)
@@ -89,7 +89,7 @@
 - HTML Report Format
 - Tauri v2+ Development Skill
 - .claude/skills/wizard/template.sh
-- core/mod.rs
+- commands.rs
 - support/mod.rs
 - .agents/skills/hallmark/scripts/install.mjs
 - .claude/skills/hallmark/scripts/install.mjs
@@ -110,7 +110,7 @@
 - Tauri v2+ Plugin Reference
 - Part 1: Updater (tauri-plugin-updater)
 - Diagnosing Bugs
-- Commands (invoke)
+- Tauri v2+ IPC Patterns Reference
 - Tauri v2+ Plugin Reference
 - Part 1: Updater (tauri-plugin-updater)
 - Customization & Theming
@@ -330,7 +330,7 @@
 - Export formats
 - Writing a theme file
 - Critical Rules
-- utils.ts
+- svelte
 - Uizze Overdrive
 - Process
 - settings.json
@@ -366,14 +366,14 @@
 - Ponytail
 - Reference
 - claude_desktop.rs
-- Troubleshooting
+- dialog-footer.svelte
 - Uizze craft checks
 - design.md: the locked system
 - Microinteractions
 - Ponytail
 - Reference
 - button.svelte
-- Troubleshooting
+- Plugin Permissions
 - Uizze craft checks
 - .agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh
 - token_probe.rs
@@ -383,7 +383,7 @@
 - CLAUDE.md
 - .claude/skills/diagnosing-bugs/scripts/hitl-loop.template.sh
 - adapters.rs
-- Quick Start
+- Commands (invoke)
 - GLOSSARY.md Format
 - Simplify an interface
 - svelte
@@ -437,14 +437,14 @@
 - 15-sign-in-routing.md
 - extract_token
 - decrypt_v10
-- DesktopProcesses
+- process.rs
 - item.svelte
 - ClaudeInstall
 - headings
 - walk
-- vite.config.js
-- Critical Rules
-- dependencies
+- svelte
+- Common Capability Patterns
+- Common Capability Patterns
 
 ## God Nodes (most connected - your core abstractions)
 1. `report()` - 90 edges
@@ -453,18 +453,18 @@
 4. `trunc()` - 44 edges
 5. `resolveVars()` - 42 edges
 6. `resolveVars()` - 42 edges
-7. `getAttr()` - 25 edges
-8. `getAttr()` - 25 edges
-9. `FakeOs` - 24 edges
-10. `WindowsOs` - 23 edges
+7. `bits-ui` - 39 edges
+8. `svelte` - 32 edges
+9. `FakeOs` - 26 edges
+10. `getAttr()` - 25 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `Project Structure` --references--> `run()`  [EXTRACTED]
+  .agents/skills/tauri-v2/SKILL.md → src-tauri/src/lib.rs
 - `Project Structure` --references--> `run()`  [EXTRACTED]
   .claude/skills/tauri-v2/SKILL.md → src-tauri/src/lib.rs
 - `Feasibility findings: Desktop token (ticket 01)` --references--> `account()`  [INFERRED]
   .scratch/clawshell-v1/spec.md → src/lib/screens/accounts-screen.svelte.spec.ts
-- `Project Structure` --references--> `run()`  [EXTRACTED]
-  .agents/skills/tauri-v2/SKILL.md → src-tauri/src/lib.rs
 - `account_of()` --calls--> `is_signed_in()`  [INFERRED]
   src-tauri/src/core/accounts.rs → src-tauri/src/core/signin.rs
 - `account_of()` --calls--> `same_path()`  [INFERRED]
@@ -473,7 +473,7 @@
 ## Import Cycles
 - 2-file cycle: `src-tauri/src/core/accounts.rs -> src-tauri/src/core/mod.rs -> src-tauri/src/core/accounts.rs`
 
-## Communities (445 total, 88 thin omitted)
+## Communities (445 total, 87 thin omitted)
 
 ### Community 0 - "tauri.conf.json"
 Cohesion: 0.11
@@ -483,36 +483,54 @@ Nodes (17): app, security, windows, build, beforeBuildCommand, beforeDevCommand,
 Cohesion: 0.03
 Nodes (72): ANSWERED, APP_SKIP, args, BUILD_DIRS, check25(), check62(), check76(), CHECKS (+64 more)
 
+### Community 2 - "hooks.server.ts"
+Cohesion: 0.13
+Nodes (5): @inlang/paraglide-js, @sveltejs/kit, @tailwindcss/vite, @vitest/browser-playwright, handle
+
 ### Community 3 - "accounts-screen.svelte.spec.ts"
 Cohesion: 0.21
 Nodes (10): @tauri-apps/api, vitest, vitest-browser-svelte, core, mount(), threeAccounts, IpcCall, IpcHandlers (+2 more)
 
-### Community 5 - "src_lib_utils_cn"
-Cohesion: 0.16
-Nodes (9): bits-ui, {
+### Community 4 - "dialog-content.svelte"
+Cohesion: 0.12
+Nodes (4): @tabler/icons-svelte, tab, {
 		ref = $bindable(null),
 		class: className,
+		portalProps,
+		children,
+		showCloseButton = true,
+		...restProps
+	}, {
+		ref = $bindable(null),
+		checked = $bindable(false),
+		indeterminate = $bindable(false),
+		class: className,
+		children: childrenProp,
+		closeOnSelect = false,
+		...restProps
+	}
+
+### Community 5 - "utils.ts"
+Cohesion: 0.07
+Nodes (31): bits-ui, {
+		ref = $bindable(null),
+		class: className,
+		size = "default",
+		portalProps,
 		...restProps
 	}, {
 		ref = $bindable(null),
 		class: className,
-		"data-slot": dataSlot = "separator",
 		...restProps
-	}, {
+	}, { open = $bindable(false), ...restProps }, {
 		ref = $bindable(null),
 		class: className,
 		...restProps
-	}, {
+	}, { ...restProps }, {
 		ref = $bindable(null),
-		variant = "default",
 		class: className,
 		...restProps
-	}, TabsListVariant, tabsListVariants, {
-		ref = $bindable(null),
-		value = $bindable(""),
-		class: className,
-		...restProps
-	} (+1 more)
+	}, { ref = $bindable(null), ...restProps } (+23 more)
 
 ### Community 6 - "default.json"
 Cohesion: 0.33
@@ -526,9 +544,9 @@ Nodes (72): ANSWERED, APP_SKIP, args, BUILD_DIRS, check25(), check62(), check76(
 Cohesion: 0.04
 Nodes (44): args, AS_JSON, BY_BASE, CANON, catalogFaces, clean, exemplarDir, expectations (+36 more)
 
-### Community 9 - "lib.rs"
-Cohesion: 0.16
-Nodes (5): Cargo.toml, Project Structure, Roots, build_core(), run()
+### Community 9 - "core/mod.rs"
+Cohesion: 0.11
+Nodes (9): Core, Ports, PROFILE_PREFIX, Clock, ProcessInspector, Roots, TokenReader, build_core() (+1 more)
 
 ### Community 29 - ".agents/skills/hallmark/scripts/refcheck.mjs"
 Cohesion: 0.04
@@ -568,7 +586,7 @@ Nodes (39): baseSelector(), check1(), check11Lift(), check12(), check15Fade(), c
 
 ### Community 38 - "package.json"
 Cohesion: 0.07
-Nodes (30): gitignorePath, description, license, name, type, version, eslint, eslint-config-prettier (+22 more)
+Nodes (33): gitignorePath, dependencies, @tauri-apps/api, @tauri-apps/plugin-opener, description, license, name, type (+25 more)
 
 ### Community 39 - "Issue tracker: GitHub"
 Cohesion: 0.06
@@ -608,7 +626,7 @@ Nodes (30): bannedGradient(), check2(), check29Glow(), check48(), check65(), che
 
 ### Community 48 - "ports.rs"
 Cohesion: 0.08
-Nodes (11): WindowsOs, Autostart, ClaudeLocator, Launcher, LinkHandlerRegistry, Notifier, OsAdapters, Shortcuts (+3 more)
+Nodes (11): WindowsOs, Autostart, FolderOpener, Launcher, LinkHandlerRegistry, Notifier, OsAdapters, Shortcuts (+3 more)
 
 ### Community 49 - ".agents/skills/teach/SKILL.md"
 Cohesion: 0.07
@@ -714,13 +732,13 @@ Nodes (20): Auto-Trigger Keywords, Companion Agent (Deprecated), Core Capabiliti
 Cohesion: 0.22
 Nodes (18): ask(), ask_secret(), banner(), _clear(), _existing(), finish(), note(), open_url() (+10 more)
 
-### Community 75 - "core/mod.rs"
-Cohesion: 0.10
-Nodes (23): ACCOUNTS_CHANGED, add_account(), CommandError, launch_account(), list_accounts(), watch_accounts(), WATCH_INTERVAL, AddError (+15 more)
+### Community 75 - "commands.rs"
+Cohesion: 0.08
+Nodes (33): ACCOUNTS_CHANGED, add_account(), CommandError, delete_account(), launch_account(), list_accounts(), open_account_folder(), rename_account() (+25 more)
 
 ### Community 76 - "support/mod.rs"
-Cohesion: 0.08
-Nodes (8): SystemClock, Clock, ID_A, ID_B, fake_install(), FakeClock, FakeProcesses, FakeTokens
+Cohesion: 0.11
+Nodes (5): ID_A, ID_B, FakeClock, FakeProcesses, FakeTokens
 
 ### Community 77 - ".agents/skills/hallmark/scripts/install.mjs"
 Cohesion: 0.13
@@ -751,8 +769,8 @@ Cohesion: 0.15
 Nodes (16): buildContext(), buildTokens(), check26(), check27(), check34(), checkF16(), importsOf(), linksOf() (+8 more)
 
 ### Community 84 - "Tauri v2+ Capabilities & Permissions Reference"
-Cohesion: 0.10
-Nodes (21): Anti-Pattern: Missing Capability, Capability Best Practices, Capability File Structure, Common Capability Patterns, Contents, Core Permissions, Custom Permission Files, Essential (Almost Always Needed) (+13 more)
+Cohesion: 0.12
+Nodes (16): Anti-Pattern: Missing Capability, Capability Best Practices, Capability File Structure, Contents, Core Permissions, Custom Permission Files, Essential (Almost Always Needed), Event Permissions (+8 more)
 
 ### Community 85 - "Ask Matt"
 Cohesion: 0.12
@@ -775,8 +793,8 @@ Cohesion: 0.12
 Nodes (14): Function bindings, Async Svelte, Avoid legacy features, Context, `$derived`, Each blocks, `$effect`, Events (+6 more)
 
 ### Community 90 - "Tauri v2+ Capabilities & Permissions Reference"
-Cohesion: 0.07
-Nodes (30): Anti-Pattern: Missing Capability, Capability Best Practices, Capability File Structure, Clipboard (`tauri-plugin-clipboard-manager`), Common Capability Patterns, Contents, Core Permissions, Custom Permission Files (+22 more)
+Cohesion: 0.12
+Nodes (16): Anti-Pattern: Missing Capability, Capability Best Practices, Capability File Structure, Contents, Core Permissions, Custom Permission Files, Essential (Almost Always Needed), Event Permissions (+8 more)
 
 ### Community 91 - "Diagnosing Bugs"
 Cohesion: 0.13
@@ -798,9 +816,9 @@ Nodes (15): Capability Permission, Checking for Updates in Code, Configuration (
 Cohesion: 0.13
 Nodes (14): Completion criterion: a tight loop that goes red, Diagnosing Bugs, Minimise, Non-deterministic bugs, Phase 1: Build a feedback loop, Phase 2: Reproduce + minimise, Phase 3: Hypothesise, Phase 4: Instrument (+6 more)
 
-### Community 96 - "Commands (invoke)"
-Cohesion: 0.09
-Nodes (23): Async Command, Basic Command, Channels: Typed Streaming, Command with Multiple Arguments, Command with Raw Binary Data, Command with Result Error Handling, Command with State, Command with Window Access (+15 more)
+### Community 96 - "Tauri v2+ IPC Patterns Reference"
+Cohesion: 0.13
+Nodes (15): Channels: Typed Streaming, Commands: Request-Response, Contents, Emit from Frontend to Rust, Emit from Rust to Frontend, Events, Events: Fire-and-Forget Notifications, IPC Decision Framework (+7 more)
 
 ### Community 97 - "Tauri v2+ Plugin Reference"
 Cohesion: 0.13
@@ -815,16 +833,16 @@ Cohesion: 0.14
 Nodes (14): 1. Built-in variants, 2. Tailwind classes via `class`, 3. Add a new variant, 4. Wrapper components, Adding Custom Colors, Border Radius, Changing the Theme, Checking for Updates (+6 more)
 
 ### Community 100 - "Tauri v2+ Development Skill"
-Cohesion: 0.08
-Nodes (25): Before You Start, Bundled Resources, Channel Streaming Pattern, Common Patterns, Configuration Reference, Deep-Dive References, Dependencies, Error Handling Pattern (+17 more)
+Cohesion: 0.06
+Nodes (36): Always Do, Before You Start, Bundled Resources, Cargo.toml, Channel Streaming Pattern, Command Returns Undefined, Common Mistakes, Common Patterns (+28 more)
 
 ### Community 101 - "Customization & Theming"
 Cohesion: 0.14
 Nodes (14): 1. Built-in variants, 2. Tailwind classes via `class`, 3. Add a new variant, 4. Wrapper components, Adding Custom Colors, Border Radius, Changing the Theme, Checking for Updates (+6 more)
 
 ### Community 102 - "Tauri v2+ Development Skill"
-Cohesion: 0.07
-Nodes (27): Always Do, Before You Start, Bundled Resources, Cargo.toml, Channel Streaming Pattern, Common Mistakes, Common Patterns, Configuration Reference (+19 more)
+Cohesion: 0.06
+Nodes (36): Always Do, Before You Start, Bundled Resources, Cargo.toml, Channel Streaming Pattern, Command Returns Undefined, Common Mistakes, Common Patterns (+28 more)
 
 ### Community 103 - "compilerOptions"
 Cohesion: 0.14
@@ -1527,8 +1545,8 @@ Cohesion: 0.22
 Nodes (8): Further Notes, Implementation Decisions, Out of Scope, Problem Statement, Process, Solution, Testing Decisions, User Stories
 
 ### Community 281 - "tests/accounts.rs"
-Cohesion: 0.07
-Nodes (14): Status, Idle, Running, SignedOut, a_running_account_with_no_window_is_reopened_through_claude_itself(), a_signed_out_running_account_is_focused_too(), add_never_touches_other_claude_folders(), folder_names() (+6 more)
+Cohesion: 0.04
+Nodes (23): Status, Idle, Missing, Running, SignedOut, a_running_account_with_no_window_is_reopened_through_claude_itself(), a_signed_out_running_account_is_focused_too(), add_never_touches_other_claude_folders() (+15 more)
 
 ### Community 282 - "Process"
 Cohesion: 0.25
@@ -1599,12 +1617,12 @@ Cohesion: 0.25
 Nodes (8): Authentication, Finish, Image first, then implement, Optional Uizze evidence, Prerequisites, Select the workflow, UI Taste by Uizze, Work from the product
 
 ### Community 299 - "en.json"
-Cohesion: 0.10
-Nodes (19): accounts_add, accounts_empty, accounts_empty_hint, accounts_hint, accounts_title, app_name, claude_missing_body, claude_missing_title (+11 more)
+Cohesion: 0.05
+Nodes (40): accounts_actions, accounts_add, accounts_empty, accounts_empty_hint, accounts_hint, accounts_title, action_cancel, app_name (+32 more)
 
 ### Community 300 - "fa.json"
-Cohesion: 0.10
-Nodes (19): accounts_add, accounts_empty, accounts_empty_hint, accounts_hint, accounts_title, app_name, claude_missing_body, claude_missing_title (+11 more)
+Cohesion: 0.05
+Nodes (40): accounts_actions, accounts_add, accounts_empty, accounts_empty_hint, accounts_hint, accounts_title, action_cancel, app_name (+32 more)
 
 ### Community 301 - "clawshell"
 Cohesion: 0.25
@@ -1632,7 +1650,7 @@ Nodes (7): CLI, Component Structure → [composition.md](./rules/composition.md)
 
 ### Community 308 - "core/accounts.rs"
 Cohesion: 0.09
-Nodes (12): Account, account_of(), AccountList, Core, Profile, ProfileScan, USER_DATA_DIR, APP_DATA_DIR (+4 more)
+Nodes (12): Account, account_of(), AccountList, Core, is_account_id(), Profile, ProfileScan, APP_DATA_DIR (+4 more)
 
 ### Community 309 - "Uizze Overdrive"
 Cohesion: 0.29
@@ -1662,9 +1680,9 @@ Nodes (6): Contradictions to avoid, The body, in order, 3,000 to 8,000 bytes, Th
 Cohesion: 0.29
 Nodes (7): CLI, Component Structure → [composition.md](./rules/composition.md), Critical Rules, Forms & Inputs → [forms.md](./rules/forms.md), Icons → [icons.md](./rules/icons.md), Styling & Tailwind → [styling.md](./rules/styling.md), Use Components, Not Custom Markup → [composition.md](./rules/composition.md)
 
-### Community 316 - "utils.ts"
-Cohesion: 0.14
-Nodes (18): svelte, {
+### Community 316 - "svelte"
+Cohesion: 0.09
+Nodes (24): svelte, {
 		ref = $bindable(null),
 		class: className,
 		children,
@@ -1690,7 +1708,7 @@ Nodes (18): svelte, {
 		class: className,
 		children,
 		...restProps
-	} (+10 more)
+	} (+16 more)
 
 ### Community 317 - "Uizze Overdrive"
 Cohesion: 0.29
@@ -1832,9 +1850,23 @@ Nodes (4): Files, Implementation vs Review, Reference, Steps
 Cohesion: 0.12
 Nodes (17): detect_install(), a_desktop_process_without_a_user_data_dir_is_the_original_install(), a_store_package_without_the_exe_falls_back_to_the_installer_build(), accepts_a_user_data_dir_given_as_a_separate_argument(), code_cli_children_do_not_count_as_running(), desktop_processes_mark_their_profile_running_whatever_their_role(), finds_the_installer_build_by_its_newest_app_folder(), finds_the_store_build_through_its_package_folder() (+9 more)
 
-### Community 352 - "Troubleshooting"
-Cohesion: 0.40
-Nodes (5): Command Returns Undefined, Desktop vs Mobile Behavioral Differences, Mobile Build Failures, Troubleshooting, White Screen on Launch
+### Community 352 - "dialog-footer.svelte"
+Cohesion: 0.18
+Nodes (5): {
+		ref = $bindable(null),
+		type = "button",
+		...restProps
+	}, {
+		ref = $bindable(null),
+		class: className,
+		children,
+		showCloseButton = false,
+		...restProps
+	}, { open = $bindable(false), ...restProps }, { ...restProps }, {
+		ref = $bindable(null),
+		type = "button",
+		...restProps
+	}
 
 ### Community 353 - "Uizze craft checks"
 Cohesion: 0.40
@@ -1857,8 +1889,20 @@ Cohesion: 0.40
 Nodes (4): Files, Implementation vs Review, Reference, Steps
 
 ### Community 358 - "button.svelte"
-Cohesion: 0.48
-Nodes (5): ButtonProps, ButtonSize, ButtonVariant, buttonVariants, {
+Cohesion: 0.22
+Nodes (7): {
+		ref = $bindable(null),
+		class: className,
+		variant = "default",
+		size = "default",
+		...restProps
+	}, {
+		ref = $bindable(null),
+		class: className,
+		variant = "outline",
+		size = "default",
+		...restProps
+	}, ButtonProps, ButtonSize, ButtonVariant, buttonVariants, {
 		class: className,
 		variant = "default",
 		size = "default",
@@ -1870,9 +1914,9 @@ Nodes (5): ButtonProps, ButtonSize, ButtonVariant, buttonVariants, {
 		...restProps
 	}
 
-### Community 359 - "Troubleshooting"
-Cohesion: 0.40
-Nodes (5): Command Returns Undefined, Desktop vs Mobile Behavioral Differences, Mobile Build Failures, Troubleshooting, White Screen on Launch
+### Community 359 - "Plugin Permissions"
+Cohesion: 0.22
+Nodes (9): Clipboard (`tauri-plugin-clipboard-manager`), Dialog (`tauri-plugin-dialog`), File System (`tauri-plugin-fs`), Global Shortcut (`tauri-plugin-global-shortcut`), HTTP (`tauri-plugin-http`), Notification (`tauri-plugin-notification`), Plugin Permissions, Shell (`tauri-plugin-shell`) (+1 more)
 
 ### Community 360 - "Uizze craft checks"
 Cohesion: 0.40
@@ -1887,8 +1931,8 @@ Cohesion: 0.39
 Nodes (6): describe(), dpapi_unprotect(), kind(), main(), mask(), masked_key()
 
 ### Community 363 - "accounts-screen.svelte"
-Cohesion: 0.13
-Nodes (19): Account, AccountList, AccountStatus, addAccount(), CommandError, errorCode(), launchAccount(), listAccounts() (+11 more)
+Cohesion: 0.08
+Nodes (28): Account, AccountList, AccountStatus, addAccount(), CommandError, deleteAccount(), errorCode(), launchAccount() (+20 more)
 
 ### Community 364 - "GLOSSARY.md Format"
 Cohesion: 0.50
@@ -1907,12 +1951,12 @@ Cohesion: 0.83
 Nodes (3): capture(), hitl-loop.template.sh script, step()
 
 ### Community 368 - "adapters.rs"
-Cohesion: 0.11
-Nodes (11): Cache, Empty, Found, Missing, CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW, DETACHED_PROCESS, focus_window_of() (+3 more)
+Cohesion: 0.10
+Nodes (12): Cache, Empty, Found, Missing, CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW, DETACHED_PROCESS, focus_window_of() (+4 more)
 
-### Community 369 - "Quick Start"
-Cohesion: 0.50
-Nodes (4): Quick Start, Step 1: Create a Tauri Command, Step 2: Call from Frontend, Step 3: Add Required Permissions
+### Community 369 - "Commands (invoke)"
+Cohesion: 0.25
+Nodes (8): Async Command, Basic Command, Command with Multiple Arguments, Command with Raw Binary Data, Command with Result Error Handling, Command with State, Command with Window Access, Commands (invoke)
 
 ### Community 370 - "GLOSSARY.md Format"
 Cohesion: 0.50
@@ -1938,56 +1982,52 @@ Nodes (3): AccessToken, extract_token(), extracts_the_token_and_expiry_from_a_si
 Cohesion: 0.60
 Nodes (5): decrypt_v10(), decrypts_a_v10_value_with_the_aes_key(), hex(), rejects_a_wrong_key_without_leaking_anything(), v10_value()
 
-### Community 437 - "DesktopProcesses"
-Cohesion: 0.18
-Nodes (10): SysinfoLister, is_under(), norm(), same_path(), ProcessInfo, ProcessLister, DesktopProcesses, is_desktop() (+2 more)
+### Community 437 - "process.rs"
+Cohesion: 0.13
+Nodes (12): SysinfoLister, is_under(), norm(), same_path(), ClaudeLocator, ProcessInfo, ProcessLister, DesktopProcesses (+4 more)
 
 ### Community 438 - "item.svelte"
-Cohesion: 0.15
-Nodes (12): tailwind-variants, BadgeVariant, badgeVariants, {
+Cohesion: 0.12
+Nodes (15): tailwind-variants, BadgeVariant, badgeVariants, {
 		ref = $bindable(null),
 		href,
 		class: className,
 		variant = "default",
 		children,
 		...restProps
-	}, ItemSize, ItemVariant, itemVariants, ItemMediaVariant (+4 more)
+	}, ItemSize, ItemVariant, itemVariants, ItemMediaVariant (+7 more)
 
 ### Community 439 - "ClaudeInstall"
-Cohesion: 0.18
-Nodes (9): INSTALLER_DIR, installer_install(), parse_version(), store_install(), ClaudeInstall, is_signed_in(), MIN_TOKEN_CACHE_LEN, SIGNED_IN_FLAG (+1 more)
+Cohesion: 0.15
+Nodes (10): INSTALLER_DIR, installer_install(), parse_version(), store_install(), ClaudeInstall, is_signed_in(), MIN_TOKEN_CACHE_LEN, SIGNED_IN_FLAG (+2 more)
 
-### Community 442 - "vite.config.js"
+### Community 443 - "Common Capability Patterns"
 Cohesion: 0.40
-Nodes (3): @inlang/paraglide-js, @tailwindcss/vite, @vitest/browser-playwright
+Nodes (5): Common Capability Patterns, File Manager, Full Desktop App, Minimal App, Web-Connected App
 
-### Community 443 - "Critical Rules"
-Cohesion: 0.50
-Nodes (4): Always Do, Common Mistakes, Critical Rules, Never Do
-
-### Community 444 - "dependencies"
-Cohesion: 0.67
-Nodes (3): dependencies, @tauri-apps/api, @tauri-apps/plugin-opener
+### Community 444 - "Common Capability Patterns"
+Cohesion: 0.40
+Nodes (5): Common Capability Patterns, File Manager, Full Desktop App, Minimal App, Web-Connected App
 
 ## Knowledge Gaps
-- **51 isolated node(s):** `npx`, `@sveltejs/mcp`, `@tauri-apps/plugin-opener`, `@fontsource-variable/roboto`, `@internationalized/date` (+46 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 3548 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **88 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **61 isolated node(s):** `npx`, `@sveltejs/mcp`, `@tauri-apps/plugin-opener`, `@fontsource-variable/roboto`, `@internationalized/date` (+56 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 3667 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **87 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `run()` connect `lib.rs` to `Tauri v2+ Development Skill`?**
-  _High betweenness centrality (0.010) - this node is a cross-community bridge._
+- **Why does `svelte` connect `svelte` to `dialog-footer.svelte`, `dialog-content.svelte`, `utils.ts`, `button.svelte`, `package.json`, `accounts-screen.svelte`, `item.svelte`, `svelte`?**
+  _High betweenness centrality (0.012) - this node is a cross-community bridge._
 - **What connects `npx`, `@sveltejs/mcp`, `@tauri-apps/plugin-opener` to the rest of the system?**
-  _51 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _61 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `tauri.conf.json` be split into smaller, more focused modules?**
   _Cohesion score 0.1111111111111111 - nodes in this community are weakly interconnected._
-- **Why does `Tauri v2+ Development Skill` connect `Tauri v2+ Development Skill` to `Troubleshooting`, `lib.rs`, `.agents/skills/tauri-v2/references/plugin-reference.md`, `Critical Rules`?**
-  _High betweenness centrality (0.007) - this node is a cross-community bridge._
+- **Why does `run()` connect `core/mod.rs` to `Tauri v2+ Development Skill`, `Tauri v2+ Development Skill`?**
+  _High betweenness centrality (0.008) - this node is a cross-community bridge._
 - **Should `.agents/skills/hallmark/scripts/sloplint.mjs` be split into smaller, more focused modules?**
   _Cohesion score 0.03110047846889952 - nodes in this community are weakly interconnected._
-- **Why does `Project Structure` connect `lib.rs` to `Tauri v2+ Development Skill`?**
+- **Why does `Tauri v2+ Development Skill` connect `Tauri v2+ Development Skill` to `.claude/skills/tauri-v2/references/plugin-reference.md`?**
   _High betweenness centrality (0.006) - this node is a cross-community bridge._
-- **Should `.claude/skills/hallmark/scripts/sloplint.mjs` be split into smaller, more focused modules?**
-  _Cohesion score 0.03110047846889952 - nodes in this community are weakly interconnected._
+- **Should `hooks.server.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.13333333333333333 - nodes in this community are weakly interconnected._
