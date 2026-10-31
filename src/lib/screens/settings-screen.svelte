@@ -23,13 +23,15 @@
 		'autostart-failed': () => m.error_settings_autostart(),
 		'claude-path-missing': () => m.error_claude_path_missing(),
 		'claude-path-not-a-file': () => m.error_claude_path_not_a_file(),
-		'claude-path-not-claude': () => m.error_claude_path_not_claude()
+		'claude-path-not-claude': () => m.error_claude_path_not_claude(),
+		'invalid-thresholds': () => m.error_thresholds_invalid()
 	};
 
 	onMount(async () => {
 		try {
 			settings = await getSettings();
 			draftPath = settings.claudePath ?? '';
+			syncDrafts();
 		} catch {
 			failure = m.error_settings_save_failed();
 		}
@@ -42,6 +44,7 @@
 		try {
 			settings = await updateSettings({ ...settings, ...change });
 			draftPath = settings.claudePath ?? '';
+			syncDrafts();
 			if (settings.language !== active.locale) switchLocale(settings.language);
 		} catch (error) {
 			failure = failureText[errorCode(error) ?? '']?.() ?? m.error_settings_save_failed();
@@ -52,6 +55,22 @@
 		event.preventDefault();
 		const path = draftPath.trim();
 		return save({ claudePath: path === '' ? null : path });
+	}
+
+	/** The threshold fields' text, which may be ahead of what is saved. */
+	let draftWarning = $state('');
+	let draftLimit = $state('');
+
+	function syncDrafts() {
+		draftWarning = String(settings?.warningThreshold ?? '');
+		draftLimit = String(settings?.limitThreshold ?? '');
+	}
+
+	/** Commits a threshold field; an empty or non-whole value goes back to what is saved. */
+	async function saveThreshold(key: 'warningThreshold' | 'limitThreshold', text: string) {
+		const value = text.trim() === '' ? NaN : Number(text);
+		if (Number.isInteger(value) && value !== settings?.[key]) await save({ [key]: value });
+		syncDrafts();
 	}
 
 	const languageName = { en: () => m.language_en(), fa: () => m.language_fa() };
@@ -73,7 +92,65 @@
 			hint: () => m.settings_close_to_tray_hint()
 		}
 	] as const;
+
+	const alerts = [
+		{
+			key: 'notifyWarning',
+			title: () => m.settings_notify_warning(),
+			hint: () => m.settings_notify_warning_hint()
+		},
+		{
+			key: 'notifyLimited',
+			title: () => m.settings_notify_limited(),
+			hint: () => m.settings_notify_limited_hint()
+		},
+		{
+			key: 'notifyReset',
+			title: () => m.settings_notify_reset(),
+			hint: () => m.settings_notify_reset_hint()
+		}
+	] as const;
+
+	const thresholds = [
+		{
+			key: 'warningThreshold',
+			label: () => m.settings_warning_threshold(),
+			draft: () => draftWarning,
+			edit: (value: string) => (draftWarning = value)
+		},
+		{
+			key: 'limitThreshold',
+			label: () => m.settings_limit_threshold(),
+			draft: () => draftLimit,
+			edit: (value: string) => (draftLimit = value)
+		}
+	] as const;
 </script>
+
+{#snippet switchRow(row: {
+	key:
+		| 'launchAtBoot'
+		| 'startHidden'
+		| 'closeToTray'
+		| 'notifyWarning'
+		| 'notifyLimited'
+		| 'notifyReset';
+	title: () => string;
+	hint: () => string;
+})}
+	<Item.Root variant="outline">
+		<Item.Content>
+			<Item.Title><Label for="setting-{row.key}">{row.title()}</Label></Item.Title>
+			<Item.Description>{row.hint()}</Item.Description>
+		</Item.Content>
+		<Item.Actions>
+			<Switch
+				id="setting-{row.key}"
+				bind:checked={() => settings![row.key], (checked) => void save({ [row.key]: checked })}
+			/>
+		</Item.Actions>
+	</Item.Root>
+{/snippet}
 
 <section class="flex flex-col gap-3 p-4">
 	{#if failure}
@@ -84,19 +161,36 @@
 
 	{#if settings}
 		{#each switches as row (row.key)}
-			<Item.Root variant="outline">
-				<Item.Content>
-					<Item.Title><Label for="setting-{row.key}">{row.title()}</Label></Item.Title>
-					<Item.Description>{row.hint()}</Item.Description>
-				</Item.Content>
-				<Item.Actions>
-					<Switch
-						id="setting-{row.key}"
-						bind:checked={() => settings![row.key], (checked) => void save({ [row.key]: checked })}
-					/>
-				</Item.Actions>
-			</Item.Root>
+			{@render switchRow(row)}
 		{/each}
+
+		<h2 class="mt-2 text-sm font-medium">{m.settings_notifications()}</h2>
+		{#each alerts as row (row.key)}
+			{@render switchRow(row)}
+		{/each}
+
+		<div class="flex flex-col gap-2">
+			<div class="flex gap-2">
+				{#each thresholds as field (field.key)}
+					<div class="flex flex-1 flex-col gap-2">
+						<Label for="setting-{field.key}">{field.label()}</Label>
+						<Input
+							id="setting-{field.key}"
+							type="number"
+							min={1}
+							max={100}
+							step={1}
+							inputmode="numeric"
+							dir="ltr"
+							value={field.draft()}
+							oninput={(event) => field.edit(event.currentTarget.value)}
+							onchange={() => saveThreshold(field.key, field.draft())}
+						/>
+					</div>
+				{/each}
+			</div>
+			<p class="text-xs text-muted-foreground">{m.settings_thresholds_hint()}</p>
+		</div>
 
 		<Item.Root variant="outline">
 			<Item.Content>

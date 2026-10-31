@@ -124,16 +124,29 @@ impl ClaudeLocator for WindowsLocator {
 }
 
 /// Everything the app does to Windows. Tickets after this one fill in the
-/// taskbar identity, shortcuts, link routing, autostart and notifications.
+/// taskbar identity, shortcuts and link routing.
 pub struct WindowsOs {
     /// Detection plus the saved Claude.exe override.
     locator: Arc<dyn ClaudeLocator>,
     lister: Arc<dyn ProcessLister>,
+    /// Shows a Windows toast; supplied by the app, which owns the Tauri handle.
+    toast: Toast,
 }
 
+/// Title and body in, a Windows notification out.
+pub type Toast = Box<dyn Fn(&str, &str) + Send + Sync>;
+
 impl WindowsOs {
-    pub fn new(locator: Arc<dyn ClaudeLocator>, lister: Arc<dyn ProcessLister>) -> Self {
-        WindowsOs { locator, lister }
+    pub fn new(
+        locator: Arc<dyn ClaudeLocator>,
+        lister: Arc<dyn ProcessLister>,
+        toast: Toast,
+    ) -> Self {
+        WindowsOs {
+            locator,
+            lister,
+            toast,
+        }
     }
 }
 
@@ -308,7 +321,9 @@ fn set_run_key(enabled: bool, exe: &Path) -> io::Result<()> {
     result
 }
 impl Notifier for WindowsOs {
-    fn notify(&self, _title: &str, _body: &str) {}
+    fn notify(&self, title: &str, body: &str) {
+        (self.toast)(title, body);
+    }
 }
 impl OsAdapters for WindowsOs {}
 

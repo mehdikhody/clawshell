@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 
 const APP_DATA_DIR: &str = "clawshell";
 const FILE: &str = "settings.json";
+const DEFAULT_WARNING_THRESHOLD: u8 = 80;
+const DEFAULT_LIMIT_THRESHOLD: u8 = 100;
 
 /// The interface language, saved as `en` or `fa`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -32,6 +34,16 @@ pub struct Settings {
     pub language: Language,
     /// Where `Claude.exe` is, when detection can't find it.
     pub claude_path: Option<PathBuf>,
+    /// Notify when a window reaches the warning threshold.
+    pub notify_warning: bool,
+    /// Notify when a window reaches the limit threshold.
+    pub notify_limited: bool,
+    /// Notify when a window that was Limited resets.
+    pub notify_reset: bool,
+    /// Percent of a window at which the warning fires.
+    pub warning_threshold: u8,
+    /// Percent of a window at which it counts as Limited.
+    pub limit_threshold: u8,
 }
 
 impl Default for Settings {
@@ -42,6 +54,11 @@ impl Default for Settings {
             close_to_tray: true,
             language: Language::En,
             claude_path: None,
+            notify_warning: true,
+            notify_limited: true,
+            notify_reset: true,
+            warning_threshold: DEFAULT_WARNING_THRESHOLD,
+            limit_threshold: DEFAULT_LIMIT_THRESHOLD,
         }
     }
 }
@@ -55,8 +72,18 @@ impl Settings {
     pub fn load(local_app_data: &Path) -> Self {
         std::fs::read_to_string(file(local_app_data))
             .ok()
-            .and_then(|text| serde_json::from_str(&text).ok())
+            .and_then(|text| serde_json::from_str::<Settings>(&text).ok())
+            .map(Settings::with_usable_thresholds)
             .unwrap_or_default()
+    }
+
+    /// A saved file whose thresholds make no sense gets the default pair back.
+    fn with_usable_thresholds(mut self) -> Self {
+        if !thresholds_valid(&self) {
+            self.warning_threshold = DEFAULT_WARNING_THRESHOLD;
+            self.limit_threshold = DEFAULT_LIMIT_THRESHOLD;
+        }
+        self
     }
 
     fn save(&self, local_app_data: &Path) -> io::Result<()> {
@@ -79,6 +106,9 @@ pub enum SettingsError {
     ClaudePathNotAFile,
     /// The override is a file, but not `Claude.exe`.
     ClaudePathNotClaude,
+    /// The warning threshold is not below the limit threshold, or one of them
+    /// is outside 1 to 100.
+    InvalidThresholds,
     /// Windows refused to register or unregister autostart.
     Autostart(io::Error),
     Io(io::Error),
@@ -94,6 +124,9 @@ impl Core {
         let local = &self.ports.roots.local_app_data;
         let old = Settings::load(local);
         // Validate before touching Windows, so a refusal changes nothing.
+        if !thresholds_valid(&new) {
+            return Err(SettingsError::InvalidThresholds);
+        }
         if new.claude_path != old.claude_path
             && let Some(path) = &new.claude_path
         {
@@ -106,8 +139,16 @@ impl Core {
                 .map_err(SettingsError::Autostart)?;
         }
         new.save(local).map_err(SettingsError::Io)?;
+        // New thresholds and switches apply to the readings already held.
+        self.notify_held_usage();
         Ok(new)
     }
+}
+
+fn thresholds_valid(s: &Settings) -> bool {
+    (1..=100).contains(&s.warning_threshold)
+        && (1..=100).contains(&s.limit_threshold)
+        && s.warning_threshold < s.limit_threshold
 }
 
 const CLAUDE_EXE: &str = "claude.exe";

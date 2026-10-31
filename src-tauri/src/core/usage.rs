@@ -188,6 +188,7 @@ impl Core {
                 continue;
             }
             self.refresh_account(&account.id, &account.path, account.running, now);
+            self.notify_after_poll(&account.id, &account.label);
             refreshed += 1;
         }
         let present: Vec<&str> = accounts.iter().map(|a| a.id.as_str()).collect();
@@ -199,6 +200,20 @@ impl Core {
         RefreshOutcome {
             refreshed,
             refresh_allowed_at: self.refresh_allowed_at(&accounts),
+        }
+    }
+
+    /// Hands the account's fresh snapshot to the notifications.
+    fn notify_after_poll(&self, id: &str, label: &str) {
+        let snapshot = self
+            .usage
+            .lock()
+            .unwrap()
+            .accounts
+            .get(id)
+            .and_then(|s| s.snapshot.clone());
+        if let Some(snapshot) = snapshot {
+            self.notify_usage(id, label, &snapshot);
         }
     }
 

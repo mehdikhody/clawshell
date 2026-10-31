@@ -294,6 +294,8 @@ pub struct FakeOs {
     pub autostart: Mutex<Vec<bool>>,
     /// Makes the autostart port fail, as a locked-down registry would.
     pub autostart_fails: Mutex<bool>,
+    /// Every `(title, body)` handed to the notifier, in order.
+    pub notifications: Mutex<Vec<(String, String)>>,
 }
 
 impl Default for FakeOs {
@@ -307,6 +309,7 @@ impl Default for FakeOs {
             has_window: Mutex::new(true),
             autostart: Mutex::default(),
             autostart_fails: Mutex::new(false),
+            notifications: Mutex::default(),
         }
     }
 }
@@ -382,7 +385,12 @@ impl Autostart for FakeOs {
     }
 }
 impl Notifier for FakeOs {
-    fn notify(&self, _title: &str, _body: &str) {}
+    fn notify(&self, title: &str, body: &str) {
+        self.notifications
+            .lock()
+            .unwrap()
+            .push((title.to_string(), body.to_string()));
+    }
 }
 impl OsAdapters for FakeOs {}
 

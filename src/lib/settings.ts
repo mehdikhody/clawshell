@@ -13,6 +13,16 @@ export type Settings = {
 	language: Locale;
 	/** Where Claude.exe is, used when detection fails; null when not set. */
 	claudePath: string | null;
+	/** Notify when a window reaches the warning threshold. */
+	notifyWarning: boolean;
+	/** Notify when a window reaches the limit threshold. */
+	notifyLimited: boolean;
+	/** Notify when a window that was Limited resets. */
+	notifyReset: boolean;
+	/** Percent of a window at which the warning fires; below the limit threshold, 1 to 100. */
+	warningThreshold: number;
+	/** Percent of a window at which it counts as Limited, 1 to 100. */
+	limitThreshold: number;
 };
 
 export const getSettings = () => invoke<Settings>('get_settings');

@@ -19,6 +19,11 @@ fn a_fresh_install_has_the_default_settings() {
             close_to_tray: true,
             language: Language::En,
             claude_path: None,
+            notify_warning: true,
+            notify_limited: true,
+            notify_reset: true,
+            warning_threshold: 80,
+            limit_threshold: 100,
         }
     );
 }

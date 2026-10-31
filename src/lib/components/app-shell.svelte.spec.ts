@@ -21,7 +21,12 @@ const saved: Settings = {
 	startHidden: false,
 	closeToTray: true,
 	language: 'en',
-	claudePath: null
+	claudePath: null,
+	notifyWarning: true,
+	notifyLimited: true,
+	notifyReset: true,
+	warningThreshold: 80,
+	limitThreshold: 100
 };
 const leftOf = (locator: { element(): Element }) => locator.element().getBoundingClientRect().left;
 

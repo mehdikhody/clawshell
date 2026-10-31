@@ -5,6 +5,7 @@ pub mod accounts;
 pub mod cost;
 pub mod desktop_token;
 pub mod install;
+mod notifications;
 mod paths;
 pub mod polling;
 pub mod pooled;
@@ -65,15 +66,19 @@ pub struct Core {
     refresh_gate: Mutex<()>,
     /// The last price-list fetch, so a refresh does not refetch it.
     prices: Mutex<Option<cost::PriceCache>>,
+    /// What each window has already notified, saved so a restart repeats nothing.
+    fired: Mutex<notifications::Fired>,
 }
 
 impl Core {
     pub fn new(ports: Ports) -> Self {
+        let fired = notifications::Fired::load(&ports.roots.local_app_data);
         Core {
             ports,
             usage: Mutex::default(),
             refresh_gate: Mutex::new(()),
             prices: Mutex::new(None),
+            fired: Mutex::new(fired),
         }
     }
 
