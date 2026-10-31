@@ -1,8 +1,8 @@
-//! The 30-day heatmap, through the core: given these transcripts, usage
+//! The 60-day heatmap, through the core: given these transcripts, usage
 //! history and polls at this time, what does each day show?
 //!
 //! Transcripts, ids and prices in these fixtures are synthetic. The harness
-//! clock reads 2026-06-15 12:00 UTC, so the window is 2026-05-17 to 2026-06-15.
+//! clock reads 2026-06-15 12:00 UTC, so the window is 2026-04-17 to 2026-06-15.
 
 mod support;
 
@@ -74,12 +74,12 @@ fn assert_close(actual: f64, expected: f64) {
 }
 
 #[test]
-fn covers_thirty_local_days_ending_today_oldest_first() {
+fn covers_sixty_local_days_ending_today_oldest_first() {
     let h = Harness::new();
     let map = h.core().heatmap();
 
-    assert_eq!(map.days.len(), 30);
-    assert_eq!(map.days.first().unwrap().date, "2026-05-17");
+    assert_eq!(map.days.len(), 60);
+    assert_eq!(map.days.first().unwrap().date, "2026-04-17");
     assert_eq!(map.days.last().unwrap().date, "2026-06-15");
 }
 
@@ -155,7 +155,7 @@ fn ends_on_the_local_today_not_the_utc_one() {
     let map = h.core().heatmap();
 
     assert_eq!(map.days.last().unwrap().date, "2026-06-14");
-    assert_eq!(map.days.first().unwrap().date, "2026-05-16");
+    assert_eq!(map.days.first().unwrap().date, "2026-04-16");
 }
 
 #[test]
@@ -166,8 +166,8 @@ fn leaves_out_messages_older_than_the_window() {
         ID_A,
         SESSION_A,
         &[
-            ("2026-05-16T23:00:00.000Z", 7),
-            ("2026-05-17T00:30:00.000Z", 1),
+            ("2026-04-16T23:00:00.000Z", 7),
+            ("2026-04-17T00:30:00.000Z", 1),
         ],
     );
     prices_ok(&h);
@@ -175,8 +175,33 @@ fn leaves_out_messages_older_than_the_window() {
     let map = h.core().heatmap();
 
     let oldest = map.days.first().unwrap();
-    assert_eq!(oldest.date, "2026-05-17");
+    assert_eq!(oldest.date, "2026-04-17");
     assert_close(oldest.usd.as_ref().unwrap().total, 1.0);
+}
+
+#[test]
+fn sums_each_days_tokens_across_accounts_even_without_prices() {
+    let h = Harness::new();
+    spender(&h, ID_A, SESSION_A, &[("2026-06-12T09:00:00.000Z", 1)]);
+    spender(
+        &h,
+        ID_B,
+        SESSION_B,
+        &[
+            ("2026-06-12T10:00:00.000Z", 2),
+            ("2026-06-13T10:00:00.000Z", 4),
+        ],
+    );
+    h.http.fail(PRICES_URL);
+
+    let map = h.core().heatmap();
+
+    // A million input tokens per dollar in the fixture: 1M + 2M on the 12th.
+    assert_eq!(day(&map, "2026-06-11").tokens, None);
+    assert_eq!(day(&map, "2026-06-12").tokens, Some(3_000_000));
+    assert_eq!(day(&map, "2026-06-13").tokens, Some(4_000_000));
+    assert_eq!(day(&map, "2026-06-14").tokens, Some(0));
+    assert!(map.days.iter().all(|d| d.usd.is_none()));
 }
 
 #[test]
@@ -365,7 +390,7 @@ fn ignores_history_older_than_the_window_and_unreadable_files() {
     h.fixture.add_profile(ID_A);
     h.fixture.add_profile(ID_B);
     h.fixture
-        .write_usage_history(ID_A, &history(&[(june(15, 8) - 40 * 86_400_000, 90.0)]));
+        .write_usage_history(ID_A, &history(&[(june(15, 8) - 70 * 86_400_000, 90.0)]));
     h.fixture.write_usage_history(ID_B, "not json");
 
     let map = h.core().heatmap();

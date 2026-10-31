@@ -41,12 +41,12 @@ describe('AppShell', () => {
 		const accounts = page.getByRole('tab', { name: 'Accounts' });
 		const settings = page.getByRole('tab', { name: 'Settings' });
 
-		await expect.element(usage).toHaveAttribute('aria-selected', 'true');
-		await expect.element(page.getByRole('tabpanel', { name: 'Usage' })).toBeVisible();
-
-		await accounts.click();
 		await expect.element(accounts).toHaveAttribute('aria-selected', 'true');
 		await expect.element(page.getByRole('tabpanel', { name: 'Accounts' })).toBeVisible();
+
+		await usage.click();
+		await expect.element(usage).toHaveAttribute('aria-selected', 'true');
+		await expect.element(page.getByRole('tabpanel', { name: 'Usage' })).toBeVisible();
 
 		await settings.click();
 		await expect.element(settings).toHaveAttribute('aria-selected', 'true');

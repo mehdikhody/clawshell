@@ -421,7 +421,9 @@ fn focusing_an_open_account_does_not_reapply_the_identity() {
 
 // ---- pure: the badge icon -----------------------------------------------------
 
-use clawshell_lib::core::badge::{render_badge, rgb};
+use clawshell_lib::core::badge::{
+    BASE_SIDE, plain_base, render_badge, resample, rgb, rounded_square,
+};
 
 #[test]
 fn a_colour_splits_into_red_green_and_blue() {
@@ -436,30 +438,60 @@ fn pixel(icon: &[u8], size: usize, x: usize, y: usize) -> [u8; 4] {
 }
 
 #[test]
-fn the_icon_is_a_rounded_square_of_the_colour() {
+fn a_rounded_square_is_see_through_in_the_corners() {
     let size = 32;
-    let icon = render_badge(size, [0x25, 0x63, 0xeb], &vec![0; size * size]);
+    let square = rounded_square(size, [0xeb, 0x63, 0x25]);
 
-    assert_eq!(icon.len(), size * size * 4);
-    // BGRA, fully opaque in the middle, see-through in the rounded corner.
-    assert_eq!(pixel(&icon, size, 16, 16), [0xeb, 0x63, 0x25, 255]);
-    assert_eq!(pixel(&icon, size, 0, 0)[3], 0);
-    assert_eq!(pixel(&icon, size, 31, 31)[3], 0);
-    // The straight edges run to the border.
-    assert_eq!(pixel(&icon, size, 16, 0)[3], 255);
-    assert_eq!(pixel(&icon, size, 0, 16)[3], 255);
+    assert_eq!(square.len(), size * size * 4);
+    assert_eq!(pixel(&square, size, 16, 16), [0x25, 0x63, 0xeb, 255]);
+    assert_eq!(pixel(&square, size, 0, 0)[3], 0);
+    assert_eq!(pixel(&square, size, 31, 31)[3], 0);
+    assert_eq!(pixel(&square, size, 16, 0)[3], 255);
 }
 
 #[test]
-fn the_letter_is_drawn_white_over_the_colour() {
+fn the_label_is_the_colour_and_the_base_shows_around_it() {
+    let size = 32;
+    let base = rounded_square(size, [0xeb, 0x63, 0x25]);
+    let icon = render_badge(size, [0x25, 0x63, 0xeb], &vec![0; size * size], &base);
+
+    // The disc's centre, bottom-right, is its colour, opaque.
+    assert_eq!(pixel(&icon, size, 22, 22), [0xeb, 0x63, 0x25, 255]);
+    // Upper middle is outside the disc: the base as it was.
+    assert_eq!(pixel(&icon, size, 16, 8), pixel(&base, size, 16, 8));
+    assert_eq!(pixel(&icon, size, 0, 0)[3], 0);
+}
+
+#[test]
+fn the_letter_is_drawn_white_over_the_label() {
     let size = 16;
     let mut coverage = vec![0u8; size * size];
-    coverage[8 * size + 8] = 255;
-    coverage[8 * size + 9] = 128;
+    coverage[11 * size + 11] = 255;
+    coverage[11 * size + 12] = 128;
+    let base = plain_base_at(size);
 
-    let icon = render_badge(size, [0, 0, 0], &coverage);
+    let icon = render_badge(size, [0x25, 0x63, 0xeb], &coverage, &base);
 
-    assert_eq!(pixel(&icon, size, 8, 8), [255, 255, 255, 255]);
-    assert_eq!(pixel(&icon, size, 9, 8), [128, 128, 128, 255]);
-    assert_eq!(pixel(&icon, size, 7, 8), [0, 0, 0, 255]);
+    assert_eq!(pixel(&icon, size, 11, 11), [255, 255, 255, 255]);
+    // Half inked: halfway between the disc colour and white.
+    assert_eq!(pixel(&icon, size, 12, 11), [245, 177, 146, 255]);
+    // No ink: the disc colour itself.
+    assert_eq!(pixel(&icon, size, 10, 11), [0xeb, 0x63, 0x25, 255]);
+}
+
+fn plain_base_at(size: usize) -> Vec<u8> {
+    resample(&plain_base(), BASE_SIDE, size)
+}
+
+#[test]
+fn a_base_is_resampled_to_any_size_and_keeps_its_colour() {
+    let big = plain_base();
+    let small = resample(&big, BASE_SIDE, 16);
+
+    assert_eq!(small.len(), 16 * 16 * 4);
+    assert_eq!(pixel(&small, 16, 8, 8), [0x57, 0x77, 0xd9, 255]);
+    assert!(
+        pixel(&small, 16, 0, 0)[3] < 64,
+        "the corner is mostly outside"
+    );
 }

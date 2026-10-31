@@ -76,7 +76,7 @@
 			}}
 		>
 			<Dialog.Header>
-				<Dialog.Title>{m.launch_options_title()}</Dialog.Title>
+				<Dialog.Title class="text-base font-semibold">{m.launch_options_title()} · {account.label}</Dialog.Title>
 				<Dialog.Description class="flex items-start gap-1.5">
 					<IconInfoCircle class="mt-0.5 size-4 shrink-0" />
 					<span>{m.launch_options_note()}</span>
@@ -106,6 +106,7 @@
 						/>
 						<Input
 							aria-label={m.launch_options_env_value()}
+							placeholder="VALUE"
 							class="font-mono"
 							dir="ltr"
 							autocomplete="off"

@@ -7,7 +7,7 @@ use crate::core::ports::*;
 use crate::core::process::DesktopProcesses;
 use crate::link_registry;
 use crate::shell_link;
-use crate::taskbar::{badge_ico, badge_windows};
+use crate::taskbar::{badge_ico, badge_windows, claude_base};
 use std::collections::HashMap;
 use std::io;
 use std::os::windows::process::CommandExt;
@@ -271,7 +271,8 @@ impl TaskbarIdentity for WindowsOs {
             next
         };
         let inspector = DesktopProcesses::new(self.lister.clone(), self.locator.clone());
-        if badge_windows(&inspector.pids_for(profile), aumid, badge, colour) > 0 {
+        let base = claude_base(self.locate().map(|install| install.exe));
+        if badge_windows(&inspector.pids_for(profile), aumid, badge, colour, &base) > 0 {
             return Ok(());
         }
 
@@ -288,7 +289,7 @@ impl TaskbarIdentity for WindowsOs {
                     return;
                 }
                 let pids = inspector.pids_for(&profile);
-                if badge_windows(&pids, &aumid, badge, &colour) > 0 {
+                if badge_windows(&pids, &aumid, badge, &colour, &base) > 0 {
                     return;
                 }
             }
@@ -305,7 +306,8 @@ impl Shortcuts for WindowsOs {
         })
     }
     fn write_icon(&self, path: &Path, badge: char, colour: &str) -> io::Result<()> {
-        let bytes = badge_ico(badge, colour)
+        let base = claude_base(self.locate().map(|install| install.exe));
+        let bytes = badge_ico(badge, colour, &base)
             .ok_or_else(|| io::Error::other("the badge icon could not be drawn"))?;
         if let Some(folder) = path.parent() {
             std::fs::create_dir_all(folder)?;

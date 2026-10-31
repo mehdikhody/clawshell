@@ -1,44 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { intlLocale } from './locale';
-import {
-	cellsFor,
-	formatDay,
-	intensity,
-	parseDay,
-	type HeatmapDay
-} from './heatmap';
+import { cellsFor, formatDay, intensity, parseDay, type HeatmapDay } from './heatmap';
 
-const day = (date: string): HeatmapDay => ({ date, usd: null, percent: null });
+const day = (date: string): HeatmapDay => ({ date, usd: null, tokens: null });
 
 describe('intensity', () => {
 	it('has no level for a day without data', () => {
-		expect(intensity(null, 'usd', 10)).toBeNull();
-		expect(intensity(null, 'percent', 0)).toBeNull();
+		expect(intensity(null, 10)).toBeNull();
 	});
 
 	it('gives a real zero level 0, apart from no data', () => {
-		expect(intensity(0, 'usd', 10)).toBe(0);
-		expect(intensity(0, 'percent', 0)).toBe(0);
+		expect(intensity(0, 10)).toBe(0);
 	});
 
 	it('buckets dollars against the busiest day', () => {
-		expect(intensity(0.01, 'usd', 10)).toBe(1);
-		expect(intensity(2.5, 'usd', 10)).toBe(1);
-		expect(intensity(2.6, 'usd', 10)).toBe(2);
-		expect(intensity(5, 'usd', 10)).toBe(2);
-		expect(intensity(7.5, 'usd', 10)).toBe(3);
-		expect(intensity(7.6, 'usd', 10)).toBe(4);
-		expect(intensity(10, 'usd', 10)).toBe(4);
-	});
-
-	it('buckets percent in fixed quarters', () => {
-		expect(intensity(1, 'percent', 0)).toBe(1);
-		expect(intensity(25, 'percent', 0)).toBe(1);
-		expect(intensity(26, 'percent', 0)).toBe(2);
-		expect(intensity(50, 'percent', 0)).toBe(2);
-		expect(intensity(51, 'percent', 0)).toBe(3);
-		expect(intensity(76, 'percent', 0)).toBe(4);
-		expect(intensity(100, 'percent', 0)).toBe(4);
+		expect(intensity(0.01, 10)).toBe(1);
+		expect(intensity(2.5, 10)).toBe(1);
+		expect(intensity(2.6, 10)).toBe(2);
+		expect(intensity(5, 10)).toBe(2);
+		expect(intensity(7.5, 10)).toBe(3);
+		expect(intensity(7.6, 10)).toBe(4);
+		expect(intensity(10, 10)).toBe(4);
 	});
 });
 

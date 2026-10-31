@@ -39,7 +39,7 @@ function mount(a: Account = account(), overrides: IpcHandlers = {}) {
 }
 
 async function openEditor(label = 'Work') {
-	await page.getByRole('button', { name: `Actions for ${label}` }).click();
+	await page.getByText(label, { exact: true }).click({ button: 'right' });
 	await page.getByRole('menuitem', { name: 'Environment and flags' }).click();
 }
 

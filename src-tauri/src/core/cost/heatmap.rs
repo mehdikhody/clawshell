@@ -1,7 +1,6 @@
-//! The 30-day heatmap: one cell per local day, in dollars or in percent.
-//!
-//! Dollars are each day's Code-tab estimate (extra usage has no daily
-//! breakdown, so it is left out). Percent is each day's peak weekly
+//! The 60-day heatmap: one cell per local day, in dollars, with the day's
+//! tokens alongside. Dollars are each day's Code-tab estimate (extra usage has
+//! no daily breakdown, so it is left out). Percent is each day's peak weekly
 //! utilisation, averaged over the accounts that have a reading that day.
 //! A day nobody has data for is `None`, which is not the same as zero.
 
@@ -12,8 +11,8 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-/// Cells in the heatmap: the last 30 local days, today included.
-const WINDOW_DAYS: i64 = 30;
+/// Cells in the heatmap: the last 60 local days, today included.
+const WINDOW_DAYS: i64 = 60;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +30,9 @@ pub struct HeatmapDay {
     pub date: String,
     /// Code-tab dollars; `None` when nothing is known about the day.
     pub usd: Option<DayValues>,
+    /// Every token the day's messages used, across accounts; `None` when
+    /// nothing is known about the day. Needs no prices.
+    pub tokens: Option<u64>,
     /// Peak weekly percent; `None` when no account has a reading that day.
     pub percent: Option<DayValues>,
 }
@@ -55,8 +57,7 @@ pub struct DayAccount {
 type ByDay = HashMap<(i64, String), f64>;
 
 impl Core {
-    /// The last 30 local days (today last) in both modes, so the UI can
-    /// switch without asking again.
+    /// The last 60 local days (today last), with dollars, tokens and percent.
     pub fn heatmap(&self) -> Heatmap {
         let accounts: Vec<_> = self
             .known_accounts()
@@ -86,6 +87,9 @@ impl Core {
                 None => (None, Some(NoEstimate::PricesUnavailable)),
             }
         };
+        let tokens = (!records.is_empty()).then(|| {
+            daily_tokens(&records, |ms| self.local_day(time_of(ms)))
+        });
         let percent = daily_peaks(&self.weekly_readings(&accounts), first..=today, |ms| {
             self.local_day(time_of(ms))
         });
@@ -101,6 +105,10 @@ impl Core {
                     .as_ref()
                     .filter(|d| day >= d.first_day)
                     .map(|d| summed(day, &names, &d.by_day)),
+                tokens: tokens
+                    .as_ref()
+                    .filter(|t| day >= t.first_day)
+                    .map(|t| t.by_day.get(&day).copied().unwrap_or(0)),
                 percent: averaged(day, &names, &percent),
             })
             .collect();
@@ -149,6 +157,23 @@ fn daily_dollars(
         }
     }
     Dollars { first_day, by_day }
+}
+
+/// Tokens per day, and the first day anything was recorded, as for dollars.
+struct Tokens {
+    first_day: i64,
+    by_day: HashMap<i64, u64>,
+}
+
+fn daily_tokens(records: &[(String, Record)], day_of: impl Fn(i64) -> i64) -> Tokens {
+    let mut by_day: HashMap<i64, u64> = HashMap::new();
+    let mut first_day = i64::MAX;
+    for (_, record) in records {
+        let day = day_of(record.at_ms);
+        first_day = first_day.min(day);
+        *by_day.entry(day).or_default() += record.usage.total();
+    }
+    Tokens { first_day, by_day }
 }
 
 /// Every account's dollars for `day` (zero when it has none), summed.

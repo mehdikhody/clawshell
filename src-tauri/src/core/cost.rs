@@ -398,6 +398,11 @@ impl TokenUsage {
     fn is_empty(&self) -> bool {
         *self == TokenUsage::default()
     }
+
+    /// Every token of every class, cache reads and writes included.
+    fn total(&self) -> u64 {
+        self.input + self.output + self.cache_5m + self.cache_1h + self.cache_read
+    }
 }
 
 struct Record {

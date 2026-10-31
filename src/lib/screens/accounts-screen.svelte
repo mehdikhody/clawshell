@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { autoRefresh } from '$lib/auto-refresh.svelte';
 	import IconAlertTriangle from '@tabler/icons-svelte/icons/alert-triangle';
 	import IconAppWindow from '@tabler/icons-svelte/icons/app-window';
 	import IconCheck from '@tabler/icons-svelte/icons/check';
@@ -8,8 +9,7 @@
 	import IconPalette from '@tabler/icons-svelte/icons/palette';
 	import IconPencil from '@tabler/icons-svelte/icons/pencil';
 	import IconPlus from '@tabler/icons-svelte/icons/plus';
-	import IconRefresh from '@tabler/icons-svelte/icons/refresh';
-	import IconTerminal2 from '@tabler/icons-svelte/icons/terminal-2';
+		import IconTerminal2 from '@tabler/icons-svelte/icons/terminal-2';
 	import IconTrash from '@tabler/icons-svelte/icons/trash';
 	import {
 		addAccount,
@@ -21,7 +21,6 @@
 		listAccounts,
 		onAccountsChanged,
 		openAccountFolder,
-		refreshUsage,
 		renameAccount,
 		setAccountColour,
 		type Account,
@@ -36,14 +35,14 @@
 	import { Badge, type BadgeVariant } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as ContextMenu from '$lib/components/ui/context-menu';
 	import { Input } from '$lib/components/ui/input';
 	import * as Item from '$lib/components/ui/item';
 	import { Progress } from '$lib/components/ui/progress';
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatTag } from '$lib/locale-state.svelte';
 	import { formatPercentValue } from '$lib/locale';
-	import { formatAgo, formatCountdown, formatReset } from '$lib/usage';
+	import { formatAgo, formatReset } from '$lib/usage';
 
 	let list = $state<AccountList>({
 		claudeFound: true,
@@ -56,11 +55,8 @@
 	const NOTICE_MS = 5000;
 	let loaded = $state(false);
 	let adding = $state(false);
-	let refreshing = $state(false);
-	/** Ticks every second so "updated X ago" and the refresh wait stay current. */
+		/** Ticks every second so "updated X ago" and the refresh wait stay current. */
 	let now = $state(Date.now());
-	/** How long until a manual refresh is allowed again; 0 when it is allowed now. */
-	const refreshWaitMs = $derived(Math.max(0, (list.refreshAllowedAt ?? 0) - now));
 	let failure = $state<string | null>(null);
 	/** A short confirmation for an action that otherwise shows nothing. */
 	let notice = $state<string | null>(null);
@@ -81,10 +77,10 @@
 		missing: () => m.status_missing()
 	};
 	const statusVariant: Record<AccountStatus, BadgeVariant> = {
-		running: 'default',
-		idle: 'secondary',
-		'signed-out': 'destructive',
-		limited: 'outline',
+		running: 'secondary',
+		idle: 'outline',
+		'signed-out': 'outline',
+		limited: 'destructive',
 		missing: 'destructive'
 	};
 
@@ -94,20 +90,6 @@
 			loaded = true;
 		} catch {
 			// The core pushes the next snapshot when it can.
-		}
-	}
-
-	async function refreshNow() {
-		refreshing = true;
-		failure = null;
-		try {
-			const outcome = await refreshUsage();
-			list = { ...list, refreshAllowedAt: outcome.refreshAllowedAt };
-		} catch {
-			failure = m.error_refresh_failed();
-		} finally {
-			refreshing = false;
-			await refresh();
 		}
 	}
 
@@ -218,9 +200,13 @@
 		}
 	}
 
+	$effect(() => {
+		void autoRefresh.tick;
+		untrack(() => void refresh());
+	});
+
 	onMount(() => {
 		const tick = setInterval(() => (now = Date.now()), 1000);
-		void refresh();
 		const unlisten = onAccountsChanged((next) => {
 			list = next;
 			loaded = true;
@@ -236,27 +222,12 @@
 	<header class="flex items-center justify-between">
 		<h1 class="text-base font-semibold">{m.accounts_title()}</h1>
 		<div class="flex items-center gap-2">
-			<Button
-				size="icon-sm"
-				variant="outline"
-				aria-label={m.refresh_usage()}
-				onclick={refreshNow}
-				disabled={refreshing || refreshWaitMs > 0}
-			>
-				<IconRefresh class={refreshing ? 'animate-spin' : ''} />
-			</Button>
 			<Button size="sm" onclick={add} disabled={adding || !list.claudeFound}>
 				<IconPlus />
 				{m.accounts_add()}
 			</Button>
 		</div>
 	</header>
-
-	{#if refreshWaitMs > 0}
-		<p class="text-xs text-muted-foreground">
-			{m.refresh_next({ time: formatCountdown(refreshWaitMs, formatTag()) })}
-		</p>
-	{/if}
 
 	{#if !list.claudeFound}
 		<Alert.Root variant="destructive">
@@ -283,12 +254,14 @@
 	{#if list.accounts.length > 0}
 		<Item.Group class="gap-2">
 			{#each list.accounts as account (account.id)}
-				<Item.Root
+				<ContextMenu.Root>
+<ContextMenu.Trigger class="contents">
+<Item.Root
 					role="listitem"
 					variant="outline"
 					size="sm"
 					tabindex={0}
-					class="cursor-default select-none"
+					class="cursor-default flex-wrap select-none"
 					ondblclick={() => launch(account)}
 					onkeydown={(event: KeyboardEvent) => {
 						// Keys pressed on the row's own buttons belong to those buttons.
@@ -301,7 +274,7 @@
 						<span
 							data-slot="account-badge"
 							aria-hidden="true"
-							class="flex size-8 items-center justify-center rounded-md text-sm font-semibold text-white"
+							class="flex size-8 items-center justify-center rounded-md text-sm font-semibold text-neutral-950"
 							style:background-color={account.colour}>{account.badge}</span
 						>
 					</Item.Media>
@@ -311,18 +284,16 @@
 							<Item.Description>{m.missing_hint()}</Item.Description>
 						{:else}
 							{#if account.email}
-								<Item.Description>{account.email}</Item.Description>
+								<Item.Description class="text-xs">{account.email}</Item.Description>
 							{/if}
-							{#if account.usage}
-								{@render usageLines(account.usage)}
-							{:else if account.status !== 'signed-out'}
+							{#if !account.usage && account.status !== 'signed-out'}
 								<p class="text-xs text-muted-foreground">{m.usage_none()}</p>
 							{/if}
 						{/if}
 					</Item.Content>
-					<Item.Actions>
+					<Item.Actions class="self-start">
 						{#if account.status === 'limited' && account.running}
-							<Badge variant="default">{statusLabel.running()}</Badge>
+							<Badge variant="secondary">{statusLabel.running()}</Badge>
 						{/if}
 						<Badge variant={statusVariant[account.status]}>{statusLabel[account.status]()}</Badge>
 						{#if account.status === 'missing'}
@@ -330,52 +301,47 @@
 								{m.missing_remove()}
 							</Button>
 						{/if}
-						<DropdownMenu.Root>
-							<DropdownMenu.Trigger>
-								{#snippet child({ props })}
-									<Button
-										{...props}
-										variant="ghost"
-										size="icon-sm"
-										aria-label={m.accounts_actions({ label: account.label })}
-										ondblclick={(event: MouseEvent) => event.stopPropagation()}
-									>
-										<IconDots />
-									</Button>
-								{/snippet}
-							</DropdownMenu.Trigger>
-							<DropdownMenu.Content align="end">
-								<DropdownMenu.Item onSelect={() => startRename(account)}>
+						
+					</Item.Actions>
+					{#if account.usage}
+						<div class="flex w-full flex-col gap-3 text-xs">
+							{@render usageLines(account.usage)}
+						</div>
+					{/if}
+				</Item.Root>
+</ContextMenu.Trigger>
+<ContextMenu.Content class="w-auto min-w-48">
+								<ContextMenu.Item onSelect={() => startRename(account)}>
 									<IconPencil />
 									{m.menu_rename()}
-								</DropdownMenu.Item>
-								<DropdownMenu.Item
+								</ContextMenu.Item>
+								<ContextMenu.Item
 									disabled={account.status === 'missing'}
 									onSelect={() => openFolder(account)}
 								>
 									<IconFolderOpen />
 									{m.menu_open_folder()}
-								</DropdownMenu.Item>
-								<DropdownMenu.Item
+								</ContextMenu.Item>
+								<ContextMenu.Item
 									disabled={account.status === 'missing'}
 									onSelect={() => createShortcuts(account)}
 								>
 									<IconAppWindow />
 									{m.menu_add_shortcuts()}
-								</DropdownMenu.Item>
-								<DropdownMenu.Item onSelect={() => (editingOptions = account)}>
+								</ContextMenu.Item>
+								<ContextMenu.Item onSelect={() => (editingOptions = account)}>
 									<IconTerminal2 />
 									{m.menu_launch_options()}
-								</DropdownMenu.Item>
-								<DropdownMenu.Sub>
-									<DropdownMenu.SubTrigger>
+								</ContextMenu.Item>
+								<ContextMenu.Sub>
+									<ContextMenu.SubTrigger>
 										<IconPalette />
 										{m.menu_badge_colour()}
-									</DropdownMenu.SubTrigger>
-									<DropdownMenu.SubContent>
+									</ContextMenu.SubTrigger>
+									<ContextMenu.SubContent>
 										<div class="grid grid-cols-5 gap-1 p-1">
 											{#each list.palette as colour (colour)}
-												<DropdownMenu.Item
+												<ContextMenu.Item
 													aria-label={colour}
 													class="size-7 justify-center rounded-full p-0 text-white focus:ring-2 focus:ring-ring"
 													style="background-color: {colour}"
@@ -384,24 +350,24 @@
 													{#if colour === account.colour}
 														<IconCheck />
 													{/if}
-												</DropdownMenu.Item>
+												</ContextMenu.Item>
 											{/each}
 										</div>
-									</DropdownMenu.SubContent>
-								</DropdownMenu.Sub>
-								<DropdownMenu.Separator />
-								<DropdownMenu.Item variant="destructive" onSelect={() => askDelete(account)}>
+									</ContextMenu.SubContent>
+								</ContextMenu.Sub>
+								<ContextMenu.Separator />
+								<ContextMenu.Item variant="destructive" onSelect={() => askDelete(account)}>
 									<IconTrash />
 									{m.menu_delete()}
-								</DropdownMenu.Item>
-							</DropdownMenu.Content>
-						</DropdownMenu.Root>
-					</Item.Actions>
-				</Item.Root>
+								</ContextMenu.Item>
+							</ContextMenu.Content>
+</ContextMenu.Root>
 			{/each}
 		</Item.Group>
 		<p class="text-xs text-muted-foreground">{m.accounts_hint()}</p>
-	{:else if loaded && list.claudeFound}
+	{:else if !loaded}
+			<p class="py-10 text-center text-sm text-muted-foreground">{m.loading()}</p>
+		{:else if loaded && list.claudeFound}
 		<div class="flex flex-col items-center gap-1 py-10 text-center">
 			<p class="text-sm font-medium">{m.accounts_empty()}</p>
 			<p class="text-xs text-muted-foreground">{m.accounts_empty_hint()}</p>
@@ -411,22 +377,22 @@
 
 {#snippet usageWindow(label: string, window: WindowUsage | null)}
 	{#if window}
-		<div class="flex items-center gap-2 text-xs">
-			<span class="w-14 shrink-0 text-muted-foreground">{label}</span>
+		<div class="flex flex-col gap-1.5 text-xs">
+			<div class="flex items-baseline justify-between">
+				<span class="text-muted-foreground">{label}</span>
+				<span class="tabular-nums">{formatPercentValue(Math.round(window.utilization), formatTag())}</span>
+			</div>
 			<Progress
 				value={window.utilization}
 				aria-label={label}
 				class={window.utilization >= 100 ? '*:data-[slot=progress-indicator]:bg-destructive' : ''}
 			/>
-			<span class="w-9 shrink-0 text-end tabular-nums"
-				>{formatPercentValue(Math.round(window.utilization), formatTag())}</span
-			>
+			{#if window.resetsAt}
+				<p class="text-[11px] text-muted-foreground">
+					{m.usage_resets({ time: formatReset(window.resetsAt, new Date(now), formatTag()) })}
+				</p>
+			{/if}
 		</div>
-		{#if window.resetsAt}
-			<p class="ps-16 text-[11px] text-muted-foreground">
-				{m.usage_resets({ time: formatReset(window.resetsAt, new Date(now), formatTag()) })}
-			</p>
-		{/if}
 	{/if}
 {/snippet}
 

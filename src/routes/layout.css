@@ -88,6 +88,8 @@
 @layer base {
 	* {
 		@apply border-border outline-ring/50;
+		scrollbar-width: thin;
+		scrollbar-color: var(--muted-foreground) transparent;
 	}
 	body {
 		@apply bg-background text-foreground;
@@ -95,4 +97,9 @@
 	html {
 		@apply font-sans;
 	}
+}
+
+/* Flips chevrons in right-to-left layouts. */
+[dir="rtl"] .cn-rtl-flip {
+	transform: scaleX(-1);
 }

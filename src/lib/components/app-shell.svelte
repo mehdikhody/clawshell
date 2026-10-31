@@ -11,10 +11,11 @@
 	import SettingsScreen from '$lib/screens/settings-screen.svelte';
 	import UsageScreen from '$lib/screens/usage-screen.svelte';
 	import { getSettings } from '$lib/settings';
+	import { startAutoRefresh } from '$lib/auto-refresh.svelte';
 	import RoutingOffer from './routing-offer.svelte';
 	import TopBar from './top-bar.svelte';
 
-	let tab = $state('usage');
+	let tab = $state('accounts');
 	/** Nothing is drawn until the saved language is known, so the window never flashes the wrong one. */
 	let ready = $state(false);
 
@@ -29,6 +30,7 @@
 		}
 		// Always applied: the built page carries unfilled lang and dir placeholders.
 		switchLocale(language);
+			startAutoRefresh();
 		ready = true;
 	});
 </script>
@@ -39,16 +41,16 @@
 		<div class="flex h-screen w-screen flex-col overflow-hidden rounded-xl border bg-background">
 			<TopBar />
 			<Tabs.Root bind:value={tab} class="min-h-0 flex-1 gap-0 data-horizontal:flex-col-reverse">
-				<Tabs.List variant="line" class="h-14 w-full shrink-0 rounded-none border-t p-0">
-					<Tabs.Trigger value="usage" class="h-full flex-col gap-0.5 text-xs">
+				<Tabs.List variant="line" class="group-data-horizontal/tabs:h-14 w-full shrink-0 rounded-none border-t p-0">
+					<Tabs.Trigger value="usage" class="h-full flex-col gap-1 text-xs group-data-horizontal/tabs:after:top-0 group-data-horizontal/tabs:after:bottom-auto">
 						<IconChartBar />
 						{m.tab_usage()}
 					</Tabs.Trigger>
-					<Tabs.Trigger value="accounts" class="h-full flex-col gap-0.5 text-xs">
+					<Tabs.Trigger value="accounts" class="h-full flex-col gap-1 text-xs group-data-horizontal/tabs:after:top-0 group-data-horizontal/tabs:after:bottom-auto">
 						<IconUsers />
 						{m.tab_accounts()}
 					</Tabs.Trigger>
-					<Tabs.Trigger value="settings" class="h-full flex-col gap-0.5 text-xs">
+					<Tabs.Trigger value="settings" class="h-full flex-col gap-1 text-xs group-data-horizontal/tabs:after:top-0 group-data-horizontal/tabs:after:bottom-auto">
 						<IconSettings />
 						{m.tab_settings()}
 					</Tabs.Trigger>

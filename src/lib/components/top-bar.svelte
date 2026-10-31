@@ -24,6 +24,7 @@
 			variant="ghost"
 			size="icon-sm"
 			aria-label={m.window_close()}
+			class="hover:bg-destructive hover:text-white"
 			onclick={() => getCurrentWindow().close()}
 		>
 			<IconX />

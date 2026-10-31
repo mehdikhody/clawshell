@@ -6,23 +6,24 @@
 		intensity,
 		type Heatmap,
 		type HeatmapDay,
-		type HeatmapMode,
 		type Level
 	} from '$lib/heatmap';
 	import * as Item from '$lib/components/ui/item';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { m } from '$lib/paraglide/messages.js';
-	import { formatPercentValue } from '$lib/locale';
+	import { formatInteger } from '$lib/locale';
 	import { formatTag } from '$lib/locale-state.svelte';
 
 	let { heatmap }: { heatmap: Heatmap } = $props();
 
-	let mode = $state<HeatmapMode>('usd');
 	/** The day whose tooltip is open: hover, focus and tap all land here. */
 	let openDate = $state<string | null>(null);
 
 	const cells = $derived(cellsFor(heatmap.days));
+	/** Sunday first, matching the grid: row 0 is Sunday. */
+	const weekdayLabels = Array.from({ length: 7 }, (_, i) =>
+		new Intl.DateTimeFormat(formatTag(), { weekday: 'narrow' }).format(new Date(2024, 0, 7 + i))
+	);
 	const maxUsd = $derived(Math.max(0, ...heatmap.days.map((d) => d.usd?.total ?? 0)));
 
 	const levelClass: Record<Level, string> = {
@@ -34,24 +35,18 @@
 	};
 	const noDataClass = 'border-dashed border-muted-foreground/40 bg-transparent';
 
-	const valuesOf = (day: HeatmapDay) => (mode === 'usd' ? day.usd : day.percent);
-	const levelOf = (day: HeatmapDay) => intensity(valuesOf(day)?.total ?? null, mode, maxUsd);
+	const levelOf = (day: HeatmapDay) => intensity(day.usd?.total ?? null, maxUsd);
 	const classOf = (level: Level | null) => (level === null ? noDataClass : levelClass[level]);
 
 	const money = (amount: number) => formatUsd(amount, formatTag());
-	const amount = (value: number) =>
-		mode === 'usd' ? money(value) : formatPercentValue(value, formatTag());
-	const total = (value: number) =>
-		mode === 'usd'
-			? m.cost_estimated({ amount: money(value) })
-			: m.heatmap_total_percent({ percent: formatPercentValue(value, formatTag()) });
 	const dateLabel = (date: string) => formatDay(date, formatTag());
-	const labelOf = (day: HeatmapDay) => {
-		const values = valuesOf(day);
-		return values
-			? m.heatmap_cell({ date: dateLabel(day.date), value: total(values.total) })
+	const labelOf = (day: HeatmapDay) =>
+		day.usd
+			? m.heatmap_cell({
+					date: dateLabel(day.date),
+					value: m.cost_estimated({ amount: money(day.usd.total) })
+				})
 			: m.heatmap_cell_no_data({ date: dateLabel(day.date) });
-	};
 	const setOpen = (date: string, open: boolean) => {
 		if (open) openDate = date;
 		else if (openDate === date) openDate = null;
@@ -60,23 +55,7 @@
 
 <Item.Root variant="outline" size="sm">
 	<Item.Content>
-		<div class="flex items-center justify-between">
-			<Item.Title>{m.heatmap_title()}</Item.Title>
-			<ToggleGroup.Root
-				type="single"
-				variant="outline"
-				size="sm"
-				aria-label={m.heatmap_mode_label()}
-				value={mode}
-				onValueChange={(next) => {
-					// A single-select group reports '' when the pressed item is pressed again.
-					if (next === 'usd' || next === 'percent') mode = next;
-				}}
-			>
-				<ToggleGroup.Item value="usd">{m.heatmap_mode_usd()}</ToggleGroup.Item>
-				<ToggleGroup.Item value="percent">{m.heatmap_mode_percent()}</ToggleGroup.Item>
-			</ToggleGroup.Root>
-		</div>
+		<Item.Title>{m.heatmap_title()}</Item.Title>
 
 		<Tooltip.Provider delayDuration={0} disableHoverableContent>
 			<div
@@ -84,9 +63,14 @@
 				aria-label={m.heatmap_title()}
 				class="mx-auto grid w-max auto-cols-[1.75rem] grid-flow-col grid-rows-[repeat(7,1.75rem)] gap-1 py-1"
 			>
+				{#each weekdayLabels as label, row (row)}
+					<span
+						aria-hidden="true"
+						class="flex items-center justify-center text-[10px] text-muted-foreground">{label}</span
+					>
+				{/each}
 				{#each cells as day, i (day?.date ?? `pad-${i}`)}
 					{#if day}
-						{@const values = valuesOf(day)}
 						<Tooltip.Root
 							open={openDate === day.date}
 							onOpenChange={(open) => setOpen(day.date, open)}
@@ -104,17 +88,27 @@
 								class="pointer-events-none flex-col items-stretch gap-1"
 							>
 								<p class="font-medium">{dateLabel(day.date)}</p>
-								{#if values}
-									<p class="tabular-nums">{total(values.total)}</p>
+								{#if day.usd}
+									<p class="tabular-nums">
+										{m.cost_estimated({ amount: money(day.usd.total) })}
+									</p>
+								{/if}
+								{#if day.tokens !== null}
+									<p class="tabular-nums">
+										{m.heatmap_tokens({ count: formatInteger(day.tokens, formatTag()) })}
+									</p>
+								{/if}
+								{#if day.usd}
 									<ul class="flex flex-col gap-0.5">
-										{#each values.accounts as account (account.id)}
+										{#each day.usd.accounts as account (account.id)}
 											<li class="flex justify-between gap-4">
 												<span class="truncate">{account.label}</span>
-												<span class="tabular-nums">{amount(account.value)}</span>
+												<span class="tabular-nums">{money(account.value)}</span>
 											</li>
 										{/each}
 									</ul>
-								{:else}
+								{/if}
+								{#if day.usd === null && day.tokens === null}
 									<p>{m.heatmap_no_data()}</p>
 								{/if}
 							</Tooltip.Content>
@@ -136,7 +130,7 @@
 			<span>{m.heatmap_legend_more()}</span>
 		</div>
 
-		{#if mode === 'usd' && heatmap.noEstimate === 'prices-unavailable'}
+		{#if heatmap.noEstimate === 'prices-unavailable'}
 			<p class="text-xs text-muted-foreground">{m.heatmap_no_prices()}</p>
 		{/if}
 	</Item.Content>

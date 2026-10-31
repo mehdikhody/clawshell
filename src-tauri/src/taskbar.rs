@@ -4,9 +4,11 @@
 //! own id gets its own button. Checked by hand; the decisions (the id, the
 //! colours, the pixels) are in `core::badge`.
 
-use crate::core::badge::{render_badge, rgb};
+use crate::core::badge::{BASE_SIDE, DISC, plain_base, render_badge, resample, rgb};
 use crate::core::shortcuts::encode_ico;
 use std::ffi::c_void;
+use std::os::windows::ffi::OsStrExt;
+use std::path::{Path, PathBuf};
 use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
@@ -20,9 +22,15 @@ use windows::core::{BOOL, w};
 /// helper windows use other classes, so they are not mistaken for the window.
 const CLAUDE_WINDOW_CLASS: &str = "Chrome_WidgetWin_1";
 
+/// The base of the badge: Claude's own icon from `exe`, or the plain orange
+/// square when there is no exe or no icon in it. `BASE_SIDE` pixels across.
+pub fn claude_base(exe: Option<PathBuf>) -> Vec<u8> {
+    exe.as_deref().and_then(exe_icon).unwrap_or_else(plain_base)
+}
+
 /// Gives every Claude window of `pids` the identity `aumid` and the badge
 /// icon, hidden windows included. Returns how many windows it did.
-pub fn badge_windows(pids: &[u32], aumid: &str, letter: char, colour: &str) -> usize {
+pub fn badge_windows(pids: &[u32], aumid: &str, letter: char, colour: &str, base: &[u8]) -> usize {
     let Some(colour) = rgb(colour) else {
         return 0;
     };
@@ -34,8 +42,8 @@ pub fn badge_windows(pids: &[u32], aumid: &str, letter: char, colour: &str) -> u
     // SAFETY: balanced with CoUninitialize below when it succeeded.
     let com = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) }.is_ok();
 
-    let small = icon(letter, colour, metric(SM_CXSMICON, 16));
-    let big = icon(letter, colour, metric(SM_CXICON, 32));
+    let small = icon(letter, colour, metric(SM_CXSMICON, 16), base);
+    let big = icon(letter, colour, metric(SM_CXICON, 32), base);
     let mut done = 0;
     for hwnd in windows {
         // The id first: the icon is only shown for the group it names.
@@ -59,17 +67,112 @@ const ICO_SIZES: [i32; 6] = [16, 24, 32, 48, 64, 256];
 
 /// The badge as the bytes of an `.ico` file (`None` when `colour` is not
 /// `#rrggbb` or GDI cannot draw the letter).
-pub fn badge_ico(letter: char, colour: &str) -> Option<Vec<u8>> {
+pub fn badge_ico(letter: char, colour: &str, base: &[u8]) -> Option<Vec<u8>> {
     let colour = rgb(colour)?;
     let images: Option<Vec<(usize, Vec<u8>)>> = ICO_SIZES
         .iter()
         .map(|&size| {
             let side = usize::try_from(size).ok()?;
-            let pixels = render_badge(side, colour, &letter_coverage(letter, size)?);
+            let pixels = render_badge(
+                side,
+                colour,
+                &letter_coverage(letter, size)?,
+                &resample(base, BASE_SIDE, side),
+            );
             Some((side, pixels))
         })
         .collect();
     Some(encode_ico(&images?))
+}
+
+/// The icon Windows finds in `exe` at 256 px, as `BASE_SIDE` square BGRA
+/// pixels; `None` when the exe has no icon.
+fn exe_icon(exe: &Path) -> Option<Vec<u8>> {
+    // A NUL-terminated path in a MAX_PATH buffer, as the API takes it.
+    let mut file = [0u16; 260];
+    let wide: Vec<u16> = exe.as_os_str().encode_wide().collect();
+    if wide.len() >= file.len() {
+        return None;
+    }
+    file[..wide.len()].copy_from_slice(&wide);
+    let mut icon = HICON::default();
+    // SAFETY: one icon is written to `icon`, which is destroyed below.
+    let found = unsafe {
+        PrivateExtractIconsW(
+            &file,
+            0,
+            BASE_SIDE as i32,
+            BASE_SIDE as i32,
+            Some(std::slice::from_mut(&mut icon)),
+            None,
+            0,
+        )
+    };
+    if found == 0 || found == u32::MAX || icon.is_invalid() {
+        return None;
+    }
+    let mut info = ICONINFO::default();
+    // SAFETY: the bitmaps GetIconInfo hands out are deleted below, every time.
+    let pixels = unsafe {
+        let pixels = GetIconInfo(icon, &mut info)
+            .ok()
+            .and_then(|()| bitmap_pixels(info.hbmColor));
+        for bitmap in [info.hbmColor, info.hbmMask] {
+            if !bitmap.is_invalid() {
+                let _ = DeleteObject(bitmap.into());
+            }
+        }
+        let _ = DestroyIcon(icon);
+        pixels
+    };
+    pixels.map(|pixels| resample(&pixels.0, pixels.1, BASE_SIDE))
+}
+
+/// A square bitmap's pixels as 32-bit BGRA, top row first, with its side.
+fn bitmap_pixels(bitmap: HBITMAP) -> Option<(Vec<u8>, usize)> {
+    let mut bmp = BITMAP::default();
+    // SAFETY: `bmp` is the size GetObjectW is told it is.
+    let read = unsafe {
+        GetObjectW(
+            bitmap.into(),
+            std::mem::size_of::<BITMAP>() as i32,
+            Some(std::ptr::addr_of_mut!(bmp).cast()),
+        )
+    };
+    let side = bmp.bmWidth;
+    if read == 0 || side <= 0 || side != bmp.bmHeight {
+        return None;
+    }
+    let mut info = BITMAPINFO {
+        bmiHeader: BITMAPINFOHEADER {
+            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: side,
+            biHeight: -side,
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: BI_RGB.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let mut pixels = vec![0u8; (side * side * 4) as usize];
+    // SAFETY: the buffer holds the side x side x 32-bit rows asked for; the DC
+    // is deleted here.
+    let rows = unsafe {
+        let dc = CreateCompatibleDC(None);
+        let rows = GetDIBits(
+            dc,
+            bitmap,
+            0,
+            side as u32,
+            Some(pixels.as_mut_ptr().cast()),
+            &mut info,
+            DIB_RGB_COLORS,
+        );
+        let _ = DeleteDC(dc);
+        rows
+    };
+    (rows == side).then_some((pixels, side as usize))
 }
 
 fn metric(index: SYSTEM_METRICS_INDEX, fallback: i32) -> i32 {
@@ -148,10 +251,10 @@ fn claude_windows(pids: &[u32]) -> Vec<HWND> {
 
 /// The badge as a square icon of `size` pixels: GDI draws the letter into a
 /// mask (it has the fonts), `core::badge` composes the pixels.
-fn icon(letter: char, colour: [u8; 3], size: i32) -> Option<HICON> {
+fn icon(letter: char, colour: [u8; 3], size: i32, base: &[u8]) -> Option<HICON> {
     let side = usize::try_from(size).ok().filter(|s| *s > 0)?;
     let coverage = letter_coverage(letter, size)?;
-    let pixels = render_badge(side, colour, &coverage);
+    let pixels = render_badge(side, colour, &coverage, &resample(base, BASE_SIDE, side));
 
     // SAFETY: every GDI object created here is deleted before returning; the
     // DIB's pixel memory is owned by the bitmap and written within its size.
@@ -216,8 +319,9 @@ fn letter_coverage(letter: char, size: i32) -> Option<Vec<u8>> {
             return None;
         };
         let old_bitmap = SelectObject(dc, bitmap.into());
+        let [cx, cy, radius] = DISC.map(|f| f * size as f32);
         let font = CreateFontW(
-            -(size * 62 / 100),
+            -(radius * 2.0 * 0.78) as i32,
             0,
             0,
             0,
@@ -235,12 +339,12 @@ fn letter_coverage(letter: char, size: i32) -> Option<Vec<u8>> {
         let old_font = SelectObject(dc, font.into());
         SetBkMode(dc, TRANSPARENT);
         SetTextColor(dc, COLORREF(0x00FF_FFFF));
-        // A capital sits above its line's centre; nudge it down to look centred.
+        // The letter is centred on the disc, the only part of the mask inked.
         let mut rect = RECT {
-            left: 0,
-            top: size / 16,
-            right: size,
-            bottom: size + size / 16,
+            left: (cx - radius) as i32,
+            top: (cy - radius) as i32,
+            right: (cx + radius) as i32,
+            bottom: (cy + radius) as i32,
         };
         DrawTextW(
             dc,
@@ -272,37 +376,50 @@ mod tests {
         let mask = letter_coverage('W', 32).expect("GDI draws text");
         assert_eq!(mask.len(), 32 * 32);
         let inked = mask.iter().filter(|c| **c > 0).count();
-        assert!(inked > 30, "the letter leaves ink");
-        assert!(inked < 32 * 32 / 2, "the letter is not a block");
-        // Centred: the middle band holds ink, the outer border does not.
-        assert!(mask[16 * 32 + 8..16 * 32 + 24].iter().any(|c| *c > 0));
-        assert!(mask[..32].iter().all(|c| *c == 0));
+        assert!(inked > 10, "the letter leaves ink");
+        assert!(inked < 32 * 32 / 4, "the letter is not a block");
+        // Inside the disc only: the top of the icon has no ink.
+        assert!(mask[..12 * 32].iter().all(|c| *c == 0));
+        assert!(mask[20 * 32..].iter().any(|c| *c > 0));
     }
 
     #[test]
     fn the_badge_becomes_an_icon_handle() {
-        let handle = icon('W', [0x25, 0x63, 0xeb], 32).expect("an icon");
+        let handle = icon('W', [0x25, 0x63, 0xeb], 32, &plain_base()).expect("an icon");
         // SAFETY: the handle was just created and is not used elsewhere.
         unsafe { DestroyIcon(handle).unwrap() };
     }
 
     #[test]
     fn the_badge_becomes_an_ico_file_with_every_size() {
-        let ico = badge_ico('W', "#2563eb").expect("an ico");
+        let ico = badge_ico('W', "#2563eb", &plain_base()).expect("an ico");
 
         assert_eq!(&ico[..4], &[0, 0, 1, 0], "an icon file");
         assert_eq!(
             u16::from_le_bytes([ico[4], ico[5]]) as usize,
             ICO_SIZES.len()
         );
-        assert_eq!(badge_ico('W', "blue"), None);
+        assert_eq!(badge_ico('W', "blue", &plain_base()), None);
+    }
+
+    #[test]
+    fn claudes_own_icon_is_the_base_of_the_badge() {
+        let explorer = std::path::PathBuf::from(r"C:\Windows\explorer.exe");
+        let base = claude_base(Some(explorer));
+
+        assert_eq!(base.len(), BASE_SIDE * BASE_SIDE * 4);
+        assert!(
+            base.chunks_exact(4).any(|p| p[3] == 255),
+            "the icon has ink"
+        );
+        assert_eq!(claude_base(None), plain_base());
     }
 
     #[test]
     fn windows_loads_the_badge_ico_file() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("badge.ico");
-        std::fs::write(&path, badge_ico('W', "#2563eb").unwrap()).unwrap();
+        std::fs::write(&path, badge_ico('W', "#2563eb", &plain_base()).unwrap()).unwrap();
 
         for size in [16, 32, 256] {
             // SAFETY: loads from a file path that outlives the call; the

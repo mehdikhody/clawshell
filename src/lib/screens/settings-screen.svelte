@@ -44,15 +44,18 @@
 		}
 	}
 
-	onMount(async () => {
+	async function loadSettings() {
+		failure = null;
 		try {
 			settings = await getSettings();
 			draftPath = settings.claudePath ?? '';
 			syncDrafts();
 		} catch {
-			failure = m.error_settings_save_failed();
+			failure = m.error_settings_load_failed();
 		}
-	});
+	}
+
+	onMount(loadSettings);
 
 	/** Sends the whole object; the screen follows the core's answer, never its own guess. */
 	async function save(change: Partial<Settings>) {
@@ -155,7 +158,7 @@
 	title: () => string;
 	hint: () => string;
 })}
-	<Item.Root variant="outline">
+	<Item.Root variant="outline" size="sm">
 		<Item.Content>
 			<Item.Title><Label for="setting-{row.key}">{row.title()}</Label></Item.Title>
 			<Item.Description>{row.hint()}</Item.Description>
@@ -170,18 +173,28 @@
 {/snippet}
 
 <section class="flex flex-col gap-3 p-4">
+	<h1 class="text-base font-semibold">{m.tab_settings()}</h1>
 	{#if failure}
 		<Alert.Root variant="destructive">
 			<Alert.Title>{failure}</Alert.Title>
 		</Alert.Root>
 	{/if}
 
-	{#if settings}
+	{#if !settings && !failure}
+			<p class="py-10 text-center text-sm text-muted-foreground">{m.loading()}</p>
+		{:else if !settings}
+			<Button variant="outline" size="sm" class="self-center" onclick={loadSettings}>
+				{m.action_retry()}
+			</Button>
+		{/if}
+
+		{#if settings}
+			<h2 class="text-sm font-medium">{m.settings_general()}</h2>
 		{#each switches as row (row.key)}
 			{@render switchRow(row)}
 		{/each}
 
-		<Item.Root variant="outline">
+		<Item.Root variant="outline" size="sm">
 			<Item.Content>
 				<Item.Title
 					><Label for="setting-signInRouting">{m.settings_sign_in_routing()}</Label></Item.Title
@@ -211,10 +224,10 @@
 		<div class="flex flex-col gap-2">
 			<div class="flex gap-2">
 				{#each thresholds as field (field.key)}
-					<div class="flex flex-1 flex-col gap-2">
+					<div class="flex flex-col gap-2">
 						<Label for="setting-{field.key}">{field.label()}</Label>
 						<Input
-							id="setting-{field.key}"
+							id="setting-{field.key}" class="w-24"
 							type="number"
 							min={1}
 							max={100}
@@ -231,7 +244,7 @@
 			<p class="text-xs text-muted-foreground">{m.settings_thresholds_hint()}</p>
 		</div>
 
-		<Item.Root variant="outline">
+		<Item.Root variant="outline" size="sm">
 			<Item.Content>
 				<Item.Title id="setting-language">{m.settings_language()}</Item.Title>
 				<Item.Description>{m.settings_language_hint()}</Item.Description>

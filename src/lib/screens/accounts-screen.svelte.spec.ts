@@ -105,7 +105,7 @@ describe('AccountsScreen', () => {
 				})
 			});
 
-			await page.getByRole('button', { name: 'Actions for Work' }).click();
+			await page.getByText('Work', { exact: true }).click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Badge colour' }).click();
 			await expect.element(page.getByRole('menuitem', { name: '#16a34a' })).toBeVisible();
 			await expect.element(page.getByRole('menuitem', { name: '#2563eb' })).toBeVisible();
@@ -126,7 +126,7 @@ describe('AccountsScreen', () => {
 				}
 			});
 
-			await page.getByRole('button', { name: 'Actions for Work' }).click();
+			await page.getByText('Work', { exact: true }).click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Badge colour' }).click();
 			await page.getByRole('menuitem', { name: '#dc2626' }).click();
 
@@ -262,12 +262,12 @@ describe('AccountsScreen', () => {
 	});
 
 	describe('account menu', () => {
-		const menuOf = (label: string) => page.getByRole('button', { name: `Actions for ${label}` });
+		const menuOf = (label: string) => page.getByText(label, { exact: true });
 
 		it('gives every row a menu with Rename, Open folder, Badge colour and Delete', async () => {
 			mount();
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 
 			await expect.element(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible();
 			await expect.element(page.getByRole('menuitem', { name: 'Open folder' })).toBeVisible();
@@ -293,7 +293,7 @@ describe('AccountsScreen', () => {
 		it('opens the account folder', async () => {
 			const tauri = mount({ open_account_folder: () => null });
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Open folder' }).click();
 
 			expect(tauri.calls.filter((c) => c.cmd === 'open_account_folder')).toEqual([
@@ -308,7 +308,7 @@ describe('AccountsScreen', () => {
 				}
 			});
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Open folder' }).click();
 
 			await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't open the folder");
@@ -317,7 +317,7 @@ describe('AccountsScreen', () => {
 		it('adds the account shortcuts and says where they went', async () => {
 			const tauri = mount({ add_shortcuts: () => null });
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Add shortcuts' }).click();
 
 			expect(tauri.calls.filter((c) => c.cmd === 'add_shortcuts')).toEqual([
@@ -335,7 +335,7 @@ describe('AccountsScreen', () => {
 				}
 			});
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Add shortcuts' }).click();
 
 			await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't add the shortcuts");
@@ -358,7 +358,7 @@ describe('AccountsScreen', () => {
 				})
 			});
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Rename' }).click();
 			const input = page.getByRole('textbox', { name: 'Name' });
 			await expect.element(input).toHaveValue('Work');
@@ -375,7 +375,7 @@ describe('AccountsScreen', () => {
 		it('submits a rename with Enter', async () => {
 			const tauri = mount({ rename_account: () => account('id-idle', 'Home', 'idle') });
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Rename' }).click();
 			await page.getByRole('textbox', { name: 'Name' }).fill('Home');
 			await userEvent.keyboard('{Enter}');
@@ -388,7 +388,7 @@ describe('AccountsScreen', () => {
 		it('cannot save an empty name', async () => {
 			const tauri = mount();
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Rename' }).click();
 			await page.getByRole('textbox', { name: 'Name' }).fill('   ');
 
@@ -399,7 +399,7 @@ describe('AccountsScreen', () => {
 		it('cancelling a rename changes nothing', async () => {
 			const tauri = mount();
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Rename' }).click();
 			await page.getByRole('textbox', { name: 'Name' }).fill('Other');
 			await page.getByRole('button', { name: 'Cancel' }).click();
@@ -415,7 +415,7 @@ describe('AccountsScreen', () => {
 				}
 			});
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Rename' }).click();
 			await page.getByRole('textbox', { name: 'Name' }).fill('Home');
 			await page.getByRole('button', { name: 'Save' }).click();
@@ -436,7 +436,7 @@ describe('AccountsScreen', () => {
 				})
 			});
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Delete' }).click();
 
 			await expect.element(page.getByRole('alertdialog')).toHaveTextContent('Delete Work?');
@@ -453,7 +453,7 @@ describe('AccountsScreen', () => {
 		it('keeps the account when the delete confirmation is cancelled', async () => {
 			const tauri = mount();
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Delete' }).click();
 			await page.getByRole('button', { name: 'Cancel' }).click();
 
@@ -464,7 +464,7 @@ describe('AccountsScreen', () => {
 		it('refuses to delete a running account and says why', async () => {
 			const tauri = mount();
 
-			await menuOf('Account 2').click();
+			await menuOf('Account 2').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Delete' }).click();
 
 			await expect.element(page.getByRole('alert')).toHaveTextContent('Close Account 2');
@@ -479,7 +479,7 @@ describe('AccountsScreen', () => {
 				}
 			});
 
-			await menuOf('Work').click();
+			await menuOf('Work').click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Delete' }).click();
 			await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
 
@@ -542,7 +542,7 @@ describe('AccountsScreen', () => {
 			const tauri = mount({}, withMissing);
 
 			await page.getByRole('listitem').nth(1).dblClick();
-			await page.getByRole('button', { name: 'Actions for Old laptop' }).click();
+			await page.getByText('Old laptop', { exact: true }).click({ button: 'right' });
 
 			await expect
 				.element(page.getByRole('menuitem', { name: 'Open folder' }))
@@ -697,64 +697,6 @@ describe('AccountsScreen usage', () => {
 		await expect.element(page.getByRole('listitem').nth(0)).toHaveTextContent(/63%/);
 	});
 
-	describe('manual refresh', () => {
-		it('asks the core to refresh when the button is pressed', async () => {
-			const tauri = mount(
-				{ refresh_usage: () => ({ refreshed: 1, refreshAllowedAt: Date.now() + 3 * MIN }) },
-				listWith({})
-			);
-
-			await page.getByRole('button', { name: 'Refresh usage' }).click();
-
-			expect(tauri.calls.filter((c) => c.cmd === 'refresh_usage')).toHaveLength(1);
-		});
-
-		it('is enabled when a refresh is allowed now', async () => {
-			mount({}, listWith({}));
-
-			await expect.element(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
-			await expect.element(page.getByText(/Next refresh allowed/)).not.toBeInTheDocument();
-		});
-
-		it('is disabled inside the minimum interval and says when the next refresh is allowed', async () => {
-			const tauri = mount(
-				{},
-				listWith({}, 'idle', false, { refreshAllowedAt: Date.now() + 151_500 })
-			);
-
-			await expect.element(page.getByRole('button', { name: 'Refresh usage' })).toBeDisabled();
-			await expect.element(page.getByText(/Next refresh allowed in 2:3\d/)).toBeVisible();
-			expect(tauri.calls.some((c) => c.cmd === 'refresh_usage')).toBe(false);
-		});
-
-		it('becomes available again once the wait is over', async () => {
-			mount({}, listWith({}, 'idle', false, { refreshAllowedAt: Date.now() + 1500 }));
-			await expect.element(page.getByRole('button', { name: 'Refresh usage' })).toBeDisabled();
-
-			await expect
-				.element(page.getByRole('button', { name: 'Refresh usage' }), { timeout: 4000 })
-				.toBeEnabled();
-		});
-
-		it('shows the wait the core reports after a refresh', async () => {
-			let allowedAt: number | null = null;
-			mount(
-				{
-					refresh_usage: () => {
-						allowedAt = Date.now() + 180_000;
-						return { refreshed: 1, refreshAllowedAt: allowedAt };
-					},
-					list_accounts: () => listWith({}, 'idle', false, { refreshAllowedAt: allowedAt })
-				},
-				listWith({})
-			);
-
-			await page.getByRole('button', { name: 'Refresh usage' }).click();
-
-			await expect.element(page.getByText(/Next refresh allowed in/)).toBeVisible();
-			await expect.element(page.getByRole('button', { name: 'Refresh usage' })).toBeDisabled();
-		});
-	});
 });
 
 describe('AccountsScreen in Persian', () => {
