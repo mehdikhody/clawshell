@@ -231,7 +231,7 @@ docs/agents/        Notes for coding agents on issues and labels
 Releases are built by the [release workflow](.github/workflows/release.yml) on GitHub Actions.
 
 1. Bump `version` in `src-tauri/tauri.conf.json` and `package.json`.
-2. Add the release notes to `docs/updates/`.
+2. Add the release notes to `docs/updates/`, as `v<version>.md`. The workflow fails if the file is missing and publishes it as the release body, which the in-app update dialog shows under **What's new**.
 3. Commit the changes.
 4. Push a matching tag, for example `v0.2.0`:
 
@@ -240,7 +240,7 @@ Releases are built by the [release workflow](.github/workflows/release.yml) on G
    git push origin v0.2.0
    ```
 
-The workflow fails if the tag and the version differ. Otherwise it runs the tests, builds the Windows installers, signs them for the updater and publishes them to a GitHub release together with `latest.json`. The release body is what the in-app update dialog shows under **What's new**, so paste the notes there. Installed copies of clawshell read `latest.json` from the latest stable release to find updates, so drafts and prereleases never reach users.
+The workflow fails if the tag and the version differ. Otherwise it runs the tests, builds the Windows installers, signs them for the updater and publishes them to a GitHub release together with `latest.json`. The workflow sets the release body from the notes file, dropping the screenshots and the **For maintainers** section. Installed copies of clawshell read `latest.json` from the latest stable release to find updates, so drafts and prereleases never reach users.
 
 ### Signing key setup
 
