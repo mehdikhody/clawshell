@@ -2,6 +2,7 @@
 //! under local app data, kept apart from the profile folders themselves.
 
 use super::badge::{is_valid_colour, next_colour};
+use super::launch_options::{EnvVar, LaunchOptions};
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -18,6 +19,12 @@ pub struct Record {
     /// `#rrggbb`; none in records saved before colours existed.
     #[serde(default)]
     pub colour: Option<String>,
+    /// Environment variables for this account's Claude process only.
+    #[serde(default)]
+    pub env: Vec<EnvVar>,
+    /// Extra launch arguments for this account's Claude.
+    #[serde(default)]
+    pub flags: Vec<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -106,6 +113,31 @@ impl Records {
         changed
     }
 
+    /// The account's env vars and flags; empty for an unknown id.
+    pub fn options_of(&self, id: &str) -> LaunchOptions {
+        self.accounts
+            .iter()
+            .find(|r| r.id == id)
+            .map(|r| LaunchOptions {
+                env: r.env.clone(),
+                flags: r.flags.clone(),
+            })
+            .unwrap_or_default()
+    }
+
+    /// Replaces the account's env vars and flags; false when no record has
+    /// that id.
+    pub fn set_options(&mut self, id: &str, options: LaunchOptions) -> bool {
+        match self.accounts.iter_mut().find(|r| r.id == id) {
+            Some(record) => {
+                record.env = options.env;
+                record.flags = options.flags;
+                true
+            }
+            None => false,
+        }
+    }
+
     pub fn remove(&mut self, id: &str) {
         self.accounts.retain(|r| r.id != id);
     }
@@ -126,6 +158,8 @@ impl Records {
             id: id.to_string(),
             label: label.clone(),
             colour: Some(colour.to_string()),
+            env: Vec::new(),
+            flags: Vec::new(),
         });
         label
     }

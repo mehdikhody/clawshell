@@ -27,6 +27,16 @@ export type UsageSnapshot = {
 	source: UsageSource;
 };
 
+/** One environment variable of an account's Claude process. The value can be a secret. */
+export type EnvVar = { name: string; value: string };
+
+/** What an account adds to every start of its Claude. */
+export type LaunchOptions = {
+	env: EnvVar[];
+	/** Extra command-line arguments, one argument per entry. */
+	flags: string[];
+};
+
 export type Account = {
 	id: string;
 	label: string;
@@ -39,6 +49,8 @@ export type Account = {
 	running: boolean;
 	email: string | null;
 	usage: UsageSnapshot | null;
+	env: EnvVar[];
+	flags: string[];
 };
 
 /** One window pooled over the signed-in accounts that report it. */
@@ -100,6 +112,9 @@ export const renameAccount = (id: string, label: string) =>
 	invoke<Account>('rename_account', { id, label });
 export const setAccountColour = (id: string, colour: string) =>
 	invoke<Account>('set_account_colour', { id, colour });
+/** Saves the account's env vars and flags, or rejects with a code such as `invalid-env-name`. */
+export const setLaunchOptions = (id: string, options: LaunchOptions) =>
+	invoke<Account>('set_launch_options', { id, options });
 export const openAccountFolder = (id: string) => invoke<void>('open_account_folder', { id });
 export const deleteAccount = (id: string) => invoke<void>('delete_account', { id });
 /** Puts "Claude - <name>" shortcuts on the Desktop and in the Start menu. */

@@ -3,8 +3,8 @@
 
 use crate::core::{
     Account, AccountList, AddError, ColourError, Core, DeleteError, Heatmap, LaunchError,
-    LaunchOutcome, MonthCost, OpenFolderError, RefreshOutcome, RenameError, Settings,
-    SettingsError, ShortcutError,
+    LaunchOptions, LaunchOptionsError, LaunchOutcome, MonthCost, OpenFolderError, RefreshOutcome,
+    RenameError, Settings, SettingsError, ShortcutError,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
@@ -112,6 +112,32 @@ impl From<ColourError> for CommandError {
     }
 }
 
+impl From<LaunchOptionsError> for CommandError {
+    fn from(e: LaunchOptionsError) -> Self {
+        // Messages never carry a name or a value: values can be secrets.
+        match e {
+            LaunchOptionsError::UnknownAccount => {
+                CommandError::new("unknown-account", "No such account")
+            }
+            LaunchOptionsError::InvalidEnvName => CommandError::new(
+                "invalid-env-name",
+                "Names use letters, digits and _ only, and don't start with a digit",
+            ),
+            LaunchOptionsError::DuplicateEnvName => {
+                CommandError::new("duplicate-env-name", "A variable name is used twice")
+            }
+            LaunchOptionsError::InvalidEnvValue => {
+                CommandError::new("invalid-env-value", "A value holds a NUL character")
+            }
+            LaunchOptionsError::ReservedFlag => CommandError::new(
+                "reserved-flag",
+                "--user-data-dir is set by clawshell and can't be changed",
+            ),
+            LaunchOptionsError::Io(e) => CommandError::new("io", e.to_string()),
+        }
+    }
+}
+
 impl From<OpenFolderError> for CommandError {
     fn from(e: OpenFolderError) -> Self {
         match e {
@@ -174,6 +200,20 @@ pub fn set_account_colour(
     colour: String,
 ) -> Result<Account, CommandError> {
     Ok(core.set_account_colour(&id, &colour)?)
+}
+
+/// Saves the account's environment variables and extra launch flags, or
+/// refuses them and saves nothing. They apply when its Claude next starts.
+#[tauri::command]
+pub fn set_launch_options(
+    core: State<'_, Arc<Core>>,
+    feed: State<'_, AccountFeed>,
+    id: String,
+    options: LaunchOptions,
+) -> Result<Account, CommandError> {
+    let account = core.set_launch_options(&id, options)?;
+    feed.publish();
+    Ok(account)
 }
 
 #[tauri::command]

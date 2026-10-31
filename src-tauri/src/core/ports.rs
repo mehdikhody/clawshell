@@ -111,9 +111,33 @@ pub trait ClaudeLocator: Send + Sync {
     fn locate(&self) -> Option<ClaudeInstall>;
 }
 
+/// One start of Claude, fully assembled by the core.
+#[derive(Clone, PartialEq, Eq)]
+pub struct LaunchSpec {
+    pub exe: PathBuf,
+    /// The command-line arguments, in order: the user-data-dir switch first,
+    /// then the account's extra flags.
+    pub args: Vec<String>,
+    /// Environment variables set on this child process only. Values can be
+    /// secrets, so they never appear in `Debug` output.
+    pub env: Vec<(String, String)>,
+}
+
+impl std::fmt::Debug for LaunchSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let names: Vec<_> = self.env.iter().map(|(name, _)| name).collect();
+        f.debug_struct("LaunchSpec")
+            .field("exe", &self.exe)
+            .field("args", &self.args)
+            .field("env_names", &names)
+            .finish()
+    }
+}
+
 pub trait Launcher: Send + Sync {
-    /// Starts `exe` with `profile` as its user-data-dir, without waiting for it.
-    fn launch(&self, exe: &Path, profile: &Path) -> io::Result<()>;
+    /// Starts `spec.exe` with `spec.args`, adding `spec.env` to the child
+    /// process's environment (and nobody else's), without waiting for it.
+    fn launch(&self, spec: &LaunchSpec) -> io::Result<()>;
 }
 
 pub trait FolderOpener: Send + Sync {

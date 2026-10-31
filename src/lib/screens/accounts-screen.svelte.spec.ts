@@ -23,7 +23,9 @@ const account = (id: string, label: string, status: string, colour = BLUE) => ({
 	status,
 	running: status === 'running',
 	email: null,
-	usage: null
+	usage: null,
+	env: [],
+	flags: []
 });
 
 const threeAccounts: AccountList = {

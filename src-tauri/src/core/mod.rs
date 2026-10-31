@@ -6,6 +6,7 @@ pub mod badge;
 pub mod cost;
 pub mod desktop_token;
 pub mod install;
+pub mod launch_options;
 mod notifications;
 mod paths;
 pub mod polling;
@@ -24,6 +25,7 @@ pub use accounts::{
     OpenFolderError, RenameError, Status,
 };
 pub use cost::{AccountCost, Heatmap, MonthCost, NoEstimate};
+pub use launch_options::{EnvVar, LaunchOptions, LaunchOptionsError};
 pub use pooled::{PooledRemaining, PooledWindow};
 pub use settings::{Language, OverrideAware, Settings, SettingsError};
 pub use shell::{CloseAction, TrayEntry, TrayLabels};

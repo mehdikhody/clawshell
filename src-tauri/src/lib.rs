@@ -94,6 +94,7 @@ pub fn run() {
             commands::list_accounts,
             commands::add_account,
             commands::launch_account,
+            commands::set_launch_options,
             commands::rename_account,
             commands::set_account_colour,
             commands::open_account_folder,

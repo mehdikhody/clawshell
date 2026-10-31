@@ -22,7 +22,9 @@ const account = (id: string, status: string) => ({
 	status,
 	running: false,
 	email: null,
-	usage: null
+	usage: null,
+	env: [],
+	flags: []
 });
 
 const listWith = (

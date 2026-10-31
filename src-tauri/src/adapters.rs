@@ -164,11 +164,14 @@ impl ClaudeLocator for WindowsOs {
 }
 
 impl Launcher for WindowsOs {
-    fn launch(&self, exe: &Path, profile: &Path) -> io::Result<()> {
-        let mut command = Command::new(exe);
+    fn launch(&self, spec: &LaunchSpec) -> io::Result<()> {
+        let mut command = Command::new(&spec.exe);
         command
-            .arg(format!("--user-data-dir={}", profile.display()))
-            // Must not leak into Electron: it would run Claude as plain Node.
+            .args(&spec.args)
+            // The account's variables reach this child only, not clawshell.
+            .envs(spec.env.iter().map(|(name, value)| (name, value)))
+            // Must not leak into Electron: it would run Claude as plain Node,
+            // so not even an account's own setting may bring it back.
             .env_remove("ELECTRON_RUN_AS_NODE")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
