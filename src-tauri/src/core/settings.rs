@@ -12,13 +12,16 @@ const FILE: &str = "settings.json";
 const DEFAULT_WARNING_THRESHOLD: u8 = 80;
 const DEFAULT_LIMIT_THRESHOLD: u8 = 100;
 
-/// The interface language, saved as `en` or `fa`.
+/// The interface language, saved as `en`, `fa`, `ar`, `ru` or `zh`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Language {
     #[default]
     En,
     Fa,
+    Ar,
+    Ru,
+    Zh,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -3,6 +3,7 @@
 @import 'shadcn-svelte/tailwind.css';
 @import '@fontsource-variable/roboto';
 @import '@fontsource-variable/vazirmatn';
+@import '@fontsource-variable/noto-sans-sc';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -102,9 +103,13 @@
 	html {
 		@apply font-sans;
 	}
-	/* `@theme inline` bakes the family into utilities, so the Farsi face is set here. */
-	:root:lang(fa) {
+	/* `@theme inline` bakes the family into utilities, so the Farsi, Arabic and Chinese faces are set here. Russian keeps Roboto, which has Cyrillic. */
+	:root:lang(fa),
+	:root:lang(ar) {
 		font-family: 'Vazirmatn Variable', sans-serif;
+	}
+	:root:lang(zh) {
+		font-family: 'Noto Sans SC Variable', sans-serif;
 	}
 }
 
@@ -128,7 +133,7 @@
 .animate-indeterminate {
 	animation: indeterminate 1.4s ease-in-out infinite;
 }
-[dir="rtl"] .animate-indeterminate {
+[dir='rtl'] .animate-indeterminate {
 	animation-name: indeterminate-rtl;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -147,7 +152,7 @@
 }
 
 /* Flips chevrons in right-to-left layouts. */
-[dir="rtl"] .cn-rtl-flip {
+[dir='rtl'] .cn-rtl-flip {
 	transform: scaleX(-1);
 }
 

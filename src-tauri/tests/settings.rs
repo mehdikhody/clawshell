@@ -53,16 +53,29 @@ fn the_language_survives_a_restart() {
 }
 
 #[test]
-fn the_language_is_saved_as_en_or_fa() {
-    let h = Harness::new();
-    let core = h.core();
-    let mut settings = core.settings();
-    settings.language = Language::Fa;
-    core.update_settings(settings).unwrap();
+fn the_language_is_saved_as_its_lowercase_code() {
+    for (language, code) in [
+        (Language::En, "en"),
+        (Language::Fa, "fa"),
+        (Language::Ar, "ar"),
+        (Language::Ru, "ru"),
+        (Language::Zh, "zh"),
+    ] {
+        let h = Harness::new();
+        let core = h.core();
+        let mut settings = core.settings();
+        settings.language = language;
+        core.update_settings(settings).unwrap();
 
-    let text = std::fs::read_to_string(h.fixture.local_app_data().join("clawshell/settings.json"))
-        .unwrap();
-    assert!(text.contains("\"language\": \"fa\""), "{text}");
+        let text =
+            std::fs::read_to_string(h.fixture.local_app_data().join("clawshell/settings.json"))
+                .unwrap();
+        assert!(
+            text.contains(&format!("\"language\": \"{code}\"")),
+            "{text}"
+        );
+        assert_eq!(h.core().settings().language, language);
+    }
 }
 
 #[test]

@@ -119,7 +119,13 @@
 		syncDrafts();
 	}
 
-	const languageName = { en: () => m.language_en(), fa: () => m.language_fa() };
+	const languageName = {
+		en: () => m.language_en(),
+		fa: () => m.language_fa(),
+		ar: () => m.language_ar(),
+		ru: () => m.language_ru(),
+		zh: () => m.language_zh()
+	};
 
 	const switches = [
 		{

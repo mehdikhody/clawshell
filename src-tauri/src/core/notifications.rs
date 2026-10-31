@@ -153,12 +153,14 @@ fn observe(notes: &mut Option<WindowNotes>, reading: &WindowUsage, rules: &Rules
 }
 
 impl Language {
+    /// Arabic, Russian and Chinese notifications are not translated yet, so
+    /// they read as English.
     fn window_name(self, window: WindowKind) -> &'static str {
         match (self, window) {
-            (Language::En, WindowKind::FiveHour) => "5-hour",
-            (Language::En, WindowKind::Weekly) => "weekly",
             (Language::Fa, WindowKind::FiveHour) => "۵ ساعته",
             (Language::Fa, WindowKind::Weekly) => "هفتگی",
+            (_, WindowKind::FiveHour) => "5-hour",
+            (_, WindowKind::Weekly) => "weekly",
         }
     }
 }
@@ -174,18 +176,6 @@ fn text(
     let name = language.window_name(window);
     let percent = percent.round() as i64;
     match (language, event) {
-        (Language::En, Event::Warning) => (
-            format!("{label} is nearing its limit"),
-            format!("Its {name} usage is at {percent}%."),
-        ),
-        (Language::En, Event::Limited) => (
-            format!("{label} hit its limit"),
-            format!("Its {name} usage is at {percent}%. Switch to another account."),
-        ),
-        (Language::En, Event::Reset) => (
-            format!("{label}'s {name} window has reset"),
-            format!("It is back to {percent}% used."),
-        ),
         (Language::Fa, Event::Warning) => (
             format!("{label} به سقف مصرف نزدیک می‌شود"),
             format!("مصرف {name} آن به {percent}٪ رسیده است."),
@@ -197,6 +187,18 @@ fn text(
         (Language::Fa, Event::Reset) => (
             format!("پنجرهٔ {name} {label} بازنشانی شد"),
             format!("مصرف آن اکنون به {percent}٪ رسیده است."),
+        ),
+        (_, Event::Warning) => (
+            format!("{label} is nearing its limit"),
+            format!("Its {name} usage is at {percent}%."),
+        ),
+        (_, Event::Limited) => (
+            format!("{label} hit its limit"),
+            format!("Its {name} usage is at {percent}%. Switch to another account."),
+        ),
+        (_, Event::Reset) => (
+            format!("{label}'s {name} window has reset"),
+            format!("It is back to {percent}% used."),
         ),
     }
 }

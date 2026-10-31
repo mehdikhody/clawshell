@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import '../../routes/layout.css';
 import { mockTauri, type IpcHandlers } from '$lib/test/tauri-ipc';
+import { m } from '$lib/paraglide/messages.js';
 import { active, switchLocale } from '$lib/locale-state.svelte';
 import type { Settings } from '$lib/settings';
 
@@ -129,12 +130,78 @@ describe('SettingsScreen', () => {
 		expect(updates(tauri.calls)).toEqual([{ ...defaults, claudePath: null }]);
 	});
 
-	it('offers English and Persian with the saved language picked', async () => {
+	it('offers the five languages, each in its own name, with the saved one picked', async () => {
 		mount({ ...defaults, language: 'fa' });
 
 		await page.getByRole('button', { name: 'Language' }).click();
 		await expect.element(page.getByRole('menuitemradio', { name: 'فارسی' })).toBeChecked();
-		await expect.element(page.getByRole('menuitemradio', { name: 'English' })).not.toBeChecked();
+		for (const name of ['English', 'العربية', 'Русский', '简体中文']) {
+			await expect.element(page.getByRole('menuitemradio', { name })).not.toBeChecked();
+		}
+		expect(page.getByRole('menuitemradio').elements()).toHaveLength(5);
+	});
+
+	it('lays the window out right to left once Arabic is chosen', async () => {
+		const tauri = mount();
+
+		await page.getByRole('button', { name: 'Language' }).click();
+		await page.getByRole('menuitemradio', { name: 'العربية' }).click();
+
+		expect(updates(tauri.calls)).toEqual([{ ...defaults, language: 'ar' }]);
+		expect(active.locale).toBe('ar');
+		expect(document.documentElement.dir).toBe('rtl');
+		expect(document.documentElement.lang).toBe('ar');
+		expect(m.settings_language()).toBe('اللغة');
+	});
+
+	it('shows the settings in Arabic, right to left', async () => {
+		switchLocale('ar');
+		mount({ ...defaults, language: 'ar', warningThreshold: 80, limitThreshold: 100 });
+
+		await expect.element(page.getByRole('button', { name: 'اللغة' })).toBeVisible();
+		await expect
+			.element(page.getByRole('switch', { name: 'الإغلاق إلى شريط المهام' }))
+			.toBeVisible();
+		expect(document.documentElement.dir).toBe('rtl');
+		const thumb = (await page.getByRole('slider').first().element()) as HTMLElement;
+		expect(thumb.style.left).toBe('');
+		expect(parseFloat(thumb.style.right)).toBeGreaterThan(70);
+	});
+
+	it('writes the window in Russian, left to right', async () => {
+		const tauri = mount();
+
+		await page.getByRole('button', { name: 'Language' }).click();
+		await page.getByRole('menuitemradio', { name: 'Русский' }).click();
+
+		expect(updates(tauri.calls)).toEqual([{ ...defaults, language: 'ru' }]);
+		expect(m.settings_language()).toBe('Язык');
+		expect(document.documentElement.dir).toBe('ltr');
+		expect(document.documentElement.lang).toBe('ru');
+	});
+
+	it('writes the window in Simplified Chinese, left to right', async () => {
+		const tauri = mount();
+
+		await page.getByRole('button', { name: 'Language' }).click();
+		await page.getByRole('menuitemradio', { name: '简体中文' }).click();
+
+		expect(updates(tauri.calls)).toEqual([{ ...defaults, language: 'zh' }]);
+		expect(m.settings_language()).toBe('语言');
+		expect(document.documentElement.dir).toBe('ltr');
+		expect(document.documentElement.lang).toBe('zh');
+	});
+
+	it('sets each language in its font: Vazirmatn for Arabic, Noto Sans SC for Chinese, Roboto for Russian', async () => {
+		mount();
+		const family = () => getComputedStyle(document.documentElement).fontFamily;
+
+		switchLocale('ar');
+		expect(family()).toContain('Vazirmatn Variable');
+		switchLocale('zh');
+		expect(family()).toContain('Noto Sans SC Variable');
+		switchLocale('ru');
+		expect(family()).toContain('Roboto Variable');
 	});
 
 	it('saves the chosen language and flips the document to right-to-left', async () => {

@@ -5,22 +5,29 @@ import {
 	formatPercentValue,
 	intlLocale,
 	isLocale,
+	locales,
 	weekStartOf
 } from './locale';
 
 describe('isLocale', () => {
-	it('accepts the two supported locales and nothing else', () => {
-		expect(isLocale('en')).toBe(true);
-		expect(isLocale('fa')).toBe(true);
+	it('lists the five supported locales', () => {
+		expect([...locales]).toEqual(['en', 'fa', 'ar', 'ru', 'zh']);
+	});
+
+	it('accepts the supported locales and nothing else', () => {
+		for (const locale of ['en', 'fa', 'ar', 'ru', 'zh']) expect(isLocale(locale)).toBe(true);
 		expect(isLocale('de')).toBe(false);
 		expect(isLocale(null)).toBe(false);
 	});
 });
 
 describe('directionOf', () => {
-	it('is right-to-left for Persian and left-to-right for English', () => {
+	it('is right-to-left for Persian and Arabic and left-to-right otherwise', () => {
 		expect(directionOf('fa')).toBe('rtl');
+		expect(directionOf('ar')).toBe('rtl');
 		expect(directionOf('en')).toBe('ltr');
+		expect(directionOf('ru')).toBe('ltr');
+		expect(directionOf('zh')).toBe('ltr');
 	});
 });
 
@@ -37,6 +44,12 @@ describe('formatInteger', () => {
 	it('uses the Jalali calendar in Persian', () => {
 		expect(intlLocale('fa')).toContain('-u-ca-persian');
 		expect(intlLocale('en')).not.toContain('-u-ca-');
+	});
+
+	it('hands Intl the language tag, with zh-CN for Chinese', () => {
+		expect(intlLocale('ar')).toMatch(/^ar(-|$)/);
+		expect(intlLocale('ru')).toMatch(/^ru(-|$)/);
+		expect(intlLocale('zh')).toMatch(/^zh-CN(-|$)/);
 	});
 
 	it('uses Persian digits in Persian', () => {

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Arabic, Russian and Simplified Chinese join English and Persian in the window. The language picker shows each language in its own name, Arabic is laid out right to left, and Arabic and Chinese get their own fonts. Tray menu and notification text stay in English for these three for now.
 - **Quit Claude** in a running account's context menu. It ends all of that account's Claude processes at once, including a Claude hidden in its own tray, and works for the default account too.
 
 ## [0.2.0] - 2026-11-01
