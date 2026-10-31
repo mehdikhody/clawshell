@@ -19,9 +19,17 @@
 	{max}
 	{...restProps}
 >
-	<div
-		data-slot="progress-indicator"
-		class="bg-primary size-full flex-1 -translate-x-(--progress-gap) transition-all rtl:translate-x-(--progress-gap)"
-		style="--progress-gap: {100 - (100 * (value ?? 0)) / (max ?? 1)}%"
-	></div>
+	{#if value === null}
+		<!-- No known value: a short bar sweeps back and forth along the track. -->
+		<div
+			data-slot="progress-indicator"
+			class="bg-primary h-full w-2/5 animate-indeterminate rounded-full"
+		></div>
+	{:else}
+		<div
+			data-slot="progress-indicator"
+			class="bg-primary size-full flex-1 -translate-x-(--progress-gap) transition-all rtl:translate-x-(--progress-gap)"
+			style="--progress-gap: {100 - (100 * (value ?? 0)) / (max ?? 1)}%"
+		></div>
+	{/if}
 </ProgressPrimitive.Root>

@@ -141,5 +141,15 @@
 	"routing_offer_accept": "روشن کن",
 	"routing_offer_decline": "فعلاً نه",
 	"routing_offer_done": "متوجه شدم",
-	"error_routing_failed": "تغییر مسیریابی ورود ممکن نشد"
+	"error_routing_failed": "تغییر مسیریابی ورود ممکن نشد",
+	"update_available": "به‌روزرسانی در دسترس است",
+	"update_title": "clawshell {version} در دسترس است",
+	"update_notes": "تغییرات جدید",
+	"update_now": "به‌روزرسانی",
+	"update_later": "بعداً",
+	"update_downloading": "در حال دانلود به‌روزرسانی…",
+	"update_installing": "در حال نصب و راه‌اندازی مجدد…",
+	"update_failed": "به‌روزرسانی انجام نشد",
+	"update_failed_detail": "نسخه فعلی شما همچنان در حال اجراست. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.",
+	"update_retry": "تلاش دوباره"
 }

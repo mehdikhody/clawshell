@@ -12,6 +12,7 @@
 	import UsageScreen from '$lib/screens/usage-screen.svelte';
 	import { getSettings } from '$lib/settings';
 	import { startAutoRefresh } from '$lib/auto-refresh.svelte';
+	import { startUpdateChecks } from '$lib/update.svelte';
 	import RoutingOffer from './routing-offer.svelte';
 	import TopBar from './top-bar.svelte';
 	import { scrollFade } from '$lib/scroll-fade';
@@ -30,6 +31,15 @@
 		return () => cleanups.forEach((cleanup) => cleanup());
 	});
 
+	let stopUpdateChecks: (() => void) | null = null;
+	let unmounted = false;
+
+	// onMount's own callback is async, so the cleanup is registered separately.
+	onMount(() => () => {
+		unmounted = true;
+		stopUpdateChecks?.();
+	});
+
 	onMount(async () => {
 		let language: Locale = 'en';
 		try {
@@ -41,7 +51,8 @@
 		}
 		// Always applied: the built page carries unfilled lang and dir placeholders.
 		switchLocale(language);
-			startAutoRefresh();
+		startAutoRefresh();
+		if (!unmounted) stopUpdateChecks = startUpdateChecks();
 		ready = true;
 	});
 </script>

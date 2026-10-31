@@ -13,6 +13,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check updater signing is set up
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::The TAURI_SIGNING_PRIVATE_KEY secret is empty. See the README section 'Signing key setup'."
+            exit 1
+          fi
+          pubkey=$(node -p "require('./src-tauri/tauri.conf.json').plugins.updater.pubkey")
+          case "$pubkey" in
+            PLACEHOLDER*)
+              echo "::error::plugins.updater.pubkey in src-tauri/tauri.conf.json is still a placeholder. See the README section 'Signing key setup'."
+              exit 1
+              ;;
+          esac
+
       - name: Check tag matches app version
         shell: bash
         run: |
@@ -42,8 +59,15 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: clawshell ${{ github.ref_name }}
           releaseDraft: false
           prerelease: false
+          # Upload latest.json (the updater manifest) and the .sig files with the installers.
+          uploadUpdaterJson: true
+          uploadUpdaterSignatures: true
+          # The manifest points at the NSIS setup.exe rather than the .msi.
+          updaterJsonPreferNsis: true

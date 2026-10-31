@@ -4,6 +4,8 @@
 	import IconX from '@tabler/icons-svelte/icons/x';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages.js';
+	import { hasUpdate } from '$lib/update.svelte';
+	import UpdateBadge from './update-badge.svelte';
 </script>
 
 <header
@@ -12,7 +14,12 @@
 >
 	<div data-tauri-drag-region class="flex items-center gap-2">
 		<img src="/app-icon.png" alt="" data-tauri-drag-region class="size-5" />
-		<span data-tauri-drag-region class="text-sm font-bold tracking-tight capitalize">{m.app_name()}</span>
+		<span data-tauri-drag-region class="text-sm font-bold tracking-tight capitalize"
+			>{m.app_name()}</span
+		>
+		{#if hasUpdate()}
+			<UpdateBadge />
+		{/if}
 	</div>
 	<div class="flex items-center gap-0.5">
 		<Button

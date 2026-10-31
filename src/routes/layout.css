@@ -106,6 +106,38 @@
 	}
 }
 
+/* Progress with no known value: a bar sweeping along the track, from the start side. */
+@keyframes indeterminate {
+	from {
+		transform: translateX(-100%);
+	}
+	to {
+		transform: translateX(250%);
+	}
+}
+@keyframes indeterminate-rtl {
+	from {
+		transform: translateX(100%);
+	}
+	to {
+		transform: translateX(-250%);
+	}
+}
+.animate-indeterminate {
+	animation: indeterminate 1.4s ease-in-out infinite;
+}
+[dir="rtl"] .animate-indeterminate {
+	animation-name: indeterminate-rtl;
+}
+@media (prefers-reduced-motion: reduce) {
+	.animate-indeterminate {
+		animation: none;
+		transform: none;
+		width: 100%;
+		opacity: 0.6;
+	}
+}
+
 /* Flips chevrons in right-to-left layouts. */
 [dir="rtl"] .cn-rtl-flip {
 	transform: scaleX(-1);

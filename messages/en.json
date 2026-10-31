@@ -141,5 +141,15 @@
 	"routing_offer_accept": "Turn on",
 	"routing_offer_decline": "Not now",
 	"routing_offer_done": "Got it",
-	"error_routing_failed": "Couldn't change sign-in routing"
+	"error_routing_failed": "Couldn't change sign-in routing",
+	"update_available": "Update available",
+	"update_title": "clawshell {version} is available",
+	"update_notes": "What's new",
+	"update_now": "Update",
+	"update_later": "Later",
+	"update_downloading": "Downloading update…",
+	"update_installing": "Installing and restarting…",
+	"update_failed": "Update failed",
+	"update_failed_detail": "Your current version is still running. Check your connection and try again.",
+	"update_retry": "Retry"
 }
