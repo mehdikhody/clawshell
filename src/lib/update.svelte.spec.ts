@@ -1,10 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { check } from '@tauri-apps/plugin-updater';
-import { UPDATE_CHECK_MS, checkForUpdate, startUpdateChecks, updateState } from './update.svelte';
+import { check, type DownloadEvent } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
+import {
+	UPDATE_CHECK_MS,
+	checkForUpdate,
+	installUpdate,
+	startUpdateChecks,
+	updateState
+} from './update.svelte';
 
 vi.mock('@tauri-apps/plugin-updater', () => ({ check: vi.fn() }));
+vi.mock('@tauri-apps/plugin-process', () => ({ relaunch: vi.fn() }));
 
 const checkMock = vi.mocked(check);
+const relaunchMock = vi.mocked(relaunch);
 const found = (version: string) =>
 	({
 		version,
@@ -16,6 +25,7 @@ const found = (version: string) =>
 beforeEach(() => {
 	vi.useFakeTimers();
 	checkMock.mockReset();
+	relaunchMock.mockReset();
 	updateState.current = { status: 'idle' };
 });
 afterEach(() => vi.useRealTimers());
@@ -138,5 +148,137 @@ describe('startUpdateChecks', () => {
 
 		expect(updateState.current.status).toBe('available');
 		stop();
+	});
+});
+
+describe('installUpdate', () => {
+	type Run = (onEvent: (event: DownloadEvent) => void) => Promise<void>;
+	const updateWith = (run: Run) =>
+		({
+			version: '0.2.0',
+			currentVersion: '0.1.0',
+			body: 'Notes',
+			close: vi.fn().mockResolvedValue(undefined),
+			downloadAndInstall: vi.fn(run)
+		}) as never;
+	const snapshot = () => ({ ...updateState.current });
+	const installCalls = (update: unknown) =>
+		vi.mocked((update as { downloadAndInstall: () => void }).downloadAndInstall).mock.calls.length;
+
+	it('walks through the download progress to the install, then relaunches', async () => {
+		const seen: unknown[] = [];
+		const update = updateWith(async (onEvent) => {
+			onEvent({ event: 'Started', data: { contentLength: 200 } });
+			seen.push(snapshot());
+			onEvent({ event: 'Progress', data: { chunkLength: 50 } });
+			onEvent({ event: 'Progress', data: { chunkLength: 70 } });
+			seen.push(snapshot());
+			onEvent({ event: 'Finished' });
+			seen.push(snapshot());
+		});
+		updateState.current = { status: 'available', update };
+		relaunchMock.mockImplementation(async () => {
+			seen.push(snapshot());
+		});
+
+		await installUpdate();
+
+		expect(seen).toEqual([
+			{ status: 'downloading', update, downloaded: 0, total: 200 },
+			{ status: 'downloading', update, downloaded: 120, total: 200 },
+			{ status: 'installing', update },
+			{ status: 'installing', update }
+		]);
+		expect(relaunchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('keeps the total unknown when the server sends no content length', async () => {
+		let seen: unknown;
+		const update = updateWith(async (onEvent) => {
+			onEvent({ event: 'Started', data: {} });
+			onEvent({ event: 'Progress', data: { chunkLength: 30 } });
+			seen = snapshot();
+		});
+		updateState.current = { status: 'available', update };
+
+		await installUpdate();
+
+		expect(seen).toEqual({ status: 'downloading', update, downloaded: 30, total: null });
+	});
+
+	it('is downloading before any event arrives', async () => {
+		let seen: unknown;
+		const update = updateWith(async () => {
+			seen = snapshot();
+		});
+		updateState.current = { status: 'available', update };
+
+		await installUpdate();
+
+		expect(seen).toEqual({ status: 'downloading', update, downloaded: 0, total: null });
+	});
+
+	it('fails with the error message when the download fails, and does not relaunch', async () => {
+		const update = updateWith(async () => {
+			throw new Error('network down');
+		});
+		updateState.current = { status: 'available', update };
+
+		await installUpdate();
+
+		expect(updateState.current).toEqual({ status: 'failed', update, message: 'network down' });
+		expect(relaunchMock).not.toHaveBeenCalled();
+	});
+
+	it('fails with a plain string error from the updater plugin', async () => {
+		const update = updateWith(async () => {
+			throw 'signature mismatch';
+		});
+		updateState.current = { status: 'available', update };
+
+		await installUpdate();
+
+		expect(updateState.current).toEqual({
+			status: 'failed',
+			update,
+			message: 'signature mismatch'
+		});
+	});
+
+	it('fails when the restart fails', async () => {
+		const update = updateWith(async () => {});
+		updateState.current = { status: 'available', update };
+		relaunchMock.mockRejectedValue(new Error('no restart'));
+
+		await installUpdate();
+
+		expect(updateState.current).toEqual({ status: 'failed', update, message: 'no restart' });
+	});
+
+	it('downloads again from the failed state', async () => {
+		const update = updateWith(async () => {});
+		updateState.current = { status: 'failed', update, message: 'network down' };
+
+		await installUpdate();
+
+		expect(installCalls(update)).toBe(1);
+		expect(relaunchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('ignores a second call while a download is running', async () => {
+		const update = updateWith(async () => {});
+		updateState.current = { status: 'downloading', update, downloaded: 5, total: 100 };
+
+		await installUpdate();
+
+		expect(installCalls(update)).toBe(0);
+		expect(updateState.current.status).toBe('downloading');
+	});
+
+	it('does nothing when there is no update', async () => {
+		await installUpdate();
+
+		expect(updateState.current.status).toBe('idle');
+		expect(relaunchMock).not.toHaveBeenCalled();
 	});
 });
