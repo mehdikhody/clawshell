@@ -59,7 +59,7 @@ It lives in the tray, keeps every account's window on its own badged taskbar but
 34. As a user, I want each account's shortcut to carry its coloured badge icon, so that I can recognise it in Start search and on the desktop.
 35. As a user, I want each account's Claude window to get its own taskbar button with its badge, so that accounts don't all pile onto one Claude button.
 36. As a user, I want clicking an account's shortcut when it's already open to bring it forward, so that shortcuts behave like double-click.
-37. As a user, I want my original Claude Desktop sign-in and the old switcher's profile folders left alone and not listed, so that clawshell never touches data it didn't create.
+37. As a user, I want the old switcher's profile folders left alone and not listed, so that clawshell never touches data it didn't create. My original Claude Desktop sign-in is listed first as the default account, read only and never deleted (superseded; see `docs/adr/0001-list-the-default-claude-account.md`).
 
 ### Sign-in routing
 
@@ -270,7 +270,7 @@ It lives in the tray, keeps every account's window on its own badged taskbar but
 ## Out of Scope
 
 - The Claude Code CLI as a managed target (no per-account `CLAUDE_CONFIG_DIR` handling).
-- Listing or managing the original Claude Desktop sign-in, or the reference switcher's existing `ClaudeProfile-*` folders (no import or migration).
+- Deleting, badging or adding shortcuts for the original Claude Desktop sign-in (it is listed as the default account; see `docs/adr/0001-list-the-default-claude-account.md`), and the reference switcher's existing `ClaudeProfile-*` folders (no import or migration).
 - Refreshing OAuth tokens on any account's behalf.
 - A clawshell-owned usage or cost history database. Data beyond what's on disk (about 30 days) isn't shown.
 - Cost data for regular claude.ai chats (none exists locally).

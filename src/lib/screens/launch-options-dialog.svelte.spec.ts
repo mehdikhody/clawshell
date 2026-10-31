@@ -12,6 +12,7 @@ afterEach(() => restore?.());
 const account = (over: Partial<Account> = {}): Account => ({
 	id: 'id-work',
 	label: 'Work',
+	isDefault: false,
 	badge: 'W',
 	colour: '#2563eb',
 	status: 'idle',

@@ -8,7 +8,7 @@ mod support;
 use clawshell_lib::core::usage::{PROFILE_URL, USAGE_URL, UsageSource};
 use clawshell_lib::core::{Account, Core, Status};
 use std::time::Duration;
-use support::Harness;
+use support::{Added, Harness};
 
 const ID_A: &str = "3f2b8c1e-5a4d-4e7b-9c10-2d6f8a9b0c11";
 const ID_B: &str = "a0b1c2d3-e4f5-4a6b-8c7d-9e0f1a2b3c4d";
@@ -902,7 +902,7 @@ fn deleted_accounts_are_forgotten() {
     core.delete_account(ID_A).unwrap();
 
     assert_eq!(core.refresh_usage(true).refresh_allowed_at, None);
-    assert!(core.list_accounts().unwrap().accounts.is_empty());
+    assert!(core.list_accounts().unwrap().added().is_empty());
 }
 
 // ---- Pooled remaining ----

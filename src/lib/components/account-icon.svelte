@@ -1,10 +1,17 @@
 <script lang="ts">
-	import { accountIcon } from '$lib/accounts';
+	import { accountIcon, claudeIcon } from '$lib/accounts';
 
-	let { badge, colour }: { badge: string; colour: string } = $props();
+	let {
+		badge,
+		colour,
+		isDefault = false
+	}: { badge: string; colour: string; isDefault?: boolean } = $props();
+
+	/** The default account has no badge: it shows Claude's own icon. */
+	const icon = $derived(isDefault ? claudeIcon() : accountIcon(badge, colour));
 </script>
 
-{#await accountIcon(badge, colour) then src}
+{#await icon then src}
 	<img data-slot="account-badge" alt="" class="size-8" {src} />
 {:catch}
 	<span

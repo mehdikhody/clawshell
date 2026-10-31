@@ -34,12 +34,16 @@ fn build_core(roots: Roots, app: tauri::AppHandle) -> (Arc<Core>, Arc<dyn Claude
         let _ = app.notification().builder().title(title).body(body).show();
     });
     let core = Arc::new(Core::new(Ports {
-        roots,
+        roots: roots.clone(),
         http: Arc::new(UreqHttp::new()),
         clock: Arc::new(SystemClock),
         tokens: Arc::new(DesktopTokens),
-        processes: Arc::new(DesktopProcesses::new(lister.clone(), locator.clone())),
-        os: Arc::new(WindowsOs::new(locator.clone(), lister, toast)),
+        processes: Arc::new(DesktopProcesses::new(
+            lister.clone(),
+            locator.clone(),
+            roots.clone(),
+        )),
+        os: Arc::new(WindowsOs::new(locator.clone(), lister, roots, toast)),
     }));
     (core, locator)
 }
@@ -79,6 +83,7 @@ pub fn run() {
             let (core, locator) = build_core(
                 Roots {
                     local_app_data: paths.local_data_dir()?,
+                    roaming_app_data: paths.data_dir()?,
                     home: paths.home_dir()?,
                 },
                 app.handle().clone(),
@@ -109,6 +114,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::list_accounts,
             commands::account_icon,
+            commands::claude_icon,
             commands::new_account_defaults,
             commands::add_account,
             commands::launch_account,

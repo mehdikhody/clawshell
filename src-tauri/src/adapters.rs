@@ -133,6 +133,8 @@ pub struct WindowsOs {
     /// Detection plus the saved Claude.exe override.
     locator: Arc<dyn ClaudeLocator>,
     lister: Arc<dyn ProcessLister>,
+    /// Where the default profile is looked for, for the running check.
+    roots: Roots,
     /// Shows a Windows toast; supplied by the app, which owns the Tauri handle.
     toast: Toast,
     /// Per profile, the newest taskbar identity request. A watcher waiting for
@@ -147,11 +149,13 @@ impl WindowsOs {
     pub fn new(
         locator: Arc<dyn ClaudeLocator>,
         lister: Arc<dyn ProcessLister>,
+        roots: Roots,
         toast: Toast,
     ) -> Self {
         WindowsOs {
             locator,
             lister,
+            roots,
             toast,
             watching: Arc::default(),
         }
@@ -207,7 +211,11 @@ impl FolderOpener for WindowsOs {
 
 impl WindowFocus for WindowsOs {
     fn focus(&self, profile: &Path) -> bool {
-        let inspector = DesktopProcesses::new(self.lister.clone(), self.locator.clone());
+        let inspector = DesktopProcesses::new(
+            self.lister.clone(),
+            self.locator.clone(),
+            self.roots.clone(),
+        );
         let pids = inspector.pids_for(profile);
         !pids.is_empty() && focus_window_of(&pids)
     }
@@ -270,7 +278,11 @@ impl TaskbarIdentity for WindowsOs {
             watching.insert(profile.to_path_buf(), next);
             next
         };
-        let inspector = DesktopProcesses::new(self.lister.clone(), self.locator.clone());
+        let inspector = DesktopProcesses::new(
+            self.lister.clone(),
+            self.locator.clone(),
+            self.roots.clone(),
+        );
         let base = claude_base(self.locate().map(|install| install.exe));
         if badge_windows(&inspector.pids_for(profile), aumid, badge, colour, &base) > 0 {
             return Ok(());

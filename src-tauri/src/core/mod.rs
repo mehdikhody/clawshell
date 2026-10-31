@@ -5,6 +5,7 @@ mod account_error;
 pub mod accounts;
 pub mod badge;
 pub mod cost;
+pub mod default_profile;
 pub mod desktop_token;
 pub mod install;
 pub mod launch_options;

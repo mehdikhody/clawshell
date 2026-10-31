@@ -3,7 +3,7 @@
 mod support;
 
 use clawshell_lib::core::install::detect_install;
-use clawshell_lib::core::ports::{ClaudeInstall, ProcessInfo, ProcessInspector};
+use clawshell_lib::core::ports::{ClaudeInstall, ProcessInfo, ProcessInspector, Roots};
 use clawshell_lib::core::process::DesktopProcesses;
 use std::collections::HashSet;
 use std::fs;
@@ -92,8 +92,20 @@ fn inspector(procs: Vec<ProcessInfo>) -> DesktopProcesses {
         exe: PathBuf::from(format!(r"{ROOT}\app\Claude.exe")),
         root: PathBuf::from(ROOT),
     });
-    DesktopProcesses::new(lister, os)
+    DesktopProcesses::new(lister, os, roots())
 }
+
+/// Folders that hold no Claude data, so the default profile is where current
+/// Claude would create it: `Claude-Data` under the package family name.
+fn roots() -> Roots {
+    Roots {
+        local_app_data: PathBuf::from(r"C:\Users\me\AppData\Local"),
+        roaming_app_data: PathBuf::from(r"C:\Users\me\AppData\Roaming"),
+        home: PathBuf::from(r"C:\Users\me"),
+    }
+}
+
+const DEFAULT_PROFILE: &str = r"C:\Users\me\AppData\Local\Claude-Data\claude_abc";
 
 fn desktop(pid: u32, args: &[&str]) -> ProcessInfo {
     ProcessInfo {
@@ -167,10 +179,23 @@ fn code_cli_children_do_not_count_as_running() {
 }
 
 #[test]
-fn a_desktop_process_without_a_user_data_dir_is_the_original_install() {
+fn a_desktop_process_without_a_user_data_dir_runs_the_default_profile() {
     let procs = inspector(vec![desktop(1, &[]), desktop(2, &["--type=renderer"])]);
 
-    assert!(procs.running_profiles().is_empty());
+    assert_eq!(procs.running_profiles(), set(&[DEFAULT_PROFILE]));
+    assert_eq!(procs.pids_for(&PathBuf::from(DEFAULT_PROFILE)), vec![1, 2]);
+}
+
+#[test]
+fn other_programs_in_the_install_folder_are_not_the_default_profile() {
+    // The installer build keeps its updater next to the app folders.
+    let updater = ProcessInfo {
+        pid: 4,
+        exe: Some(PathBuf::from(format!(r"{ROOT}\Update.exe"))),
+        args: vec!["--processStart".into(), "claude.exe".into()],
+    };
+
+    assert!(inspector(vec![updater]).running_profiles().is_empty());
 }
 
 #[test]
@@ -216,7 +241,7 @@ fn nothing_runs_when_claude_cannot_be_found() {
     *os.install.lock().unwrap() = None;
 
     assert!(
-        DesktopProcesses::new(lister, os)
+        DesktopProcesses::new(lister, os, roots())
             .running_profiles()
             .is_empty()
     );

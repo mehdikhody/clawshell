@@ -2,7 +2,7 @@ mod support;
 
 use clawshell_lib::core::AccountError;
 use clawshell_lib::core::badge::{PALETTE, app_user_model_id, badge_letter, is_valid_colour};
-use support::{Harness, add_default};
+use support::{Added, Harness, add_default};
 
 const ID_A: &str = "3f2b8c1e-5a4d-4e7b-9c10-2d6f8a9b0c11";
 const ID_B: &str = "a0b1c2d3-e4f5-4a6b-8c7d-9e0f1a2b3c4d";
@@ -107,7 +107,7 @@ fn an_accounts_colour_survives_a_restart() {
     let added = add_default(&h.core());
 
     // A fresh Core over the same machine, as after an app restart.
-    let again = h.core().list_accounts().unwrap().accounts;
+    let again = h.core().list_accounts().unwrap().added();
 
     assert_eq!(again.len(), 1);
     assert_eq!(again[0].colour, added.colour);
@@ -128,8 +128,8 @@ fn an_existing_folder_with_no_recorded_colour_gets_one_and_keeps_it() {
     h.fixture.add_profile(ID_A);
     h.fixture.add_profile(ID_B);
 
-    let first = h.core().list_accounts().unwrap().accounts;
-    let second = h.core().list_accounts().unwrap().accounts;
+    let first = h.core().list_accounts().unwrap().added();
+    let second = h.core().list_accounts().unwrap().added();
 
     assert_ne!(first[0].colour, first[1].colour);
     assert_eq!(first[0].colour, second[0].colour);
@@ -148,7 +148,7 @@ fn records_saved_before_colours_existed_are_given_colours() {
     )
     .unwrap();
 
-    let accounts = h.core().list_accounts().unwrap().accounts;
+    let accounts = h.core().list_accounts().unwrap().added();
 
     assert_eq!(accounts[0].label, "Work");
     assert!(is_valid_colour(&accounts[0].colour));
@@ -159,12 +159,12 @@ fn the_picker_changes_the_colour_and_it_persists() {
     let h = Harness::new();
     h.fixture.add_profile(ID_A);
     h.fixture.add_profile(ID_B);
-    let before = h.core().list_accounts().unwrap().accounts;
+    let before = h.core().list_accounts().unwrap().added();
 
     let changed = h.core().set_account_colour(ID_A, "#123456").unwrap();
 
     assert_eq!(changed.colour, "#123456");
-    let after = h.core().list_accounts().unwrap().accounts;
+    let after = h.core().list_accounts().unwrap().added();
     assert_eq!(after[0].colour, "#123456");
     assert_eq!(after[1].colour, before[1].colour);
 }
@@ -184,7 +184,7 @@ fn an_invalid_colour_or_unknown_account_is_refused_and_changes_nothing() {
     use clawshell_lib::core::ColourError;
     let h = Harness::new();
     h.fixture.add_profile(ID_A);
-    let before = h.core().list_accounts().unwrap().accounts[0].colour.clone();
+    let before = h.core().list_accounts().unwrap().added()[0].colour.clone();
 
     assert!(matches!(
         h.core().set_account_colour(ID_A, "blue").unwrap_err(),
@@ -194,19 +194,19 @@ fn an_invalid_colour_or_unknown_account_is_refused_and_changes_nothing() {
         h.core().set_account_colour(ID_B, "#123456").unwrap_err(),
         ColourError::Account(AccountError::Unknown)
     ));
-    assert_eq!(h.core().list_accounts().unwrap().accounts[0].colour, before);
+    assert_eq!(h.core().list_accounts().unwrap().added()[0].colour, before);
 }
 
 #[test]
 fn rows_carry_the_badge_letter_and_a_rename_updates_it() {
     let h = Harness::new();
     h.fixture.add_profile(ID_A);
-    assert_eq!(h.core().list_accounts().unwrap().accounts[0].badge, 'A');
+    assert_eq!(h.core().list_accounts().unwrap().added()[0].badge, 'A');
 
     let renamed = h.core().rename_account(ID_A, "work").unwrap();
 
     assert_eq!(renamed.badge, 'W');
-    assert_eq!(h.core().list_accounts().unwrap().accounts[0].badge, 'W');
+    assert_eq!(h.core().list_accounts().unwrap().added()[0].badge, 'W');
 }
 
 // ---- taskbar identity of running windows -------------------------------------
@@ -254,7 +254,7 @@ fn each_running_account_gets_its_own_identity() {
     assert_eq!(calls[1].profile, h.fixture.profile_path(ID_B));
     assert_ne!(calls[0].aumid, calls[1].aumid);
     assert_eq!(calls[0].badge, 'A');
-    let accounts = core.list_accounts().unwrap().accounts;
+    let accounts = core.list_accounts().unwrap().added();
     assert_eq!(calls[0].colour, accounts[0].colour);
     assert_eq!(
         calls[0].aumid,

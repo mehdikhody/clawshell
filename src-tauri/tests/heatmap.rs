@@ -158,7 +158,7 @@ fn breaks_a_day_down_by_account_in_the_saved_order() {
         .iter()
         .map(|a| (a.id.as_str(), a.value))
         .collect();
-    assert_eq!(rows, vec![(ID_A, 1.0), (ID_B, 5.0)]);
+    assert_eq!(rows, vec![("default", 0.0), (ID_A, 1.0), (ID_B, 5.0)]);
 }
 
 #[test]
@@ -258,12 +258,20 @@ fn breaks_a_days_tokens_down_by_account_in_the_saved_order() {
     };
     assert_eq!(
         rows("2026-06-12"),
-        vec![(ID_A.into(), 1_000_000.0), (ID_B.into(), 2_000_000.0)]
+        vec![
+            ("default".into(), 0.0),
+            (ID_A.into(), 1_000_000.0),
+            (ID_B.into(), 2_000_000.0)
+        ]
     );
     // A quiet day still lists every account, at zero.
     assert_eq!(
         rows("2026-06-13"),
-        vec![(ID_A.into(), 0.0), (ID_B.into(), 0.0)]
+        vec![
+            ("default".into(), 0.0),
+            (ID_A.into(), 0.0),
+            (ID_B.into(), 0.0)
+        ]
     );
 }
 

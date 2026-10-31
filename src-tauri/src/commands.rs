@@ -8,7 +8,7 @@ use crate::core::{
     OpenFolderError, RefreshOutcome, RenameError, RoutingChange, RoutingError, Settings,
     SettingsError, ShortcutError,
 };
-use crate::taskbar::{badge_image, claude_base};
+use crate::taskbar::{badge_image, claude_base, plain_image};
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
@@ -131,6 +131,9 @@ impl From<ColourError> for CommandError {
             ColourError::InvalidColour => {
                 CommandError::new("invalid-colour", "The colour must look like #rrggbb")
             }
+            ColourError::DefaultAccount => {
+                CommandError::new("default-account", "The default account has no badge")
+            }
         }
     }
 }
@@ -176,6 +179,9 @@ impl From<DeleteError> for CommandError {
             DeleteError::Running => {
                 CommandError::new("account-running", "Close the account's Claude first")
             }
+            DeleteError::DefaultAccount => {
+                CommandError::new("default-account", "The default account can't be deleted")
+            }
         }
     }
 }
@@ -187,6 +193,10 @@ impl From<ShortcutError> for CommandError {
             ShortcutError::FolderMissing => {
                 CommandError::new("folder-missing", "The account's folder is missing")
             }
+            ShortcutError::DefaultAccount => CommandError::new(
+                "default-account",
+                "Claude's own Start-menu entry opens the default account",
+            ),
         }
     }
 }
@@ -273,6 +283,16 @@ pub fn account_icon(
     let base = claude_base(locator.locate().map(|install| install.exe));
     let bytes = badge_image(letter, &colour, &base, ACCOUNT_ICON_PX)
         .ok_or_else(|| CommandError::new("icon", "the badge icon could not be drawn"))?;
+    Ok(format!("data:image/x-icon;base64,{}", BASE64.encode(bytes)))
+}
+
+/// Claude's own icon, without a badge, as an `.ico` data URL: the default
+/// account's row icon.
+#[tauri::command]
+pub fn claude_icon(locator: State<'_, Arc<dyn ClaudeLocator>>) -> Result<String, CommandError> {
+    let base = claude_base(locator.locate().map(|install| install.exe));
+    let bytes = plain_image(&base, ACCOUNT_ICON_PX)
+        .ok_or_else(|| CommandError::new("icon", "the Claude icon could not be drawn"))?;
     Ok(format!("data:image/x-icon;base64,{}", BASE64.encode(bytes)))
 }
 

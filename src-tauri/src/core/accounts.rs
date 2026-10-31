@@ -3,6 +3,7 @@
 
 use super::account_error::{AccountError, wrap_account_error};
 use super::badge::{PALETTE, app_user_model_id, badge_letter, is_valid_colour};
+use super::default_profile::{DEFAULT_ID, default_profile_dir};
 use super::launch_options::{EnvVar, LaunchOptions, LaunchOptionsError, launch_args, validate};
 use super::paths::same_path;
 use super::pooled::{PooledRemaining, pool_remaining};
@@ -14,7 +15,7 @@ use super::{Core, PROFILE_PREFIX, Profile};
 use serde::Serialize;
 use std::collections::HashSet;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 /// What an account row shows. Precedence: Missing > Signed out > Limited >
@@ -36,9 +37,14 @@ pub enum Status {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Account {
-    /// The uuid in the `clawshell-{uuid}` folder name; permanent.
+    /// The uuid in the `clawshell-{uuid}` folder name; permanent. The default
+    /// account's is `default`.
     pub id: String,
     pub label: String,
+    /// Claude's own profile, the one its Start-menu entry opens. Always
+    /// listed first; it has no badge, shortcuts or taskbar identity of its
+    /// own and is never deleted.
+    pub is_default: bool,
     /// The first letter of the label, in capitals; shown on the row and the
     /// taskbar icon.
     pub badge: char,
@@ -111,18 +117,19 @@ impl Core {
         })
     }
 
-    /// Every account clawshell knows: profile folders on disk plus recorded
-    /// accounts whose folder has vanished (status Missing), in the saved order.
+    /// Every account clawshell knows: the default account first, then the
+    /// profile folders on disk plus recorded accounts whose folder has
+    /// vanished (status Missing), in the saved order.
     pub(super) fn known_accounts(&self) -> io::Result<Vec<Account>> {
         let scan = self.scan_profiles()?;
         let records = self.synced_records(&scan.profiles);
         let running = self.ports.processes.running_profiles();
         let local = &self.ports.roots.local_app_data;
+        let default = self.default_profile();
         let usage = self.usage.lock().unwrap();
 
-        let mut accounts: Vec<Account> = scan
-            .profiles
-            .into_iter()
+        let mut accounts: Vec<Account> = std::iter::once(default)
+            .chain(scan.profiles)
             .map(|profile| {
                 let label = records
                     .label_of(&profile.id)
@@ -145,6 +152,7 @@ impl Core {
             .map(|r| Account {
                 id: r.id.clone(),
                 label: r.label.clone(),
+                is_default: false,
                 badge: badge_letter(&r.label),
                 colour: colour_in(&records, &r.id),
                 status: Status::Missing,
@@ -157,8 +165,16 @@ impl Core {
             })
             .collect();
         accounts.extend(missing);
-        accounts.sort_by_key(|a| records.position_of(&a.id));
+        accounts.sort_by_key(|a| (!a.is_default, records.position_of(&a.id)));
         Ok(accounts)
+    }
+
+    /// Claude's own profile, wherever this install keeps it.
+    pub(super) fn default_profile(&self) -> Profile {
+        Profile {
+            id: DEFAULT_ID.to_string(),
+            path: default_profile_dir(&self.ports.roots, self.claude_install().as_ref()),
+        }
     }
 
     /// Saves the order the accounts were dropped into, as `ids` lists them.
@@ -214,6 +230,9 @@ impl Core {
         if !is_valid_colour(colour) {
             return Err(ColourError::InvalidColour);
         }
+        if id == DEFAULT_ID {
+            return Err(ColourError::DefaultAccount);
+        }
         let colour = colour.to_ascii_lowercase();
         let mut account = self.update_record(id, |records| records.set_colour(id, &colour))?;
         let before = account.clone();
@@ -239,7 +258,8 @@ impl Core {
     /// forgotten, so its next window is applied afresh.
     pub fn apply_taskbar_identities(&self, accounts: &[Account]) {
         let mut applied = self.taskbar.lock().unwrap();
-        for account in accounts {
+        // The default account keeps Claude's own taskbar button.
+        for account in accounts.iter().filter(|a| !a.is_default) {
             if !account.running {
                 applied.remove(&account.id);
                 continue;
@@ -265,6 +285,9 @@ impl Core {
     /// identity is in place before it first shows. Best effort: the watcher
     /// tick applies it again once the window is up.
     pub(super) fn identify_new_window(&self, account: &Account) {
+        if account.is_default {
+            return;
+        }
         let aumid = app_user_model_id(&account.id, account.badge, &account.colour);
         let _ = self.apply_identity(account, &aumid);
     }
@@ -280,10 +303,14 @@ impl Core {
     }
 
     /// Removes the profile folder, the account's record and its shortcuts.
-    /// Refused while Claude is running on the account. A Missing account has
+    /// Refused while Claude is running on the account, and always for the
+    /// default account, whose folder is Claude's own. A Missing account has
     /// no folder left, so only its record goes. The caller confirms first.
     pub fn delete_account(&self, id: &str) -> Result<(), DeleteError> {
         let account = self.find_account(id)?.ok_or(AccountError::Unknown)?;
+        if account.is_default {
+            return Err(DeleteError::DefaultAccount);
+        }
         if account.running {
             return Err(DeleteError::Running);
         }
@@ -355,6 +382,7 @@ impl Core {
         let mut records = Records::load(local);
         // Before any new account is added, so it lands at the end.
         let mut changed = records.adopt_id_order();
+        changed |= records.ensure_default();
         for profile in profiles {
             if records.label_of(&profile.id).is_none() {
                 records.add(&profile.id);
@@ -394,6 +422,7 @@ fn account_of(
         Status::Idle
     };
     Account {
+        is_default: profile.id == DEFAULT_ID,
         id: profile.id,
         badge: badge_letter(&label),
         label,
@@ -429,12 +458,15 @@ impl Core {
     /// Starts the account's Claude, or focuses it when it is already running
     /// so no second copy opens.
     pub fn launch_account(&self, id: &str) -> Result<LaunchOutcome, LaunchError> {
-        let scan = self.scan_profiles()?;
-        let profile = scan
-            .profiles
-            .into_iter()
-            .find(|p| p.id == id)
-            .ok_or(AccountError::Unknown)?;
+        let profile = if id == DEFAULT_ID {
+            self.default_profile()
+        } else {
+            self.scan_profiles()?
+                .profiles
+                .into_iter()
+                .find(|p| p.id == id)
+                .ok_or(AccountError::Unknown)?
+        };
 
         let signed_out = !is_signed_in(&profile.path);
         let running = self.ports.processes.running_profiles();
@@ -453,7 +485,7 @@ impl Core {
             .os
             .launch(&LaunchSpec {
                 exe: install.exe,
-                args: launch_args(&profile.path, &options.flags),
+                args: claude_args(id, &profile.path, &options.flags),
                 env: options
                     .env
                     .into_iter()
@@ -486,6 +518,17 @@ impl Core {
     }
 }
 
+/// The arguments for starting Claude on account `id`, whose profile is
+/// `profile`. The default profile is Claude's own, so it takes no
+/// `--user-data-dir`: Claude then opens exactly as its Start-menu entry does.
+pub(super) fn claude_args(id: &str, profile: &Path, flags: &[String]) -> Vec<String> {
+    if id == DEFAULT_ID {
+        flags.to_vec()
+    } else {
+        launch_args(profile, flags)
+    }
+}
+
 /// A well-formed account id: the hyphenated uuid in a `clawshell-{uuid}` name.
 pub(super) fn is_account_id(id: &str) -> bool {
     id.len() == 36 && Uuid::parse_str(id).is_ok()
@@ -505,6 +548,8 @@ pub enum ColourError {
     Account(AccountError),
     /// Not `#rrggbb`.
     InvalidColour,
+    /// The default account has no badge to colour.
+    DefaultAccount,
 }
 
 wrap_account_error!(ColourError);
@@ -523,6 +568,8 @@ pub enum DeleteError {
     Account(AccountError),
     /// Claude is running on the account; deleting would corrupt a live profile.
     Running,
+    /// The default account's folder is Claude's own data.
+    DefaultAccount,
 }
 
 wrap_account_error!(DeleteError);

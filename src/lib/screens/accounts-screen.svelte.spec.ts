@@ -19,6 +19,7 @@ const palette = [BLUE, '#dc2626', '#16a34a'];
 const account = (id: string, label: string, status: string, colour = BLUE) => ({
 	id,
 	label,
+	isDefault: id === 'default',
 	badge: label.charAt(0).toUpperCase(),
 	colour,
 	status,
@@ -122,9 +123,7 @@ describe('AccountsScreen', () => {
 			expect(tauri.calls.filter((c) => c.cmd === 'set_account_colour')).toEqual([
 				{ cmd: 'set_account_colour', args: { id: 'id-idle', colour: '#dc2626' } }
 			]);
-			await expect
-				.poll(() => badgeOf(1).getAttribute('src'))
-				.toBe('data:test,W#dc2626');
+			await expect.poll(() => badgeOf(1).getAttribute('src')).toBe('data:test,W#dc2626');
 		});
 
 		it('shows a clear message when the colour cannot be changed', async () => {
@@ -572,6 +571,45 @@ describe('AccountsScreen', () => {
 		});
 	});
 
+	describe('the default account', () => {
+		const withDefault: AccountList = {
+			...threeAccounts,
+			accounts: [
+				account('default', 'Claude', 'idle', '#d97757'),
+				account('id-idle', 'Work', 'idle')
+			] as AccountList['accounts']
+		};
+
+		it("shows Claude's own icon instead of a badge", async () => {
+			mount({ claude_icon: () => 'data:test,claude' }, withDefault);
+
+			const row = page.getByRole('listitem').nth(0);
+			await expect.element(row).toHaveTextContent('Claude');
+			await expect
+				.element(row.element().querySelector<HTMLElement>('[data-slot="account-badge"]')!)
+				.toHaveAttribute('src', 'data:test,claude');
+		});
+
+		it('offers rename, folder and launch options, but no shortcuts, colour or delete', async () => {
+			mount({}, withDefault);
+
+			await page.getByText('Claude', { exact: true }).click({ button: 'right' });
+
+			await expect.element(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible();
+			await expect.element(page.getByRole('menuitem', { name: 'Open folder' })).toBeVisible();
+			await expect
+				.element(page.getByRole('menuitem', { name: 'Environment and flags' }))
+				.toBeVisible();
+			await expect
+				.element(page.getByRole('menuitem', { name: 'Add shortcuts' }))
+				.not.toBeInTheDocument();
+			await expect
+				.element(page.getByRole('menuitem', { name: 'Badge colour' }))
+				.not.toBeInTheDocument();
+			await expect.element(page.getByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument();
+		});
+	});
+
 	describe('an account whose folder is missing', () => {
 		const withMissing: AccountList = {
 			claudeFound: true,
@@ -781,7 +819,6 @@ describe('AccountsScreen usage', () => {
 
 		await expect.element(page.getByRole('listitem').nth(0)).toHaveTextContent(/63%/);
 	});
-
 });
 
 describe('AccountsScreen in Persian', () => {

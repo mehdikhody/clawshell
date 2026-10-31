@@ -9,7 +9,7 @@
 	import IconPalette from '@tabler/icons-svelte/icons/palette';
 	import IconPencil from '@tabler/icons-svelte/icons/pencil';
 	import IconPlus from '@tabler/icons-svelte/icons/plus';
-		import IconTerminal2 from '@tabler/icons-svelte/icons/terminal-2';
+	import IconTerminal2 from '@tabler/icons-svelte/icons/terminal-2';
 	import IconTrash from '@tabler/icons-svelte/icons/trash';
 	import {
 		addAccount,
@@ -68,7 +68,7 @@
 	const NOTICE_MS = 5000;
 	let loaded = $state(false);
 	let adding = $state(false);
-		/** Ticks every second so "updated X ago" and the refresh wait stay current. */
+	/** Ticks every second so "updated X ago" and the refresh wait stay current. */
 	let now = $state(Date.now());
 	let failure = $state<string | null>(null);
 	/** The warning and limit thresholds that colour the usage bars; the defaults until the saved ones load. */
@@ -207,27 +207,27 @@
 	}
 
 	/** Saves the order a row was dropped into, beside the row it landed on. */
-		async function reorder(state: DragDropState<Account>) {
-			const { sourceContainer, targetContainer, dropPosition } = state;
-			if (!targetContainer || !dropPosition) return;
-			const ids = moveAccount(
-				list.accounts.map((account) => account.id),
-				sourceContainer,
-				targetContainer,
-				dropPosition
-			);
-			if (!ids) return;
-			failure = null;
-			try {
-				await reorderAccounts(ids);
-			} catch (error) {
-				failure = describe(error, m.error_reorder_failed());
-			} finally {
-				await refresh();
-			}
+	async function reorder(state: DragDropState<Account>) {
+		const { sourceContainer, targetContainer, dropPosition } = state;
+		if (!targetContainer || !dropPosition) return;
+		const ids = moveAccount(
+			list.accounts.map((account) => account.id),
+			sourceContainer,
+			targetContainer,
+			dropPosition
+		);
+		if (!ids) return;
+		failure = null;
+		try {
+			await reorderAccounts(ids);
+		} catch (error) {
+			failure = describe(error, m.error_reorder_failed());
+		} finally {
+			await refresh();
 		}
+	}
 
-		async function openFolder(account: Account) {
+	async function openFolder(account: Account) {
 		failure = null;
 		try {
 			await openAccountFolder(account.id);
@@ -339,103 +339,120 @@
 		<Item.Group class="gap-2">
 			{#each list.accounts as account (account.id)}
 				<ContextMenu.Root>
-<ContextMenu.Trigger class="contents">
-<Item.Root
-					role="listitem"
-					variant="outline"
-					size="sm"
-					tabindex={0}
-					class="cursor-default flex-wrap select-none"
-					{@attach (node) => {
-						const drag = attachDraggable(() => ({ container: account.id, dragData: account }))(node);
-						const drop = attachDroppable(() => ({ container: account.id, callbacks: { onDrop: reorder } }))(node);
-						return () => {
-							if (typeof drag === 'function') drag();
-							if (typeof drop === 'function') drop();
-						};
-					}}
-					ondblclick={() => launch(account)}
-					onkeydown={(event: KeyboardEvent) => {
-						// Keys pressed on the row's own buttons belong to those buttons.
-						if (event.key === 'Enter' && event.target === event.currentTarget) {
-							void launch(account);
-						}
-					}}
-				>
-					<Item.Media>
-						<AccountIcon badge={account.badge} colour={account.colour} />
-					</Item.Media>
-					<Item.Content>
-						<Item.Title>{account.label}</Item.Title>
-						{#if account.status === 'missing'}
-							<Item.Description>{m.missing_hint()}</Item.Description>
-						{:else}
-							{#if account.email}
-								<Item.Description class="text-xs">{account.email}</Item.Description>
-							{/if}
-							{#if !account.usage && account.status !== 'signed-out'}
-								<p class="text-xs text-muted-foreground">{m.usage_none()}</p>
-							{/if}
-						{/if}
-					</Item.Content>
-					<Item.Actions class="self-start">
-						{#if account.status === 'limited' && account.running}
-							<Badge variant="secondary">{statusLabel.running()}</Badge>
-						{/if}
-						<Badge variant={statusVariant[account.status]}>{statusLabel[account.status]()}</Badge>
-						{#if account.status === 'missing'}
-							<Button size="xs" variant="destructive" onclick={() => askDelete(account)}>
-								{m.missing_remove()}
-							</Button>
-						{/if}
-						
-					</Item.Actions>
-					{#if account.usage}
-						<div class="flex w-full flex-col gap-3 text-xs">
-							{@render usageLines(account.usage)}
-						</div>
-					{/if}
-				</Item.Root>
-</ContextMenu.Trigger>
-<ContextMenu.Content class="w-auto min-w-48">
-								<ContextMenu.Item onSelect={() => startRename(account)}>
-									<IconPencil />
-									{m.menu_rename()}
-								</ContextMenu.Item>
-								<ContextMenu.Item
-									disabled={account.status === 'missing'}
-									onSelect={() => openFolder(account)}
+					<ContextMenu.Trigger class="contents">
+						<Item.Root
+							role="listitem"
+							variant="outline"
+							size="sm"
+							tabindex={0}
+							class="cursor-default flex-wrap select-none"
+							{@attach (node) => {
+								// The default account always stays first.
+								if (account.isDefault) return;
+								const drag = attachDraggable(() => ({ container: account.id, dragData: account }))(
+									node
+								);
+								const drop = attachDroppable(() => ({
+									container: account.id,
+									callbacks: { onDrop: reorder }
+								}))(node);
+								return () => {
+									if (typeof drag === 'function') drag();
+									if (typeof drop === 'function') drop();
+								};
+							}}
+							ondblclick={() => launch(account)}
+							onkeydown={(event: KeyboardEvent) => {
+								// Keys pressed on the row's own buttons belong to those buttons.
+								if (event.key === 'Enter' && event.target === event.currentTarget) {
+									void launch(account);
+								}
+							}}
+						>
+							<Item.Media>
+								<AccountIcon
+									badge={account.badge}
+									colour={account.colour}
+									isDefault={account.isDefault}
+								/>
+							</Item.Media>
+							<Item.Content>
+								<Item.Title>{account.label}</Item.Title>
+								{#if account.status === 'missing'}
+									<Item.Description>{m.missing_hint()}</Item.Description>
+								{:else}
+									{#if account.email}
+										<Item.Description class="text-xs">{account.email}</Item.Description>
+									{/if}
+									{#if !account.usage && account.status !== 'signed-out'}
+										<p class="text-xs text-muted-foreground">{m.usage_none()}</p>
+									{/if}
+								{/if}
+							</Item.Content>
+							<Item.Actions class="self-start">
+								{#if account.status === 'limited' && account.running}
+									<Badge variant="secondary">{statusLabel.running()}</Badge>
+								{/if}
+								<Badge variant={statusVariant[account.status]}
+									>{statusLabel[account.status]()}</Badge
 								>
-									<IconFolderOpen />
-									{m.menu_open_folder()}
-								</ContextMenu.Item>
-								<ContextMenu.Item
-									disabled={account.status === 'missing'}
-									onSelect={() => createShortcuts(account)}
-								>
-									<IconAppWindow />
-									{m.menu_add_shortcuts()}
-								</ContextMenu.Item>
-								<ContextMenu.Item onSelect={() => (editingOptions = account)}>
-									<IconTerminal2 />
-									{m.menu_launch_options()}
-								</ContextMenu.Item>
-								<ContextMenu.Item onSelect={() => (colouring = account)}>
-									<IconPalette />
-									{m.menu_badge_colour()}
-								</ContextMenu.Item>
-								<ContextMenu.Separator />
-								<ContextMenu.Item variant="destructive" onSelect={() => askDelete(account)}>
-									<IconTrash />
-									{m.menu_delete()}
-								</ContextMenu.Item>
-							</ContextMenu.Content>
-</ContextMenu.Root>
+								{#if account.status === 'missing'}
+									<Button size="xs" variant="destructive" onclick={() => askDelete(account)}>
+										{m.missing_remove()}
+									</Button>
+								{/if}
+							</Item.Actions>
+							{#if account.usage}
+								<div class="flex w-full flex-col gap-3 text-xs">
+									{@render usageLines(account.usage)}
+								</div>
+							{/if}
+						</Item.Root>
+					</ContextMenu.Trigger>
+					<ContextMenu.Content class="w-auto min-w-48">
+						<ContextMenu.Item onSelect={() => startRename(account)}>
+							<IconPencil />
+							{m.menu_rename()}
+						</ContextMenu.Item>
+						<ContextMenu.Item
+							disabled={account.status === 'missing'}
+							onSelect={() => openFolder(account)}
+						>
+							<IconFolderOpen />
+							{m.menu_open_folder()}
+						</ContextMenu.Item>
+						{#if !account.isDefault}
+							<ContextMenu.Item
+								disabled={account.status === 'missing'}
+								onSelect={() => createShortcuts(account)}
+							>
+								<IconAppWindow />
+								{m.menu_add_shortcuts()}
+							</ContextMenu.Item>
+						{/if}
+						<ContextMenu.Item onSelect={() => (editingOptions = account)}>
+							<IconTerminal2 />
+							{m.menu_launch_options()}
+						</ContextMenu.Item>
+						<!-- The default account has no badge, and its folder is Claude's own. -->
+						{#if !account.isDefault}
+							<ContextMenu.Item onSelect={() => (colouring = account)}>
+								<IconPalette />
+								{m.menu_badge_colour()}
+							</ContextMenu.Item>
+							<ContextMenu.Separator />
+							<ContextMenu.Item variant="destructive" onSelect={() => askDelete(account)}>
+								<IconTrash />
+								{m.menu_delete()}
+							</ContextMenu.Item>
+						{/if}
+					</ContextMenu.Content>
+				</ContextMenu.Root>
 			{/each}
 		</Item.Group>
 	{:else if !loaded}
-			<p class="py-10 text-center text-sm text-muted-foreground">{m.loading()}</p>
-		{:else if loaded && list.claudeFound}
+		<p class="py-10 text-center text-sm text-muted-foreground">{m.loading()}</p>
+	{:else if loaded && list.claudeFound}
 		<div class="flex flex-col items-center gap-1 py-10 text-center">
 			<p class="text-sm font-medium">{m.accounts_empty()}</p>
 			<p class="text-xs text-muted-foreground">{m.accounts_empty_hint()}</p>
@@ -448,7 +465,9 @@
 		<div class="flex flex-col gap-1.5 text-xs">
 			<div class="flex items-baseline justify-between">
 				<span class="text-muted-foreground">{label}</span>
-				<span class="tabular-nums">{formatPercentValue(Math.round(window.utilization), formatTag())}</span>
+				<span class="tabular-nums"
+					>{formatPercentValue(Math.round(window.utilization), formatTag())}</span
+				>
 			</div>
 			<Progress
 				value={window.utilization}

@@ -7,7 +7,7 @@ use clawshell_lib::core::shortcuts::{
 };
 use clawshell_lib::core::{LaunchError, LaunchOutcome};
 use std::path::{Path, PathBuf};
-use support::Harness;
+use support::{Added, Harness};
 
 const ID_A: &str = "3f2b8c1e-5a4d-4e7b-9c10-2d6f8a9b0c11";
 
@@ -212,7 +212,7 @@ fn a_shortcut_never_points_at_the_claude_install_so_it_survives_updates() {
 #[test]
 fn the_shortcut_icon_is_the_accounts_badge_in_clawshells_app_data() {
     let h = work();
-    let account = h.core().list_accounts().unwrap().accounts.remove(0);
+    let account = h.core().list_accounts().unwrap().added().remove(0);
 
     h.core().add_shortcuts(ID_A).unwrap();
 

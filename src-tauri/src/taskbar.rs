@@ -100,6 +100,13 @@ pub fn badge_image(letter: char, colour: &str, base: &[u8], size: i32) -> Option
     Some(encode_ico(&[(side, pixels)]))
 }
 
+/// Claude's own icon without a badge, `size` pixels square, as `.ico` bytes:
+/// the default account's.
+pub fn plain_image(base: &[u8], size: i32) -> Option<Vec<u8>> {
+    let side = usize::try_from(size).ok().filter(|s| *s > 0)?;
+    Some(encode_ico(&[(side, resample(base, BASE_SIDE, side))]))
+}
+
 /// The icon Windows finds in `exe` at 256 px, as `BASE_SIDE` square BGRA
 /// pixels; `None` when the exe has no icon.
 fn exe_icon(exe: &Path) -> Option<Vec<u8>> {

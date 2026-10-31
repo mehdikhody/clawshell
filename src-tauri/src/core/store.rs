@@ -2,6 +2,7 @@
 //! under local app data, kept apart from the profile folders themselves.
 
 use super::badge::{is_valid_colour, next_colour};
+use super::default_profile::{DEFAULT_COLOUR, DEFAULT_ID, DEFAULT_LABEL};
 use super::launch_options::{EnvVar, LaunchOptions};
 use serde::{Deserialize, Serialize};
 use std::io;
@@ -192,6 +193,16 @@ impl Records {
     /// The colour a new account would get: the least used palette colour.
     pub fn fresh_colour(&self) -> &'static str {
         next_colour(self.accounts.iter().filter_map(|r| r.colour.as_deref()))
+    }
+
+    /// Records the default account under its label and colour the first
+    /// time; true when that added it.
+    pub fn ensure_default(&mut self) -> bool {
+        if self.label_of(DEFAULT_ID).is_some() {
+            return false;
+        }
+        self.insert(DEFAULT_ID, DEFAULT_LABEL, DEFAULT_COLOUR);
+        true
     }
 
     /// Records `id` under a fresh default label and returns that label.

@@ -13,6 +13,13 @@ Rules:
 
 - Never add a `Co-Authored-By:` line (or any co-author trailer) to git commit messages. This applies to every commit, with no exceptions.
 
+## Changelog
+
+- `CHANGELOG.md` follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and Semantic Versioning.
+- After every change to the app, add an entry under `## [Unreleased]` in the right section (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`). Write it for users, one line per change. Do not paste commit logs.
+- Record breaking changes, deprecations and removals, even when they are small.
+- At release, rename `## [Unreleased]` to `## [x.y.z] - YYYY-MM-DD`, start a new empty `## [Unreleased]` above it, and update the link references at the bottom of the file.
+
 ## /implement-spec
 
 Run tickets one at a time: keep exactly one implementer subagent active, and start the next frontier ticket only after the merger subagent has merged the previous one into the integration branch. This overrides the skill's background, maximum-concurrency instructions.

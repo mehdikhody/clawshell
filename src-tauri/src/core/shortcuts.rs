@@ -118,6 +118,8 @@ pub enum ShortcutError {
     Account(AccountError),
     /// The account's profile folder is gone; there is nothing to launch.
     FolderMissing,
+    /// Claude's own Start-menu entry already opens the default account.
+    DefaultAccount,
 }
 
 wrap_account_error!(ShortcutError);
@@ -139,6 +141,9 @@ impl Core {
             .into_iter()
             .find(|a| a.id == id)
             .ok_or(AccountError::Unknown)?;
+        if account.is_default {
+            return Err(ShortcutError::DefaultAccount);
+        }
         if account.status == Status::Missing {
             return Err(ShortcutError::FolderMissing);
         }
@@ -153,6 +158,10 @@ impl Core {
     /// user never added, or deleted by hand, stays absent. Best effort: the
     /// change itself is already saved.
     pub(super) fn update_shortcuts(&self, before: &Account, after: &Account) {
+        // Claude's own Start-menu entry is the default account's shortcut.
+        if after.is_default {
+            return;
+        }
         let Ok(places) = self.ports.os.places() else {
             return;
         };

@@ -50,8 +50,26 @@ impl Fixture {
     pub fn roots(&self) -> Roots {
         Roots {
             local_app_data: self.local_app_data(),
+            roaming_app_data: self.roaming_app_data(),
             home: self.home(),
         }
+    }
+
+    pub fn roaming_app_data(&self) -> PathBuf {
+        self.dir.path().join("AppData/Roaming")
+    }
+
+    /// The default profile as the fake installer build keeps it, with the
+    /// files Claude Desktop keeps in a profile; signed out.
+    pub fn add_default_profile(&self) -> PathBuf {
+        let path = self.default_profile_path();
+        fs::create_dir_all(path.join("claude-code-sessions")).unwrap();
+        fs::write(path.join("config.json"), "{}").unwrap();
+        path
+    }
+
+    pub fn default_profile_path(&self) -> PathBuf {
+        self.local_app_data().join("Claude-Data/claude")
     }
 
     /// Creates `clawshell-{id}` with the files Claude Desktop keeps in a profile.
@@ -70,6 +88,16 @@ impl Fixture {
             .local_app_data()
             .join(format!("clawshell-{id}/config.json"));
         fs::write(path, r#"{"windowSizeWasSignedIn": true}"#).unwrap();
+    }
+
+    /// Signs the default profile in, creating it first.
+    pub fn sign_in_default(&self) {
+        let path = self.add_default_profile();
+        fs::write(
+            path.join("config.json"),
+            r#"{"windowSizeWasSignedIn": true}"#,
+        )
+        .unwrap();
     }
 
     /// Overwrites a profile's `plan-usage-history.json` verbatim.
@@ -389,15 +417,17 @@ impl ClaudeLocator for FakeOs {
 }
 impl Launcher for FakeOs {
     fn launch(&self, spec: &LaunchSpec) -> io::Result<()> {
+        // The default account names no folder: Claude picks its own.
         let profile = spec
             .args
             .iter()
             .find_map(|a| a.strip_prefix("--user-data-dir="))
-            .expect("every launch names its profile folder");
+            .map(PathBuf::from)
+            .unwrap_or_default();
         self.launched
             .lock()
             .unwrap()
-            .push((spec.exe.clone(), PathBuf::from(profile)));
+            .push((spec.exe.clone(), profile));
         self.launch_specs.lock().unwrap().push(spec.clone());
         Ok(())
     }
@@ -606,5 +636,21 @@ impl Harness {
             processes: self.processes.clone(),
             os: self.os.clone(),
         })
+    }
+}
+
+/// The accounts a list holds after the default one, which every list starts
+/// with: the ones clawshell added.
+pub trait Added {
+    fn added(&self) -> Vec<Account>;
+}
+
+impl Added for clawshell_lib::core::AccountList {
+    fn added(&self) -> Vec<Account> {
+        self.accounts
+            .iter()
+            .filter(|a| !a.is_default)
+            .cloned()
+            .collect()
     }
 }

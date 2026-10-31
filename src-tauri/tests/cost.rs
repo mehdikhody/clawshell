@@ -696,8 +696,10 @@ fn breaks_the_month_down_per_account_with_shares_that_add_up() {
     assert_close(a.share.unwrap(), 13.5 / 16.5);
     assert_close(b.share.unwrap(), 3.0 / 16.5);
     assert_close(cost.accounts.iter().map(|r| r.share.unwrap()).sum(), 1.0);
-    // Listed in the saved order, not by spend: B is smaller but was dropped first.
-    assert_eq!(cost.accounts[0].id, ID_B);
+    // The default account first, then the saved order, not by spend: B is
+    // smaller but was dropped first.
+    assert_eq!(cost.accounts[0].id, "default");
+    assert_eq!(cost.accounts[1].id, ID_B);
 }
 
 #[test]

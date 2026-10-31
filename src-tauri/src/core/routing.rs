@@ -3,8 +3,8 @@
 
 use super::Core;
 use super::accounts::Status;
+use super::accounts::claude_args;
 use super::install::is_store_install;
-use super::launch_options::launch_args;
 use super::link::{ClaudeLink, LinkError};
 use super::ports::LinkForward;
 use super::settings::Settings;
@@ -278,7 +278,7 @@ impl Core {
         };
         let (args, env) = account.map_or_else(Default::default, |a| {
             (
-                launch_args(&a.path, &a.flags),
+                claude_args(&a.id, &a.path, &a.flags),
                 a.env
                     .iter()
                     .map(|v| (v.name.clone(), v.value.clone()))

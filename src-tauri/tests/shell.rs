@@ -57,13 +57,15 @@ fn account(id: &str, label: &str, running: bool) -> TrayEntry {
 }
 
 #[test]
-fn the_tray_menu_with_no_accounts_offers_open_add_and_quit() {
+fn the_tray_menu_with_no_added_accounts_offers_the_default_one() {
     let h = Harness::new();
 
     assert_eq!(
         h.core().tray_entries().unwrap(),
         vec![
             TrayEntry::Open,
+            TrayEntry::Separator,
+            account("default", "Claude", false),
             TrayEntry::Separator,
             TrayEntry::AddAccount,
             TrayEntry::Quit
@@ -89,6 +91,7 @@ fn the_tray_menu_lists_accounts_and_ticks_the_running_ones() {
         vec![
             TrayEntry::Open,
             TrayEntry::Separator,
+            account("default", "Claude", false),
             account(ID_A, "Account 2", false),
             account(ID_B, "Account 3", true),
             TrayEntry::Separator,
@@ -109,6 +112,8 @@ fn an_account_whose_folder_is_gone_is_not_offered_in_the_tray() {
         h.core().tray_entries().unwrap(),
         vec![
             TrayEntry::Open,
+            TrayEntry::Separator,
+            account("default", "Claude", false),
             TrayEntry::Separator,
             TrayEntry::AddAccount,
             TrayEntry::Quit

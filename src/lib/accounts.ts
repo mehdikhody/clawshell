@@ -38,8 +38,14 @@ export type LaunchOptions = {
 };
 
 export type Account = {
+	/** The uuid of a clawshell profile, or `default`. */
 	id: string;
 	label: string;
+	/**
+	 * Claude's own profile, the one its Start-menu entry opens. Always first; it has no badge,
+	 * shortcuts or drag handle, and can't be deleted.
+	 */
+	isDefault: boolean;
 	/** The first letter of the label, in capitals. */
 	badge: string;
 	/** The badge colour, `#rrggbb`. */
@@ -119,6 +125,19 @@ export function accountIcon(badge: string, colour: string): Promise<string> {
 		icon.catch(() => accountIcons.delete(key));
 	}
 	return icon;
+}
+
+let plainIcon: Promise<string> | null = null;
+
+/** Claude's own icon, without a badge, as an image URL: the default account's. Fetched once. */
+export function claudeIcon(): Promise<string> {
+	if (!plainIcon) {
+		const icon = invoke<string>('claude_icon');
+		plainIcon = icon;
+		// A failed fetch is retried the next time the row is drawn.
+		icon.catch(() => (plainIcon = null));
+	}
+	return plainIcon;
 }
 
 /** The name and badge colour the Add dialog starts with. */

@@ -15,6 +15,9 @@ pub struct Roots {
     /// `%LOCALAPPDATA%`: holds the `clawshell-{uuid}` profile folders and
     /// clawshell's own `clawshell` app-data folder.
     pub local_app_data: PathBuf,
+    /// `%APPDATA%`: where older Claude Desktop versions kept the default
+    /// profile.
+    pub roaming_app_data: PathBuf,
     /// The user's profile home (parent of `.claude/projects`).
     pub home: PathBuf,
 }

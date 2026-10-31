@@ -2,7 +2,7 @@ mod support;
 
 use clawshell_lib::core::AccountError;
 use clawshell_lib::core::Status;
-use support::{Harness, add_default};
+use support::{Added, Harness, add_default};
 
 const ID_A: &str = "3f2b8c1e-5a4d-4e7b-9c10-2d6f8a9b0c11";
 const ID_B: &str = "a0b1c2d3-e4f5-4a6b-8c7d-9e0f1a2b3c4d";
@@ -11,7 +11,7 @@ fn statuses(h: &Harness) -> Vec<(String, Status)> {
     h.core()
         .list_accounts()
         .unwrap()
-        .accounts
+        .added()
         .into_iter()
         .map(|a| (a.id, a.status))
         .collect()
@@ -27,8 +27,9 @@ fn lists_only_clawshell_accounts() {
 
     let list = h.core().list_accounts().unwrap();
 
+    // Claude's own profile is the default account, listed first.
     let ids: Vec<_> = list.accounts.iter().map(|a| a.id.as_str()).collect();
-    assert_eq!(ids, vec![ID_A]);
+    assert_eq!(ids, vec!["default", ID_A]);
 }
 
 #[test]
@@ -102,7 +103,7 @@ fn a_running_account_reports_running_even_when_signed_out() {
 
     let list = h.core().list_accounts().unwrap();
 
-    assert!(list.accounts[0].running);
+    assert!(list.added()[0].running);
 }
 
 #[test]
@@ -202,7 +203,7 @@ fn add_uses_the_name_and_colour_it_is_given() {
     assert_eq!(account.label, "Work");
     assert_eq!(account.badge, 'W');
     assert_eq!(account.colour, "#dc2626");
-    let listed = h.core().list_accounts().unwrap().accounts;
+    let listed = h.core().list_accounts().unwrap().added();
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].label, "Work");
     assert_eq!(listed[0].colour, "#dc2626");
@@ -216,7 +217,7 @@ fn the_dialog_starts_from_the_default_name_and_colour() {
 
     assert_eq!(defaults.label, "Account 2");
     assert_eq!(defaults.colour, "#2563eb");
-    assert!(h.core().list_accounts().unwrap().accounts.is_empty());
+    assert!(h.core().list_accounts().unwrap().added().is_empty());
 }
 
 #[test]
@@ -248,7 +249,7 @@ fn two_accounts_may_share_a_name() {
     let b = core.add_account("Work", "#dc2626").unwrap();
 
     assert_ne!(a.id, b.id);
-    assert_eq!(core.list_accounts().unwrap().accounts.len(), 2);
+    assert_eq!(core.list_accounts().unwrap().added().len(), 2);
 }
 
 #[test]
@@ -263,7 +264,7 @@ fn every_added_account_gets_its_own_folder() {
     let ids: Vec<_> = core
         .list_accounts()
         .unwrap()
-        .accounts
+        .added()
         .into_iter()
         .map(|a| a.id)
         .collect();
@@ -290,7 +291,7 @@ fn labels_persist_across_restarts_and_keep_numbering_unique() {
     let labels: Vec<_> = again
         .list_accounts()
         .unwrap()
-        .accounts
+        .added()
         .into_iter()
         .map(|a| a.label)
         .collect();
@@ -309,7 +310,7 @@ fn an_unrecorded_clawshell_folder_is_adopted_without_clashing_labels() {
     let labels: Vec<_> = core
         .list_accounts()
         .unwrap()
-        .accounts
+        .added()
         .into_iter()
         .map(|a| a.label)
         .collect();
@@ -467,7 +468,7 @@ fn labels(h: &Harness) -> Vec<(String, String)> {
     h.core()
         .list_accounts()
         .unwrap()
-        .accounts
+        .added()
         .into_iter()
         .map(|a| (a.id, a.label))
         .collect()
@@ -694,7 +695,7 @@ fn an_account_whose_folder_vanished_is_listed_as_missing() {
     h.core().rename_account(ID_A, "Work").unwrap();
     std::fs::remove_dir_all(h.fixture.profile_path(ID_A)).unwrap();
 
-    let accounts = h.core().list_accounts().unwrap().accounts;
+    let accounts = h.core().list_accounts().unwrap().added();
 
     assert_eq!(accounts.len(), 2);
     assert_eq!(accounts[0].id, ID_A);
@@ -770,7 +771,7 @@ fn ids_in_list(h: &Harness) -> Vec<String> {
     h.core()
         .list_accounts()
         .unwrap()
-        .accounts
+        .added()
         .into_iter()
         .map(|a| a.id)
         .collect()
@@ -819,7 +820,7 @@ fn a_missing_account_keeps_its_saved_place_until_it_is_removed() {
         .unwrap();
     std::fs::remove_dir_all(h.fixture.profile_path(ID_B)).unwrap();
 
-    let accounts = h.core().list_accounts().unwrap().accounts;
+    let accounts = h.core().list_accounts().unwrap().added();
 
     assert_eq!(
         accounts.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
