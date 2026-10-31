@@ -331,8 +331,8 @@ describe('UsageScreen heatmap', () => {
 	it('labels each day with its Code estimate, and has no measure switch', async () => {
 		withMap();
 
-		await expect.element(cell(/Jun 10/)).toHaveAccessibleName(/$8.00/);
-		await expect.element(cell(/Jun 12/)).toHaveAccessibleName(/$1.00/);
+		await expect.element(cell(/Jun 10/)).toHaveAccessibleName(/\$8\.00/);
+		await expect.element(cell(/Jun 12/)).toHaveAccessibleName(/\$1\.00/);
 		await expect.element(page.getByRole('radio', { name: '%' })).not.toBeInTheDocument();
 	});
 
@@ -414,7 +414,7 @@ describe('UsageScreen heatmap', () => {
 		withMap();
 		const border = (name: RegExp) => getComputedStyle(cell(name).element()).borderStyle;
 
-		await expect.element(cell(/Jun 11/)).toHaveAccessibleName(/$0.00/);
+		await expect.element(cell(/Jun 11/)).toHaveAccessibleName(/\$0\.00/);
 		await expect.element(cell(/Jun 9:/)).toHaveAccessibleName(/no data/i);
 		expect(border(/Jun 9:/)).toBe('dashed');
 		expect(border(/Jun 11/)).not.toBe('dashed');
