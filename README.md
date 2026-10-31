@@ -145,14 +145,17 @@ npm run tauri dev
 
 ### Scripts
 
-| Command               | Description                                         |
-| --------------------- | --------------------------------------------------- |
-| `npm run tauri dev`   | Run the app with hot reload                         |
-| `npm run tauri build` | Build the Windows installers                        |
-| `npm test`            | Run the Vitest suite once                           |
-| `npm run check`       | Type-check with svelte-check                        |
-| `npm run lint`        | Check formatting with Prettier and lint with ESLint |
-| `npm run format`      | Format the codebase with Prettier                   |
+| Command                     | Description                                         |
+| --------------------------- | --------------------------------------------------- |
+| `npm run tauri dev`         | Run the app with hot reload                         |
+| `npm run tauri build`       | Build the signed Windows installers (needs the key) |
+| `npm run tauri:build:local` | Build the installers without the signing key        |
+| `npm test`                  | Run the Vitest suite once                           |
+| `npm run check`             | Type-check with svelte-check                        |
+| `npm run lint`              | Check formatting with Prettier and lint with ESLint |
+| `npm run format`            | Format the codebase with Prettier                   |
+
+Release builds also create signed updater artifacts, and `tauri build` fails at the end if `TAURI_SIGNING_PRIVATE_KEY` is not set. For a local build, use `npm run tauri:build:local`. It turns updater artifacts off, so it needs no key.
 
 ### Tech stack
 
@@ -194,7 +197,30 @@ Releases are built by the [release workflow](.github/workflows/release.yml) on G
    git push origin v0.1.0
    ```
 
-The workflow fails if the tag and the version differ. Otherwise it runs the tests, builds the Windows installers and publishes them to a GitHub release.
+The workflow fails if the tag and the version differ. Otherwise it runs the tests, builds the Windows installers, signs them for the updater and publishes them to a GitHub release together with `latest.json`. Installed copies of clawshell read that file from the latest stable release to find updates, so drafts and prereleases never reach users.
+
+### Signing key setup
+
+Updates are verified against a key pair. Set it up once before the first updater-enabled release:
+
+1. Generate the key pair. Pick a password when prompted:
+
+   ```powershell
+   npx tauri signer generate -w ~/.tauri/clawshell.key
+   ```
+
+   This writes the private key to `~/.tauri/clawshell.key` and the public key to `~/.tauri/clawshell.key.pub`.
+
+2. In the repository settings under **Secrets and variables > Actions**, add two secrets:
+   - `TAURI_SIGNING_PRIVATE_KEY`: the contents of `~/.tauri/clawshell.key`.
+   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: the password from step 1.
+3. Put the contents of `~/.tauri/clawshell.key.pub` in `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`, then commit it.
+4. Back up the private key and its password somewhere outside the repository, such as a password manager. If you lose the key, installed copies cannot verify a new key and every user has to reinstall by hand.
+
+Never commit the private key. Release builds fail at the end of bundling if `TAURI_SIGNING_PRIVATE_KEY` is missing or does not match the public key in the config.
+
+> [!NOTE]
+> v0.1.0 shipped without an updater, so its users have to install the first updater-enabled release by hand. From then on, clawshell updates itself.
 
 ## Credits
 
