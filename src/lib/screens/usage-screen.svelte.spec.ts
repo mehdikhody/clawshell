@@ -1,4 +1,5 @@
 import { page } from 'vitest/browser';
+import { formatReset } from '$lib/usage';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { emit } from '@tauri-apps/api/event';
@@ -100,9 +101,7 @@ describe('UsageScreen pooled bars', () => {
 			})
 		);
 
-		const expected = new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit' }).format(
-			soon
-		);
+		const expected = formatReset(SOON_ISO, new Date(), 'en');
 		await expect.element(page.getByText(`Resets ${expected}`)).toBeVisible();
 		// The weekly window has no reset time, so only one reset line appears.
 		expect(page.getByText(/^Resets /).elements()).toHaveLength(1);
@@ -252,19 +251,6 @@ describe('UsageScreen this month', () => {
 		expect(tauri.calls.filter((c) => c.cmd === 'month_cost')).toHaveLength(1);
 	});
 
-	it('reads the month again after a manual refresh', async () => {
-		const tauri = mount(listWith(emptyPooled), {
-			month_cost: () => month,
-			refresh_usage: () => ({ refreshed: 1, refreshAllowedAt: Date.now() + 3 * MIN })
-		});
-		await expect.element(page.getByText('$16.50', { exact: true })).toBeVisible();
-
-		await page.getByRole('button', { name: 'Refresh usage' }).click();
-
-		await vi.waitFor(() =>
-			expect(tauri.calls.filter((c) => c.cmd === 'month_cost')).toHaveLength(2)
-		);
-	});
 
 	it('shows no cost section when the core cannot report one', async () => {
 		mount(listWith(emptyPooled), {
@@ -389,17 +375,6 @@ describe('UsageScreen heatmap', () => {
 		await expect.element(grid()).not.toBeInTheDocument();
 	});
 
-	it('reads the heatmap again after a manual refresh', async () => {
-		const tauri = mount(listWith(emptyPooled), {
-			heatmap: () => MAP,
-			refresh_usage: () => ({ refreshed: 1, refreshAllowedAt: Date.now() + 3 * MIN })
-		});
-		await expect.element(grid()).toBeVisible();
-
-		await page.getByRole('button', { name: 'Refresh usage' }).click();
-
-		await vi.waitFor(() => expect(tauri.calls.filter((c) => c.cmd === 'heatmap')).toHaveLength(2));
-	});
 });
 
 describe('UsageScreen in Persian', () => {

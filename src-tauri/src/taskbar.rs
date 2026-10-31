@@ -85,6 +85,21 @@ pub fn badge_ico(letter: char, colour: &str, base: &[u8]) -> Option<Vec<u8>> {
     Some(encode_ico(&images?))
 }
 
+/// The badge as the bytes of an `.ico` file of one `size` x `size` image, for
+/// the account list (`None` when `colour` is not `#rrggbb` or GDI cannot draw
+/// the letter).
+pub fn badge_image(letter: char, colour: &str, base: &[u8], size: i32) -> Option<Vec<u8>> {
+    let colour = rgb(colour)?;
+    let side = usize::try_from(size).ok().filter(|s| *s > 0)?;
+    let pixels = render_badge(
+        side,
+        colour,
+        &letter_coverage(letter, size)?,
+        &resample(base, BASE_SIDE, side),
+    );
+    Some(encode_ico(&[(side, pixels)]))
+}
+
 /// The icon Windows finds in `exe` at 256 px, as `BASE_SIDE` square BGRA
 /// pixels; `None` when the exe has no icon.
 fn exe_icon(exe: &Path) -> Option<Vec<u8>> {
@@ -400,6 +415,15 @@ mod tests {
             ICO_SIZES.len()
         );
         assert_eq!(badge_ico('W', "blue", &plain_base()), None);
+    }
+
+    #[test]
+    fn the_account_icon_is_one_image_of_the_asked_size() {
+        let ico = badge_image('W', "#2563eb", &plain_base(), 64).expect("an ico");
+
+        assert_eq!(&ico[..4], &[0, 0, 1, 0], "an icon file");
+        assert_eq!(u16::from_le_bytes([ico[4], ico[5]]), 1, "one image");
+        assert_eq!(ico[6], 64, "64 px wide");
     }
 
     #[test]

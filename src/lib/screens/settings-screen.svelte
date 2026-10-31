@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import IconChevronDown from '@tabler/icons-svelte/icons/chevron-down';
 	import IconInfoCircle from '@tabler/icons-svelte/icons/info-circle';
 	import { errorCode } from '$lib/accounts';
 	import * as Alert from '$lib/components/ui/alert';
@@ -7,9 +8,10 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as Item from '$lib/components/ui/item';
 	import { Label } from '$lib/components/ui/label';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { isLocale, locales } from '$lib/locale';
 	import { active, switchLocale } from '$lib/locale-state.svelte';
+	import { Slider as SliderPrimitive } from 'bits-ui';
 	import { Switch } from '$lib/components/ui/switch';
 	import { m } from '$lib/paraglide/messages.js';
 	import { getSettings, setSignInRouting, updateSettings, type Settings } from '$lib/settings';
@@ -78,17 +80,16 @@
 	}
 
 	/** The threshold fields' text, which may be ahead of what is saved. */
-	let draftWarning = $state('');
-	let draftLimit = $state('');
+	let draftWarning = $state(0);
+	let draftLimit = $state(0);
 
 	function syncDrafts() {
-		draftWarning = String(settings?.warningThreshold ?? '');
-		draftLimit = String(settings?.limitThreshold ?? '');
+		draftWarning = settings?.warningThreshold ?? 0;
+		draftLimit = settings?.limitThreshold ?? 0;
 	}
 
-	/** Commits a threshold field; an empty or non-whole value goes back to what is saved. */
-	async function saveThreshold(key: 'warningThreshold' | 'limitThreshold', text: string) {
-		const value = text.trim() === '' ? NaN : Number(text);
+	/** Commits a threshold when the slider is released; a non-whole value goes back to what is saved. */
+	async function saveThreshold(key: 'warningThreshold' | 'limitThreshold', value: number) {
 		if (Number.isInteger(value) && value !== settings?.[key]) await save({ [key]: value });
 		syncDrafts();
 	}
@@ -136,13 +137,13 @@
 			key: 'warningThreshold',
 			label: () => m.settings_warning_threshold(),
 			draft: () => draftWarning,
-			edit: (value: string) => (draftWarning = value)
+			edit: (value: number) => (draftWarning = value)
 		},
 		{
 			key: 'limitThreshold',
 			label: () => m.settings_limit_threshold(),
 			draft: () => draftLimit,
-			edit: (value: string) => (draftLimit = value)
+			edit: (value: number) => (draftLimit = value)
 		}
 	] as const;
 </script>
@@ -172,7 +173,7 @@
 	</Item.Root>
 {/snippet}
 
-<section class="flex flex-col gap-3 p-4">
+<section class="flex flex-col gap-3 p-4 pb-8">
 	<h1 class="text-base font-semibold">{m.tab_settings()}</h1>
 	{#if failure}
 		<Alert.Root variant="destructive">
@@ -221,71 +222,88 @@
 			{@render switchRow(row)}
 		{/each}
 
-		<div class="flex flex-col gap-2">
-			<div class="flex gap-2">
-				{#each thresholds as field (field.key)}
-					<div class="flex flex-col gap-2">
-						<Label for="setting-{field.key}">{field.label()}</Label>
-						<Input
-							id="setting-{field.key}" class="w-24"
-							type="number"
-							min={1}
+		{#each thresholds as field (field.key)}
+			<Item.Root variant="outline" size="sm">
+				<Item.Content>
+					<Item.Title>{field.label()}</Item.Title>
+					<div class="flex items-center gap-3">
+						<SliderPrimitive.Root
+							type="single"
+							min={0}
 							max={100}
 							step={1}
-							inputmode="numeric"
-							dir="ltr"
+							aria-label={field.label()}
 							value={field.draft()}
-							oninput={(event) => field.edit(event.currentTarget.value)}
-							onchange={() => saveThreshold(field.key, field.draft())}
-						/>
+							onValueChange={(value) => field.edit(value)}
+							onValueCommit={(value) => saveThreshold(field.key, value)}
+							class="relative flex w-full touch-none items-center select-none"
+						>
+							<span class="bg-muted relative h-1.5 w-full grow overflow-hidden rounded-full">
+								<SliderPrimitive.Range class="bg-primary absolute h-full" />
+							</span>
+							<SliderPrimitive.Thumb
+								index={0}
+								class="border-primary bg-background ring-ring/50 block size-4 shrink-0 rounded-full border shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden"
+							/>
+						</SliderPrimitive.Root>
+						<span class="w-10 text-end text-sm tabular-nums">{field.draft()}%</span>
 					</div>
-				{/each}
-			</div>
-			<p class="text-xs text-muted-foreground">{m.settings_thresholds_hint()}</p>
-		</div>
+				</Item.Content>
+			</Item.Root>
+		{/each}
+		<p class="text-xs text-muted-foreground">{m.settings_thresholds_hint()}</p>
 
+		<h2 class="mt-2 text-sm font-medium">{m.settings_preferences()}</h2>
 		<Item.Root variant="outline" size="sm">
 			<Item.Content>
 				<Item.Title id="setting-language">{m.settings_language()}</Item.Title>
 				<Item.Description>{m.settings_language_hint()}</Item.Description>
 			</Item.Content>
 			<Item.Actions>
-				<ToggleGroup.Root
-					type="single"
-					variant="outline"
-					size="sm"
-					aria-labelledby="setting-language"
-					bind:value={
-						() => settings!.language,
-						(next) => {
-							// A single-select group reports '' when the pressed item is pressed again.
-							if (isLocale(next) && next !== settings!.language) void save({ language: next });
-						}
-					}
-				>
-					{#each locales as locale (locale)}
-						<ToggleGroup.Item value={locale} lang={locale}
-							>{languageName[locale]()}</ToggleGroup.Item
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<Button {...props} variant="outline" size="sm" aria-labelledby="setting-language">
+								{languageName[settings!.language]()}
+								<IconChevronDown />
+							</Button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="end">
+						<DropdownMenu.RadioGroup
+							value={settings!.language}
+							onValueChange={(next) => {
+								if (isLocale(next) && next !== settings!.language) void save({ language: next });
+							}}
 						>
-					{/each}
-				</ToggleGroup.Root>
+							{#each locales as locale (locale)}
+								<DropdownMenu.RadioItem value={locale} lang={locale}>{languageName[locale]()}</DropdownMenu.RadioItem>
+							{/each}
+						</DropdownMenu.RadioGroup>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
 			</Item.Actions>
 		</Item.Root>
 
-		<form class="flex flex-col gap-2" onsubmit={savePath}>
-			<Label for="setting-claude-path">{m.settings_claude_path()}</Label>
-			<div class="flex gap-2">
-				<Input
-					id="setting-claude-path"
-					bind:value={draftPath}
-					placeholder={m.settings_claude_path_placeholder()}
-					spellcheck={false}
-					autocomplete="off"
-					dir="ltr"
-				/>
-				<Button type="submit" variant="secondary">{m.settings_claude_path_save()}</Button>
-			</div>
-			<p class="text-xs text-muted-foreground">{m.settings_claude_path_hint()}</p>
+		<form onsubmit={savePath}>
+			<Item.Root variant="outline" size="sm">
+				<Item.Content>
+					<Item.Title><Label for="setting-claude-path">{m.settings_claude_path()}</Label></Item.Title>
+					<Item.Description>{m.settings_claude_path_hint()}</Item.Description>
+				</Item.Content>
+				<Item.Actions class="w-full">
+					<Input
+						id="setting-claude-path"
+						class="min-w-0 flex-1"
+						bind:value={draftPath}
+						placeholder={m.settings_claude_path_placeholder()}
+						spellcheck={false}
+						autocomplete="off"
+						dir="ltr"
+					/>
+					<Button type="submit" variant="secondary">{m.settings_claude_path_save()}</Button>
+				</Item.Actions>
+			</Item.Root>
 		</form>
 	{/if}
 </section>

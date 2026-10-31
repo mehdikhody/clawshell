@@ -21,7 +21,8 @@ use std::sync::Arc;
 use tauri::{Manager, WindowEvent};
 use tauri_plugin_notification::NotificationExt;
 
-fn build_core(roots: Roots, app: tauri::AppHandle) -> Arc<Core> {
+/// The core, and the locator it was built with, which the account icons need.
+fn build_core(roots: Roots, app: tauri::AppHandle) -> (Arc<Core>, Arc<dyn ClaudeLocator>) {
     let detected = Arc::new(WindowsLocator::new(roots.local_app_data.clone()));
     // Detection plus the saved Claude.exe override, shared by launching and
     // by the running check.
@@ -32,14 +33,15 @@ fn build_core(roots: Roots, app: tauri::AppHandle) -> Arc<Core> {
     let toast: Toast = Box::new(move |title, body| {
         let _ = app.notification().builder().title(title).body(body).show();
     });
-    Arc::new(Core::new(Ports {
+    let core = Arc::new(Core::new(Ports {
         roots,
         http: Arc::new(UreqHttp::new()),
         clock: Arc::new(SystemClock),
         tokens: Arc::new(DesktopTokens),
         processes: Arc::new(DesktopProcesses::new(lister.clone(), locator.clone())),
-        os: Arc::new(WindowsOs::new(locator, lister, toast)),
-    }))
+        os: Arc::new(WindowsOs::new(locator.clone(), lister, toast)),
+    }));
+    (core, locator)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -72,7 +74,7 @@ pub fn run() {
         })
         .setup(|app| {
             let paths = app.path();
-            let core = build_core(
+            let (core, locator) = build_core(
                 Roots {
                     local_app_data: paths.local_data_dir()?,
                     home: paths.home_dir()?,
@@ -97,12 +99,14 @@ pub fn run() {
             core.keep_link_handler();
             app.manage(feed);
             app.manage(core);
+            app.manage(locator);
             tray::open_from_command_line(app.handle(), &args);
             tray::route_from_command_line(app.handle(), &args);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::list_accounts,
+            commands::account_icon,
             commands::add_account,
             commands::launch_account,
             commands::set_launch_options,

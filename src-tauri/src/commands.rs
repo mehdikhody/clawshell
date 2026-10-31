@@ -1,12 +1,15 @@
 //! Thin Tauri wrappers over the core, plus the watcher that pushes status
 //! changes to the UI.
 
+use crate::core::ports::ClaudeLocator;
 use crate::core::{
     Account, AccountError, AccountList, AddError, ColourError, Core, DeleteError, Heatmap,
     LaunchError, LaunchOptions, LaunchOptionsError, LaunchOutcome, MonthCost, OpenFolderError,
     RefreshOutcome, RenameError, RoutingChange, RoutingError, Settings, SettingsError,
     ShortcutError,
 };
+use crate::taskbar::{badge_image, claude_base};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -235,6 +238,24 @@ pub fn delete_account(core: State<'_, Arc<Core>>, id: String) -> Result<(), Comm
 pub fn list_accounts(core: State<'_, Arc<Core>>) -> Result<AccountList, CommandError> {
     core.list_accounts()
         .map_err(|e| CommandError::new("io", e.to_string()))
+}
+
+/// Pixels of the account icon shown in the account list.
+const ACCOUNT_ICON_PX: i32 = 64;
+
+/// An account's badge icon, Claude's own icon with the letter disc, as an
+/// `.ico` data URL for the account list.
+#[tauri::command]
+pub fn account_icon(
+    locator: State<'_, Arc<dyn ClaudeLocator>>,
+    badge: String,
+    colour: String,
+) -> Result<String, CommandError> {
+    let letter = badge.chars().next().unwrap_or('?');
+    let base = claude_base(locator.locate().map(|install| install.exe));
+    let bytes = badge_image(letter, &colour, &base, ACCOUNT_ICON_PX)
+        .ok_or_else(|| CommandError::new("icon", "the badge icon could not be drawn"))?;
+    Ok(format!("data:image/x-icon;base64,{}", BASE64.encode(bytes)))
 }
 
 #[tauri::command]

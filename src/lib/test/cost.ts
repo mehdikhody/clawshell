@@ -7,6 +7,7 @@ export const monthCost = (over: Partial<MonthCost> = {}): MonthCost => ({
 	extraUsd: 0,
 	totalUsd: 0,
 	unpricedMessages: 0,
+	tokens: 0,
 	accounts: [],
 	...over
 });
@@ -18,5 +19,6 @@ export const accountCost = (id: string, over: Partial<AccountCost> = {}): Accoun
 	extraUsd: 0,
 	totalUsd: 0,
 	share: null,
+	tokens: 0,
 	...over
 });

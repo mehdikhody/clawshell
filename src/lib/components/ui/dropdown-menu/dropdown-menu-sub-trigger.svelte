@@ -25,5 +25,5 @@
 	{...restProps}
 >
 	{@render children?.()}
-	<IconChevronRight class="cn-rtl-flip ms-auto" />
+	<IconChevronRight class="ms-auto" />
 </DropdownMenuPrimitive.SubTrigger>

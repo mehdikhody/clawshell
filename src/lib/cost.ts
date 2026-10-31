@@ -14,6 +14,8 @@ export type AccountCost = {
 	totalUsd: number | null;
 	/** This account's part of the month total, 0 to 1. */
 	share: number | null;
+	/** Tokens used month to date, every class. */
+	tokens: number;
 };
 
 export type MonthCost = {
@@ -24,6 +26,8 @@ export type MonthCost = {
 	totalUsd: number | null;
 	/** Messages left out of the estimate because their model has no price. */
 	unpricedMessages: number;
+	/** Tokens used month to date across accounts. */
+	tokens: number;
 	/** Biggest first. */
 	accounts: AccountCost[];
 };
@@ -33,3 +37,13 @@ export const monthCost = () => invoke<MonthCost>('month_cost');
 
 export const formatUsd = (amount: number, locale: string): string =>
 	new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(amount);
+
+/** Short form from a thousand up, like $10K; smaller amounts keep their cents. */
+export const formatUsdShort = (amount: number, locale: string): string =>
+	amount >= 1000
+		? new Intl.NumberFormat('en', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(amount)
+		: formatUsd(amount, locale);
+
+/** Short count from a thousand up, like 7.5B. */
+export const formatCountShort = (count: number): string =>
+	new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(count);

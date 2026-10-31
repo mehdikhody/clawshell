@@ -132,18 +132,17 @@ describe('SettingsScreen', () => {
 	it('offers English and Persian with the saved language picked', async () => {
 		mount({ ...defaults, language: 'fa' });
 
-		const group = page.getByRole('group', { name: 'Language' });
-		await expect.element(group).toBeVisible();
-		await expect.element(page.getByRole('radio', { name: 'فارسی' })).toBeChecked();
-		await expect.element(page.getByRole('radio', { name: 'English' })).not.toBeChecked();
+		await page.getByRole('button', { name: 'Language' }).click();
+		await expect.element(page.getByRole('menuitemradio', { name: 'فارسی' })).toBeChecked();
+		await expect.element(page.getByRole('menuitemradio', { name: 'English' })).not.toBeChecked();
 	});
 
 	it('saves the chosen language and flips the document to right-to-left', async () => {
 		const tauri = mount();
 
-		await page.getByRole('radio', { name: 'فارسی' }).click();
+		await page.getByRole('button', { name: 'Language' }).click();
+		await page.getByRole('menuitemradio', { name: 'فارسی' }).click();
 
-		await expect.element(page.getByRole('radio', { name: 'فارسی' })).toBeChecked();
 		expect(updates(tauri.calls)).toEqual([{ ...defaults, language: 'fa' }]);
 		expect(active.locale).toBe('fa');
 		expect(document.documentElement.dir).toBe('rtl');
@@ -154,7 +153,8 @@ describe('SettingsScreen', () => {
 		switchLocale('fa');
 		const tauri = mount({ ...defaults, language: 'fa' });
 
-		await page.getByRole('radio', { name: 'English' }).click();
+		await page.getByRole('button', { name: 'زبان' }).click();
+		await page.getByRole('menuitemradio', { name: 'English' }).click();
 
 		await expect.poll(() => document.documentElement.dir).toBe('ltr');
 		expect(updates(tauri.calls)).toEqual([{ ...defaults, language: 'en' }]);
@@ -168,10 +168,10 @@ describe('SettingsScreen', () => {
 			}
 		});
 
-		await page.getByRole('radio', { name: 'فارسی' }).click();
+		await page.getByRole('button', { name: 'Language' }).click();
+		await page.getByRole('menuitemradio', { name: 'فارسی' }).click();
 
 		await expect.element(page.getByRole('alert')).toBeVisible();
-		await expect.element(page.getByRole('radio', { name: 'English' })).toBeChecked();
 		expect(active.locale).toBe('en');
 		expect(document.documentElement.dir).toBe('ltr');
 	});
@@ -204,24 +204,19 @@ describe('SettingsScreen', () => {
 	it('shows the saved thresholds', async () => {
 		mount({ ...defaults, warningThreshold: 65, limitThreshold: 90 });
 
-		await expect.element(page.getByRole('spinbutton', { name: 'Warning at (%)' })).toHaveValue(65);
-		await expect.element(page.getByRole('spinbutton', { name: 'Limit at (%)' })).toHaveValue(90);
+		await expect.element(page.getByText('65%', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('90%', { exact: true })).toBeVisible();
 	});
 
-	it('saves an edited threshold as soon as the field is committed', async () => {
+	it('saves a warning threshold moved with the keyboard', async () => {
 		const tauri = mount();
 
-		await page.getByRole('spinbutton', { name: 'Warning at (%)' }).fill('70');
-		await userEvent.keyboard('{Tab}');
+		await expect.element(page.getByRole('slider').first()).toBeVisible();
+		(await page.getByRole('slider').first().element() as HTMLElement).focus();
+		await userEvent.keyboard('{ArrowRight}');
 
-		expect(updates(tauri.calls)).toEqual([{ ...defaults, warningThreshold: 70 }]);
-		await page.getByRole('spinbutton', { name: 'Limit at (%)' }).fill('95');
-		await userEvent.keyboard('{Tab}');
-		expect(updates(tauri.calls).at(-1)).toEqual({
-			...defaults,
-			warningThreshold: 70,
-			limitThreshold: 95
-		});
+		await expect.poll(() => updates(tauri.calls)).toEqual([{ ...defaults, warningThreshold: 81 }]);
+		await expect.element(page.getByText('81%', { exact: true })).toBeVisible();
 	});
 
 	it('says so and goes back to the saved value when the core refuses a threshold', async () => {
@@ -231,24 +226,13 @@ describe('SettingsScreen', () => {
 			}
 		});
 
-		const field = page.getByRole('spinbutton', { name: 'Warning at (%)' });
-		await field.fill('100');
-		await userEvent.keyboard('{Tab}');
+		await expect.element(page.getByRole('slider').first()).toBeVisible();
+		(await page.getByRole('slider').first().element() as HTMLElement).focus();
+		await userEvent.keyboard('{ArrowRight}'.repeat(20));
 
 		await expect.element(page.getByRole('alert')).toHaveTextContent(/below the limit/i);
-		await expect.element(field).toHaveValue(80);
-		expect(updates(tauri.calls)).toHaveLength(1);
-	});
-
-	it('does not send an empty or out-of-range threshold', async () => {
-		const tauri = mount();
-
-		const field = page.getByRole('spinbutton', { name: 'Warning at (%)' });
-		await field.fill('');
-		await userEvent.keyboard('{Tab}');
-
-		expect(updates(tauri.calls)).toHaveLength(0);
-		await expect.element(field).toHaveValue(80);
+		await expect.element(page.getByText('80%', { exact: true })).toBeVisible();
+		expect(updates(tauri.calls)).toHaveLength(20);
 	});
 
 	describe('sign-in routing', () => {

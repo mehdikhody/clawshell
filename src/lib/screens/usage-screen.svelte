@@ -81,7 +81,7 @@
 	});
 </script>
 
-<section class="flex flex-col gap-3 p-4">
+<section class="flex flex-col gap-5 p-4">
 	<header class="flex items-center justify-between">
 		<h1 class="text-base font-semibold">{m.tab_usage()}</h1>
 	</header>

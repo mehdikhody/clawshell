@@ -31,6 +31,7 @@
 	} from '$lib/accounts';
 	import * as Alert from '$lib/components/ui/alert';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import AccountIcon from '$lib/components/account-icon.svelte';
 	import LaunchOptionsDialog from '$lib/components/launch-options-dialog.svelte';
 	import { Badge, type BadgeVariant } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
@@ -64,6 +65,8 @@
 	/** The account being renamed, and the draft name in the dialog. */
 	let renaming = $state<Account | null>(null);
 	let draftName = $state('');
+	/** The account whose badge colour is being picked. */
+	let colouring = $state<Account | null>(null);
 	/** The account whose environment variables and flags are being edited. */
 	let editingOptions = $state<Account | null>(null);
 	/** The account awaiting delete (or, when its folder is gone, remove) confirmation. */
@@ -141,6 +144,7 @@
 	}
 
 	async function changeColour(account: Account, colour: string) {
+		colouring = null;
 		failure = null;
 		try {
 			await setAccountColour(account.id, colour);
@@ -271,12 +275,7 @@
 					}}
 				>
 					<Item.Media>
-						<span
-							data-slot="account-badge"
-							aria-hidden="true"
-							class="flex size-8 items-center justify-center rounded-md text-sm font-semibold text-neutral-950"
-							style:background-color={account.colour}>{account.badge}</span
-						>
+						<AccountIcon badge={account.badge} colour={account.colour} />
 					</Item.Media>
 					<Item.Content>
 						<Item.Title>{account.label}</Item.Title>
@@ -333,28 +332,10 @@
 									<IconTerminal2 />
 									{m.menu_launch_options()}
 								</ContextMenu.Item>
-								<ContextMenu.Sub>
-									<ContextMenu.SubTrigger>
-										<IconPalette />
-										{m.menu_badge_colour()}
-									</ContextMenu.SubTrigger>
-									<ContextMenu.SubContent>
-										<div class="grid grid-cols-5 gap-1 p-1">
-											{#each list.palette as colour (colour)}
-												<ContextMenu.Item
-													aria-label={colour}
-													class="size-7 justify-center rounded-full p-0 text-white focus:ring-2 focus:ring-ring"
-													style="background-color: {colour}"
-													onSelect={() => changeColour(account, colour)}
-												>
-													{#if colour === account.colour}
-														<IconCheck />
-													{/if}
-												</ContextMenu.Item>
-											{/each}
-										</div>
-									</ContextMenu.SubContent>
-								</ContextMenu.Sub>
+								<ContextMenu.Item onSelect={() => (colouring = account)}>
+									<IconPalette />
+									{m.menu_badge_colour()}
+								</ContextMenu.Item>
 								<ContextMenu.Separator />
 								<ContextMenu.Item variant="destructive" onSelect={() => askDelete(account)}>
 									<IconTrash />
@@ -364,7 +345,6 @@
 </ContextMenu.Root>
 			{/each}
 		</Item.Group>
-		<p class="text-xs text-muted-foreground">{m.accounts_hint()}</p>
 	{:else if !loaded}
 			<p class="py-10 text-center text-sm text-muted-foreground">{m.loading()}</p>
 		{:else if loaded && list.claudeFound}
@@ -434,6 +414,34 @@
 				<Button type="submit" disabled={draftName.trim() === ''}>{m.rename_save()}</Button>
 			</Dialog.Footer>
 		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root
+	open={colouring !== null}
+	onOpenChange={(open) => {
+		if (!open) colouring = null;
+	}}
+>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>{m.menu_badge_colour()}</Dialog.Title>
+		</Dialog.Header>
+		<div class="grid grid-cols-5 justify-items-center gap-3">
+			{#each list.palette as colour (colour)}
+				<button
+					type="button"
+					aria-label={colour}
+					class="flex size-9 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+					style="background-color: {colour}"
+					onclick={() => colouring && changeColour(colouring, colour)}
+				>
+					{#if colour === colouring?.colour}
+						<IconCheck />
+					{/if}
+				</button>
+			{/each}
+		</div>
 	</Dialog.Content>
 </Dialog.Root>
 

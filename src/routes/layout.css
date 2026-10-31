@@ -2,6 +2,7 @@
 @import 'tw-animate-css';
 @import 'shadcn-svelte/tailwind.css';
 @import '@fontsource-variable/roboto';
+@import '@fontsource-variable/vazirmatn';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -91,15 +92,32 @@
 		scrollbar-width: thin;
 		scrollbar-color: var(--muted-foreground) transparent;
 	}
+	/* The window is transparent, so the page must not paint the square corners behind the rounded frame. */
 	body {
-		@apply bg-background text-foreground;
+		background: transparent;
+		@apply text-foreground;
 	}
 	html {
 		@apply font-sans;
+	}
+	/* `@theme inline` bakes the family into utilities, so the Farsi face is set here. */
+	:root:lang(fa) {
+		font-family: 'Vazirmatn Variable', sans-serif;
 	}
 }
 
 /* Flips chevrons in right-to-left layouts. */
 [dir="rtl"] .cn-rtl-flip {
 	transform: scaleX(-1);
+}
+
+/* Fades the scroll container edges while content is hidden beyond them (see scroll-fade.ts). */
+.scroll-fade {
+	mask-image: linear-gradient(
+		to bottom,
+		transparent,
+		#000 var(--fade-top, 0px),
+		#000 calc(100% - var(--fade-bottom, 0px)),
+		transparent
+	);
 }

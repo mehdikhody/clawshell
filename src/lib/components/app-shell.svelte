@@ -14,10 +14,21 @@
 	import { startAutoRefresh } from '$lib/auto-refresh.svelte';
 	import RoutingOffer from './routing-offer.svelte';
 	import TopBar from './top-bar.svelte';
+	import { scrollFade } from '$lib/scroll-fade';
 
 	let tab = $state('accounts');
 	/** Nothing is drawn until the saved language is known, so the window never flashes the wrong one. */
 	let ready = $state(false);
+	let usageEl = $state<HTMLElement | null>(null);
+	let accountsEl = $state<HTMLElement | null>(null);
+	let settingsEl = $state<HTMLElement | null>(null);
+
+	$effect(() => {
+		const cleanups = [usageEl, accountsEl, settingsEl]
+			.filter((el): el is HTMLElement => el !== null)
+			.map(scrollFade);
+		return () => cleanups.forEach((cleanup) => cleanup());
+	});
 
 	onMount(async () => {
 		let language: Locale = 'en';
@@ -55,11 +66,17 @@
 						{m.tab_settings()}
 					</Tabs.Trigger>
 				</Tabs.List>
-				<Tabs.Content value="usage" aria-label={m.tab_usage()} class="min-h-0 overflow-y-auto">
+				<Tabs.Content
+					value="usage"
+					aria-label={m.tab_usage()}
+					class="min-h-0 overflow-y-auto"
+					bind:ref={usageEl}
+				>
 					<UsageScreen />
 				</Tabs.Content>
 				<Tabs.Content
 					value="accounts"
+					bind:ref={accountsEl}
 					aria-label={m.tab_accounts()}
 					class="min-h-0 overflow-y-auto"
 				>
@@ -67,6 +84,7 @@
 				</Tabs.Content>
 				<Tabs.Content
 					value="settings"
+					bind:ref={settingsEl}
 					aria-label={m.tab_settings()}
 					class="min-h-0 overflow-y-auto"
 				>

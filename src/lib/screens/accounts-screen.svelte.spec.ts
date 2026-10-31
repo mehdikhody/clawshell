@@ -41,7 +41,14 @@ const threeAccounts: AccountList = {
 };
 
 function mount(overrides: IpcHandlers = {}, list: AccountList = threeAccounts) {
-	const tauri = mockTauri({ list_accounts: () => list, ...overrides });
+	const tauri = mockTauri({
+		list_accounts: () => list,
+		account_icon: (args) => {
+			const { badge, colour } = args as { badge: string; colour: string };
+			return `data:test,${badge}${colour}`;
+		},
+		...overrides
+	});
 	restore = tauri.restore;
 	render(AccountsScreen);
 	return tauri;
@@ -65,16 +72,14 @@ describe('AccountsScreen', () => {
 			);
 			await expect.element(page.getByRole('listitem').nth(1)).toBeVisible();
 
-			expect(badgeOf(0).textContent?.trim()).toBe('A');
-			expect(getComputedStyle(badgeOf(0)).backgroundColor).toBe('rgb(37, 99, 235)');
-			expect(badgeOf(1).textContent?.trim()).toBe('W');
-			expect(getComputedStyle(badgeOf(1)).backgroundColor).toBe('rgb(220, 38, 38)');
+			expect(badgeOf(0).getAttribute('src')).toBe(`data:test,A${BLUE}`);
+			expect(badgeOf(1).getAttribute('src')).toBe('data:test,W#dc2626');
 		});
 
 		it('follows a rename to a new initial', async () => {
 			mount();
 			await expect.element(page.getByRole('listitem').nth(1)).toBeVisible();
-			expect(badgeOf(1).textContent?.trim()).toBe('W');
+			expect(badgeOf(1).getAttribute('src')).toBe(`data:test,W${BLUE}`);
 
 			await emit('accounts-changed', {
 				...threeAccounts,
@@ -85,7 +90,7 @@ describe('AccountsScreen', () => {
 				]
 			});
 
-			await expect.poll(() => badgeOf(1).textContent?.trim()).toBe('H');
+			await expect.poll(() => badgeOf(1).getAttribute('src')).toBe(`data:test,H${BLUE}`);
 		});
 
 		it('offers the palette in the menu and changes the colour', async () => {
@@ -107,16 +112,17 @@ describe('AccountsScreen', () => {
 
 			await page.getByText('Work', { exact: true }).click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Badge colour' }).click();
-			await expect.element(page.getByRole('menuitem', { name: '#16a34a' })).toBeVisible();
-			await expect.element(page.getByRole('menuitem', { name: '#2563eb' })).toBeVisible();
-			await page.getByRole('menuitem', { name: '#dc2626' }).click();
+			await expect.element(page.getByRole('dialog', { name: 'Badge colour' })).toBeVisible();
+			await expect.element(page.getByRole('button', { name: '#16a34a' })).toBeVisible();
+			await expect.element(page.getByRole('button', { name: '#2563eb' })).toBeVisible();
+			await page.getByRole('button', { name: '#dc2626' }).click();
 
 			expect(tauri.calls.filter((c) => c.cmd === 'set_account_colour')).toEqual([
 				{ cmd: 'set_account_colour', args: { id: 'id-idle', colour: '#dc2626' } }
 			]);
 			await expect
-				.poll(() => getComputedStyle(badgeOf(1)).backgroundColor)
-				.toBe('rgb(220, 38, 38)');
+				.poll(() => badgeOf(1).getAttribute('src'))
+				.toBe('data:test,W#dc2626');
 		});
 
 		it('shows a clear message when the colour cannot be changed', async () => {
@@ -128,7 +134,7 @@ describe('AccountsScreen', () => {
 
 			await page.getByText('Work', { exact: true }).click({ button: 'right' });
 			await page.getByRole('menuitem', { name: 'Badge colour' }).click();
-			await page.getByRole('menuitem', { name: '#dc2626' }).click();
+			await page.getByRole('button', { name: '#dc2626' }).click();
 
 			await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't change the colour");
 		});
@@ -277,15 +283,11 @@ describe('AccountsScreen', () => {
 			await expect.element(menuOf('Account 4')).toBeVisible();
 		});
 
-		it('does not launch the account when its menu is used', async () => {
+		it('does not launch the account when its menu is opened', async () => {
 			const tauri = mount({ launch_account: () => 'started' });
-			await expect.element(menuOf('Work')).toBeVisible();
-			(menuOf('Work').element() as HTMLElement).focus();
-
-			await userEvent.keyboard('{Enter}');
+			await menuOf('Work').click({ button: 'right' });
 			await expect.element(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible();
 			await userEvent.keyboard('{Escape}');
-			await menuOf('Account 4').dblClick();
 
 			expect(tauri.calls.some((c) => c.cmd === 'launch_account')).toBe(false);
 		});

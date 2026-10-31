@@ -52,6 +52,8 @@ pub struct AccountCost {
     pub total_usd: Option<f64>,
     /// This account's part of the month total, 0 to 1.
     pub share: Option<f64>,
+    /// Tokens this account used this month, every class.
+    pub tokens: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -66,6 +68,8 @@ pub struct MonthCost {
     pub total_usd: Option<f64>,
     /// Messages left out of the estimate because their model has no price.
     pub unpriced_messages: usize,
+    /// Tokens used this month across accounts, every class.
+    pub tokens: u64,
     /// Biggest first.
     pub accounts: Vec<AccountCost>,
 }
@@ -90,6 +94,10 @@ impl Core {
 
         let owners = session_owners(&accounts);
         let records = self.month_records(&owners, this_month);
+        let mut tokens_by_account: HashMap<String, u64> = HashMap::new();
+        for (id, record) in &records {
+            *tokens_by_account.entry(id.clone()).or_default() += record.usage.total();
+        }
 
         // With nothing to price there is nothing to fetch: the estimate is
         // truly zero. Otherwise no prices means no estimate, never zero.
@@ -119,6 +127,7 @@ impl Core {
                     extra_usd,
                     total_usd: estimate_usd.map(|e| e + extra_usd),
                     share: None,
+                    tokens: tokens_by_account.get(&a.id).copied().unwrap_or(0),
                 }
             })
             .collect();
@@ -148,6 +157,7 @@ impl Core {
             extra_usd,
             total_usd,
             unpriced_messages,
+            tokens: rows.iter().map(|r| r.tokens).sum(),
             accounts: rows,
         }
     }

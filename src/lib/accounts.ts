@@ -105,6 +105,21 @@ export type RefreshOutcome = {
 export type CommandError = { code: string; message: string };
 
 export const listAccounts = () => invoke<AccountList>('list_accounts');
+
+const accountIcons = new Map<string, Promise<string>>();
+
+/** The account's badge icon as an image URL, fetched once per badge and colour. */
+export function accountIcon(badge: string, colour: string): Promise<string> {
+	const key = `${badge}|${colour}`;
+	let icon = accountIcons.get(key);
+	if (!icon) {
+		icon = invoke<string>('account_icon', { badge, colour });
+		accountIcons.set(key, icon);
+		// A failed fetch is retried the next time the row is drawn.
+		icon.catch(() => accountIcons.delete(key));
+	}
+	return icon;
+}
 export const addAccount = () => invoke<Account>('add_account');
 export const launchAccount = (id: string) =>
 	invoke<'started' | 'focused'>('launch_account', { id });

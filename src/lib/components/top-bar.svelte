@@ -10,7 +10,10 @@
 	data-tauri-drag-region
 	class="flex h-11 shrink-0 items-center justify-between border-b ps-4 pe-1.5 select-none"
 >
-	<span data-tauri-drag-region class="text-sm font-semibold tracking-tight">{m.app_name()}</span>
+	<div data-tauri-drag-region class="flex items-center gap-2">
+		<img src="/app-icon.png" alt="" data-tauri-drag-region class="size-5" />
+		<span data-tauri-drag-region class="text-sm font-bold tracking-tight capitalize">{m.app_name()}</span>
+	</div>
 	<div class="flex items-center gap-0.5">
 		<Button
 			variant="ghost"

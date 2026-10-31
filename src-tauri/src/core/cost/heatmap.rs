@@ -87,9 +87,8 @@ impl Core {
                 None => (None, Some(NoEstimate::PricesUnavailable)),
             }
         };
-        let tokens = (!records.is_empty()).then(|| {
-            daily_tokens(&records, |ms| self.local_day(time_of(ms)))
-        });
+        let tokens =
+            (!records.is_empty()).then(|| daily_tokens(&records, |ms| self.local_day(time_of(ms))));
         let percent = daily_peaks(&self.weekly_readings(&accounts), first..=today, |ms| {
             self.local_day(time_of(ms))
         });

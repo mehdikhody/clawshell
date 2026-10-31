@@ -146,7 +146,8 @@ describe('AppShell in Persian', () => {
 		render(AppShell);
 
 		await page.getByRole('tab', { name: 'Settings' }).click();
-		await page.getByRole('radio', { name: 'فارسی' }).click();
+		await page.getByRole('button', { name: 'Language' }).click();
+		await page.getByRole('menuitemradio', { name: 'فارسی' }).click();
 
 		const settings = page.getByRole('tab', { name: 'تنظیمات' });
 		await expect.element(settings).toHaveAttribute('aria-selected', 'true');
@@ -165,7 +166,8 @@ describe('AppShell in Persian', () => {
 		render(AppShell);
 
 		await page.getByRole('tab', { name: 'تنظیمات' }).click();
-		await page.getByRole('radio', { name: 'English' }).click();
+		await page.getByRole('button', { name: 'زبان' }).click();
+		await page.getByRole('menuitemradio', { name: 'English' }).click();
 
 		await expect.element(page.getByRole('tab', { name: 'Settings' })).toBeVisible();
 		expect(document.documentElement.dir).toBe('ltr');
