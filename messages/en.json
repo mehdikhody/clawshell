@@ -72,5 +72,20 @@
 	"heatmap_total_percent": "{percent} weekly peak, averaged",
 	"heatmap_legend_less": "Less",
 	"heatmap_legend_more": "More",
-	"heatmap_no_prices": "No dollar estimate: model prices could not be fetched."
+	"heatmap_no_prices": "No dollar estimate: model prices could not be fetched.",
+	"settings_launch_at_boot": "Launch at boot",
+	"settings_launch_at_boot_hint": "Start clawshell when Windows starts.",
+	"settings_start_hidden": "Start hidden",
+	"settings_start_hidden_hint": "When Windows starts it, stay in the tray instead of showing the window.",
+	"settings_close_to_tray": "Close to tray",
+	"settings_close_to_tray_hint": "The close button hides clawshell to the tray. Off, it quits.",
+	"settings_claude_path": "Claude.exe path",
+	"settings_claude_path_hint": "Only used when clawshell can't find Claude Desktop itself.",
+	"settings_claude_path_placeholder": "C:PathToClaude.exe",
+	"settings_claude_path_save": "Save path",
+	"error_settings_save_failed": "Couldn't save the setting",
+	"error_settings_autostart": "Couldn't change whether clawshell starts with Windows",
+	"error_claude_path_missing": "That file doesn't exist.",
+	"error_claude_path_not_a_file": "That path is a folder, not a file.",
+	"error_claude_path_not_claude": "That file isn't Claude.exe."
 }

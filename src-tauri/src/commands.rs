@@ -3,7 +3,7 @@
 
 use crate::core::{
     Account, AccountList, AddError, Core, DeleteError, Heatmap, LaunchError, LaunchOutcome,
-    MonthCost, OpenFolderError, RefreshOutcome, RenameError,
+    MonthCost, OpenFolderError, RefreshOutcome, RenameError, Settings, SettingsError,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
@@ -42,6 +42,7 @@ impl AccountFeed {
         if last.as_ref() != Some(&list) {
             let _ = self.app.emit(ACCOUNTS_CHANGED, &list);
             *last = Some(list);
+            crate::tray::refresh(&self.app, &self.core);
         }
     }
 }
@@ -218,4 +219,40 @@ pub fn poll_usage(core: Arc<Core>, feed: AccountFeed) {
             std::thread::sleep(USAGE_TICK);
         }
     });
+}
+
+impl From<SettingsError> for CommandError {
+    fn from(e: SettingsError) -> Self {
+        match e {
+            SettingsError::ClaudePathMissing => {
+                CommandError::new("claude-path-missing", "That file doesn't exist")
+            }
+            SettingsError::ClaudePathNotAFile => {
+                CommandError::new("claude-path-not-a-file", "That path is not a file")
+            }
+            SettingsError::ClaudePathNotClaude => {
+                CommandError::new("claude-path-not-claude", "That file is not Claude.exe")
+            }
+            SettingsError::Autostart(e) => CommandError::new("autostart-failed", e.to_string()),
+            SettingsError::Io(e) => CommandError::new("io", e.to_string()),
+        }
+    }
+}
+
+#[tauri::command]
+pub fn get_settings(core: State<'_, Arc<Core>>) -> Settings {
+    core.settings()
+}
+
+/// Saves the whole settings object, or refuses it and saves nothing.
+#[tauri::command]
+pub fn update_settings(
+    core: State<'_, Arc<Core>>,
+    feed: State<'_, AccountFeed>,
+    settings: Settings,
+) -> Result<Settings, CommandError> {
+    let saved = core.update_settings(settings)?;
+    // A new Claude.exe path can change whether Claude counts as found.
+    feed.publish();
+    Ok(saved)
 }

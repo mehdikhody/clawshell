@@ -290,6 +290,10 @@ pub struct FakeOs {
     pub shortcuts_removed: Mutex<Vec<PathBuf>>,
     /// Whether `focus` finds a window to bring forward.
     pub has_window: Mutex<bool>,
+    /// Every value passed to the autostart port, in order.
+    pub autostart: Mutex<Vec<bool>>,
+    /// Makes the autostart port fail, as a locked-down registry would.
+    pub autostart_fails: Mutex<bool>,
 }
 
 impl Default for FakeOs {
@@ -301,6 +305,8 @@ impl Default for FakeOs {
             opened_folders: Mutex::default(),
             shortcuts_removed: Mutex::default(),
             has_window: Mutex::new(true),
+            autostart: Mutex::default(),
+            autostart_fails: Mutex::new(false),
         }
     }
 }
@@ -367,7 +373,11 @@ impl LinkHandlerRegistry for FakeOs {
     }
 }
 impl Autostart for FakeOs {
-    fn set_enabled(&self, _enabled: bool) -> io::Result<()> {
+    fn set_enabled(&self, enabled: bool) -> io::Result<()> {
+        if *self.autostart_fails.lock().unwrap() {
+            return Err(io::Error::other("registry is locked"));
+        }
+        self.autostart.lock().unwrap().push(enabled);
         Ok(())
     }
 }

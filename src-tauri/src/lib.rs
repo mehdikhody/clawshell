@@ -2,16 +2,23 @@ pub mod core;
 
 mod adapters;
 mod commands;
+mod tray;
 
-use adapters::{DesktopTokens, SysinfoLister, SystemClock, UreqHttp, WindowsLocator, WindowsOs};
-use core::ports::{ProcessLister, Roots};
+use adapters::{
+    AUTOSTART_ARG, DesktopTokens, SysinfoLister, SystemClock, UreqHttp, WindowsLocator, WindowsOs,
+};
+use core::ports::{ClaudeLocator, ProcessLister, Roots};
 use core::process::DesktopProcesses;
-use core::{Core, Ports};
+use core::{CloseAction, Core, OverrideAware, Ports};
 use std::sync::Arc;
-use tauri::Manager;
+use tauri::{Manager, WindowEvent};
 
 fn build_core(roots: Roots) -> Arc<Core> {
-    let locator = Arc::new(WindowsLocator::new(roots.local_app_data.clone()));
+    let detected = Arc::new(WindowsLocator::new(roots.local_app_data.clone()));
+    // Detection plus the saved Claude.exe override, shared by launching and
+    // by the running check.
+    let locator: Arc<dyn ClaudeLocator> =
+        Arc::new(OverrideAware::new(detected, roots.local_app_data.clone()));
     let lister: Arc<dyn ProcessLister> = Arc::new(SysinfoLister);
     Arc::new(Core::new(Ports {
         roots,
@@ -28,13 +35,22 @@ pub fn run() {
     tauri::Builder::default()
         // Must be registered first: a second launch focuses the running window.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+            tray::show_main_window(app);
         }))
         .plugin(tauri_plugin_opener::init())
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event
+                && window.label() == "main"
+            {
+                match window.app_handle().state::<Arc<Core>>().close_action() {
+                    CloseAction::HideToTray => {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                    CloseAction::Quit => window.app_handle().exit(0),
+                }
+            }
+        })
         .setup(|app| {
             let paths = app.path();
             let core = build_core(Roots {
@@ -44,6 +60,12 @@ pub fn run() {
             let feed = commands::AccountFeed::new(app.handle().clone(), core.clone());
             commands::watch_accounts(feed.clone());
             commands::poll_usage(core.clone(), feed.clone());
+            tray::build(app.handle(), &core)?;
+            // The window starts hidden; a boot launch may keep it that way.
+            let boot = std::env::args().any(|arg| arg == AUTOSTART_ARG);
+            if core.shows_window_at_launch(boot) {
+                tray::show_main_window(app.handle());
+            }
             app.manage(feed);
             app.manage(core);
             Ok(())
@@ -57,7 +79,9 @@ pub fn run() {
             commands::delete_account,
             commands::refresh_usage,
             commands::month_cost,
-            commands::heatmap
+            commands::heatmap,
+            commands::get_settings,
+            commands::update_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
