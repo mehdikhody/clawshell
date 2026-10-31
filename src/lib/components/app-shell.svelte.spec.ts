@@ -173,11 +173,15 @@ describe('AppShell tray Add account', () => {
 		}));
 		render(AppShell);
 		await page.getByRole('tab', { name: 'Usage' }).click();
-		await expect.element(page.getByRole('tab', { name: 'Usage' })).toHaveAttribute('aria-selected', 'true');
+		await expect
+			.element(page.getByRole('tab', { name: 'Usage' }))
+			.toHaveAttribute('aria-selected', 'true');
 
 		await emit('add-account-requested');
 
-		await expect.element(page.getByRole('tab', { name: 'Accounts' })).toHaveAttribute('aria-selected', 'true');
+		await expect
+			.element(page.getByRole('tab', { name: 'Accounts' }))
+			.toHaveAttribute('aria-selected', 'true');
 		await expect.element(page.getByRole('dialog', { name: 'Add account' })).toBeVisible();
 	});
 });
