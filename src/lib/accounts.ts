@@ -1,8 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
-/** Mirrors the core's `Status`. Limited arrives with usage. */
-export type AccountStatus = 'running' | 'idle' | 'signed-out';
+/** Mirrors the core's `Status`. `missing`: the profile folder was deleted outside clawshell. */
+export type AccountStatus = 'running' | 'idle' | 'signed-out' | 'missing';
 
 export type Account = {
 	id: string;
@@ -25,6 +25,10 @@ export const listAccounts = () => invoke<AccountList>('list_accounts');
 export const addAccount = () => invoke<Account>('add_account');
 export const launchAccount = (id: string) =>
 	invoke<'started' | 'focused'>('launch_account', { id });
+export const renameAccount = (id: string, label: string) =>
+	invoke<Account>('rename_account', { id, label });
+export const openAccountFolder = (id: string) => invoke<void>('open_account_folder', { id });
+export const deleteAccount = (id: string) => invoke<void>('delete_account', { id });
 
 /** Calls `handler` whenever the core reports a changed account list. */
 export const onAccountsChanged = (handler: (list: AccountList) => void): Promise<UnlistenFn> =>

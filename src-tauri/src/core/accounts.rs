@@ -1,4 +1,5 @@
-//! Accounts: listing with status, adding, launching.
+//! Accounts: listing with status, adding, launching, renaming, opening the
+//! folder and deleting.
 
 use super::paths::same_path;
 use super::signin::is_signed_in;
@@ -10,14 +11,17 @@ use std::io;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-/// What an account row shows. Precedence: Signed out > Running > Idle
-/// (Limited arrives with usage).
+/// What an account row shows. Precedence: Missing > Signed out > Running >
+/// Idle (Limited arrives with usage).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Status {
     Running,
     Idle,
     SignedOut,
+    /// The account is recorded but its profile folder is gone (deleted
+    /// outside clawshell). Offered for removal.
+    Missing,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -57,10 +61,21 @@ impl From<io::Error> for AddError {
 
 impl Core {
     pub fn list_accounts(&self) -> io::Result<AccountList> {
+        Ok(AccountList {
+            claude_found: self.ports.os.locate().is_some(),
+            accounts: self.known_accounts()?,
+        })
+    }
+
+    /// Every account clawshell knows: profile folders on disk plus recorded
+    /// accounts whose folder has vanished (status Missing), ordered by id.
+    fn known_accounts(&self) -> io::Result<Vec<Account>> {
         let scan = self.scan_profiles()?;
         let records = self.synced_records(&scan.profiles);
         let running = self.ports.processes.running_profiles();
-        let accounts = scan
+        let local = &self.ports.roots.local_app_data;
+
+        let mut accounts: Vec<Account> = scan
             .profiles
             .into_iter()
             .map(|profile| {
@@ -72,10 +87,75 @@ impl Core {
             })
             .collect();
 
-        Ok(AccountList {
-            claude_found: self.ports.os.locate().is_some(),
-            accounts,
-        })
+        // The id becomes part of a path, so only well-formed uuids count.
+        let missing: Vec<Account> = records
+            .accounts
+            .iter()
+            .filter(|r| is_account_id(&r.id) && accounts.iter().all(|a| a.id != r.id))
+            .map(|r| Account {
+                id: r.id.clone(),
+                label: r.label.clone(),
+                status: Status::Missing,
+                running: false,
+                path: local.join(format!("{PROFILE_PREFIX}{}", r.id)),
+            })
+            .collect();
+        accounts.extend(missing);
+        accounts.sort_by(|a, b| a.id.cmp(&b.id));
+        Ok(accounts)
+    }
+
+    fn find_account(&self, id: &str) -> io::Result<Option<Account>> {
+        Ok(self.known_accounts()?.into_iter().find(|a| a.id == id))
+    }
+
+    /// Changes the account's label and nothing else: the folder and id stay.
+    pub fn rename_account(&self, id: &str, label: &str) -> Result<Account, RenameError> {
+        let label = label.trim();
+        if label.is_empty() {
+            return Err(RenameError::EmptyLabel);
+        }
+        let mut account = self.find_account(id)?.ok_or(RenameError::UnknownAccount)?;
+        let local = &self.ports.roots.local_app_data;
+        let mut records = Records::load(local);
+        if !records.rename(id, label) {
+            return Err(RenameError::UnknownAccount);
+        }
+        records.save(local)?;
+        account.label = label.to_string();
+        Ok(account)
+    }
+
+    /// Shows the account's `clawshell-{uuid}` folder in Explorer.
+    pub fn open_account_folder(&self, id: &str) -> Result<(), OpenFolderError> {
+        let account = self
+            .find_account(id)?
+            .ok_or(OpenFolderError::UnknownAccount)?;
+        if account.status == Status::Missing {
+            return Err(OpenFolderError::FolderMissing);
+        }
+        self.ports.os.open_folder(&account.path)?;
+        Ok(())
+    }
+
+    /// Removes the profile folder, the account's record and its shortcuts.
+    /// Refused while Claude is running on the account. A Missing account has
+    /// no folder left, so only its record goes. The caller confirms first.
+    pub fn delete_account(&self, id: &str) -> Result<(), DeleteError> {
+        let account = self.find_account(id)?.ok_or(DeleteError::UnknownAccount)?;
+        if account.running {
+            return Err(DeleteError::Running);
+        }
+        if account.status != Status::Missing {
+            std::fs::remove_dir_all(&account.path)?;
+        }
+        let local = &self.ports.roots.local_app_data;
+        let mut records = Records::load(local);
+        records.remove(id);
+        records.save(local)?;
+        // Best effort: the account is already gone, stale shortcuts are not fatal.
+        let _ = self.ports.os.remove(&account.path);
+        Ok(())
     }
 
     /// Creates a profile folder, records it as "Account N" and opens Claude on
@@ -183,5 +263,52 @@ impl Core {
             .launch(&install.exe, &profile.path)
             .map_err(LaunchError::Io)?;
         Ok(LaunchOutcome::Started)
+    }
+}
+
+/// A well-formed account id: the hyphenated uuid in a `clawshell-{uuid}` name.
+fn is_account_id(id: &str) -> bool {
+    id.len() == 36 && Uuid::parse_str(id).is_ok()
+}
+
+#[derive(Debug)]
+pub enum RenameError {
+    UnknownAccount,
+    /// The new label is empty or only spaces.
+    EmptyLabel,
+    Io(io::Error),
+}
+
+impl From<io::Error> for RenameError {
+    fn from(e: io::Error) -> Self {
+        RenameError::Io(e)
+    }
+}
+
+#[derive(Debug)]
+pub enum OpenFolderError {
+    UnknownAccount,
+    /// The profile folder no longer exists.
+    FolderMissing,
+    Io(io::Error),
+}
+
+impl From<io::Error> for OpenFolderError {
+    fn from(e: io::Error) -> Self {
+        OpenFolderError::Io(e)
+    }
+}
+
+#[derive(Debug)]
+pub enum DeleteError {
+    UnknownAccount,
+    /// Claude is running on the account; deleting would corrupt a live profile.
+    Running,
+    Io(io::Error),
+}
+
+impl From<io::Error> for DeleteError {
+    fn from(e: io::Error) -> Self {
+        DeleteError::Io(e)
     }
 }

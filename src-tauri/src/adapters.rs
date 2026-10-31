@@ -151,6 +151,18 @@ impl Launcher for WindowsOs {
     }
 }
 
+impl FolderOpener for WindowsOs {
+    fn open_folder(&self, folder: &Path) -> io::Result<()> {
+        Command::new("explorer.exe")
+            .arg(folder)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map(drop)
+    }
+}
+
 impl WindowFocus for WindowsOs {
     fn focus(&self, profile: &Path) -> bool {
         let inspector = DesktopProcesses::new(self.lister.clone(), self.locator.clone());

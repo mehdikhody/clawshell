@@ -1,7 +1,10 @@
 //! Thin Tauri wrappers over the core, plus the watcher that pushes status
 //! changes to the UI.
 
-use crate::core::{Account, AccountList, AddError, Core, LaunchError, LaunchOutcome};
+use crate::core::{
+    Account, AccountList, AddError, Core, DeleteError, LaunchError, LaunchOutcome, OpenFolderError,
+    RenameError,
+};
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
@@ -48,6 +51,61 @@ impl From<LaunchError> for CommandError {
             LaunchError::Io(e) => CommandError::new("launch-failed", e.to_string()),
         }
     }
+}
+
+impl From<RenameError> for CommandError {
+    fn from(e: RenameError) -> Self {
+        match e {
+            RenameError::UnknownAccount => CommandError::new("unknown-account", "No such account"),
+            RenameError::EmptyLabel => CommandError::new("empty-label", "The name is empty"),
+            RenameError::Io(e) => CommandError::new("io", e.to_string()),
+        }
+    }
+}
+
+impl From<OpenFolderError> for CommandError {
+    fn from(e: OpenFolderError) -> Self {
+        match e {
+            OpenFolderError::UnknownAccount => {
+                CommandError::new("unknown-account", "No such account")
+            }
+            OpenFolderError::FolderMissing => {
+                CommandError::new("folder-missing", "The account's folder is missing")
+            }
+            OpenFolderError::Io(e) => CommandError::new("io", e.to_string()),
+        }
+    }
+}
+
+impl From<DeleteError> for CommandError {
+    fn from(e: DeleteError) -> Self {
+        match e {
+            DeleteError::UnknownAccount => CommandError::new("unknown-account", "No such account"),
+            DeleteError::Running => {
+                CommandError::new("account-running", "Close the account's Claude first")
+            }
+            DeleteError::Io(e) => CommandError::new("io", e.to_string()),
+        }
+    }
+}
+
+#[tauri::command]
+pub fn rename_account(
+    core: State<'_, Arc<Core>>,
+    id: String,
+    label: String,
+) -> Result<Account, CommandError> {
+    Ok(core.rename_account(&id, &label)?)
+}
+
+#[tauri::command]
+pub fn open_account_folder(core: State<'_, Arc<Core>>, id: String) -> Result<(), CommandError> {
+    Ok(core.open_account_folder(&id)?)
+}
+
+#[tauri::command]
+pub fn delete_account(core: State<'_, Arc<Core>>, id: String) -> Result<(), CommandError> {
+    Ok(core.delete_account(&id)?)
 }
 
 #[tauri::command]

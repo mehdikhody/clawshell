@@ -10,7 +10,10 @@ pub mod process;
 mod signin;
 mod store;
 
-pub use accounts::{Account, AccountList, AddError, LaunchError, LaunchOutcome, Status};
+pub use accounts::{
+    Account, AccountList, AddError, DeleteError, LaunchError, LaunchOutcome, OpenFolderError,
+    RenameError, Status,
+};
 
 use ports::{Clock, HttpClient, OsAdapters, ProcessInspector, Roots, TokenReader};
 use std::io;
