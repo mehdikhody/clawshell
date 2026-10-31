@@ -3,12 +3,9 @@
 	import IconMinus from '@tabler/icons-svelte/icons/minus';
 	import IconX from '@tabler/icons-svelte/icons/x';
 	import { Button } from '$lib/components/ui/button';
-	import { badgeVariants } from '$lib/components/ui/badge';
 	import { m } from '$lib/paraglide/messages.js';
 	import { hasUpdate } from '$lib/update.svelte';
-	import UpdateDialog from './update-dialog.svelte';
-
-	let updateOpen = $state(false);
+	import UpdateBadge from './update-badge.svelte';
 </script>
 
 <header
@@ -21,13 +18,7 @@
 			>{m.app_name()}</span
 		>
 		{#if hasUpdate()}
-			<button
-				type="button"
-				class={[badgeVariants(), 'cursor-pointer']}
-				onclick={() => (updateOpen = true)}
-			>
-				{m.update_available()}
-			</button>
+			<UpdateBadge />
 		{/if}
 	</div>
 	<div class="flex items-center gap-0.5">
@@ -49,5 +40,4 @@
 			<IconX />
 		</Button>
 	</div>
-	<UpdateDialog bind:open={updateOpen} />
 </header>

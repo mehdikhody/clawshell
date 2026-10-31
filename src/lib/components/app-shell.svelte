@@ -31,6 +31,15 @@
 		return () => cleanups.forEach((cleanup) => cleanup());
 	});
 
+	let stopUpdateChecks: (() => void) | null = null;
+	let unmounted = false;
+
+	// onMount's own callback is async, so the cleanup is registered separately.
+	onMount(() => () => {
+		unmounted = true;
+		stopUpdateChecks?.();
+	});
+
 	onMount(async () => {
 		let language: Locale = 'en';
 		try {
@@ -43,7 +52,7 @@
 		// Always applied: the built page carries unfilled lang and dir placeholders.
 		switchLocale(language);
 		startAutoRefresh();
-		startUpdateChecks();
+		if (!unmounted) stopUpdateChecks = startUpdateChecks();
 		ready = true;
 	});
 </script>

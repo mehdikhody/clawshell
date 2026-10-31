@@ -108,6 +108,105 @@ describe('checkForUpdate', () => {
 	});
 });
 
+describe('checkForUpdate resource handling', () => {
+	const closes = (update: unknown) => (update as { close: () => void }).close;
+
+	it('closes the held update when a newer one replaces it', async () => {
+		const old = found('0.2.0');
+		const newer = found('0.3.0');
+		updateState.current = { status: 'available', update: old };
+		checkMock.mockResolvedValue(newer);
+
+		await checkForUpdate();
+
+		expect(updateState.current).toEqual({ status: 'available', update: newer });
+		expect(closes(old)).toHaveBeenCalledTimes(1);
+		expect(closes(newer)).not.toHaveBeenCalled();
+	});
+
+	it('closes the held update when the badge clears', async () => {
+		const old = found('0.2.0');
+		updateState.current = { status: 'available', update: old };
+		checkMock.mockResolvedValue(null);
+
+		await checkForUpdate();
+
+		expect(updateState.current.status).toBe('idle');
+		expect(closes(old)).toHaveBeenCalledTimes(1);
+	});
+
+	it('keeps the held update and closes the new one when the version is the same', async () => {
+		const old = found('0.2.0');
+		const same = found('0.2.0');
+		updateState.current = { status: 'available', update: old };
+		checkMock.mockResolvedValue(same);
+
+		await checkForUpdate();
+
+		expect(updateState.current).toEqual({ status: 'available', update: old });
+		expect(closes(old)).not.toHaveBeenCalled();
+		expect(closes(same)).toHaveBeenCalledTimes(1);
+	});
+
+	it('closes the found update when a download owns the state', async () => {
+		const other = found('0.3.0');
+		updateState.current = {
+			status: 'downloading',
+			update: found('0.2.0'),
+			downloaded: 1,
+			total: 10
+		};
+		checkMock.mockResolvedValue(other);
+
+		await checkForUpdate();
+
+		expect(closes(other)).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('checkForUpdate while failed', () => {
+	const closes = (update: unknown) => (update as { close: () => void }).close;
+	const failed = (update: never) => ({ status: 'failed' as const, update, message: 'boom' });
+
+	it('keeps the failure when nothing newer exists', async () => {
+		const old = found('0.2.0');
+		const state = failed(old);
+		updateState.current = state;
+		checkMock.mockResolvedValue(null);
+
+		await checkForUpdate();
+
+		expect(updateState.current).toEqual(state);
+		expect(closes(old)).not.toHaveBeenCalled();
+	});
+
+	it('keeps the failure when the same version is found again, closing the new one', async () => {
+		const old = found('0.2.0');
+		const same = found('0.2.0');
+		const state = failed(old);
+		updateState.current = state;
+		checkMock.mockResolvedValue(same);
+
+		await checkForUpdate();
+
+		expect(updateState.current).toEqual(state);
+		expect(closes(old)).not.toHaveBeenCalled();
+		expect(closes(same)).toHaveBeenCalledTimes(1);
+	});
+
+	it('moves to available when a different version is found, closing the old one', async () => {
+		const old = found('0.2.0');
+		const newer = found('0.3.0');
+		updateState.current = failed(old);
+		checkMock.mockResolvedValue(newer);
+
+		await checkForUpdate();
+
+		expect(updateState.current).toEqual({ status: 'available', update: newer });
+		expect(closes(old)).toHaveBeenCalledTimes(1);
+	});
+});
+
 describe('startUpdateChecks', () => {
 	it('checks once at startup, then every 6 hours', async () => {
 		checkMock.mockResolvedValue(null);

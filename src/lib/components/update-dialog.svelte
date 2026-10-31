@@ -23,13 +23,13 @@
 </script>
 
 {#if current.status !== 'idle'}
-	<Dialog.Root
-		bind:open
-		onOpenChange={(next) => {
-			if (!next && busy) open = true;
-		}}
-	>
-		<Dialog.Content showCloseButton={!busy} class="sm:max-w-lg">
+	<Dialog.Root bind:open>
+		<Dialog.Content
+			showCloseButton={!busy}
+			escapeKeydownBehavior={busy ? 'ignore' : 'close'}
+			interactOutsideBehavior={busy ? 'ignore' : 'close'}
+			class="sm:max-w-lg"
+		>
 			<Dialog.Header>
 				<Dialog.Title class="text-base font-semibold">
 					{m.update_title({ version: current.update.version })}
@@ -67,7 +67,7 @@
 				<Alert.Root variant="destructive">
 					<IconAlertTriangle />
 					<Alert.Title>{m.update_failed()}</Alert.Title>
-					<Alert.Description>{current.message}</Alert.Description>
+					<Alert.Description>{m.update_failed_detail()}</Alert.Description>
 				</Alert.Root>
 			{/if}
 
