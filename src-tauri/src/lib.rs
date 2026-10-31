@@ -2,6 +2,7 @@ pub mod core;
 
 mod adapters;
 mod commands;
+mod shell_link;
 mod taskbar;
 mod tray;
 
@@ -11,6 +12,7 @@ use adapters::{
 };
 use core::ports::{ClaudeLocator, ProcessLister, Roots};
 use core::process::DesktopProcesses;
+use core::shortcuts::account_to_open;
 use core::{CloseAction, Core, OverrideAware, Ports};
 use std::sync::Arc;
 use tauri::{Manager, WindowEvent};
@@ -41,8 +43,11 @@ fn build_core(roots: Roots, app: tauri::AppHandle) -> Arc<Core> {
 pub fn run() {
     tauri::Builder::default()
         // Must be registered first: a second launch focuses the running window.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            tray::show_main_window(app);
+        // A shortcut click lands here too: it opens its account instead.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if !tray::open_from_command_line(app, &args) {
+                tray::show_main_window(app);
+            }
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
@@ -73,12 +78,16 @@ pub fn run() {
             commands::poll_usage(core.clone(), feed.clone());
             tray::build(app.handle(), &core)?;
             // The window starts hidden; a boot launch may keep it that way.
-            let boot = std::env::args().any(|arg| arg == AUTOSTART_ARG);
-            if core.shows_window_at_launch(boot) {
+            let args: Vec<String> = std::env::args().collect();
+            let boot = args.iter().any(|arg| arg == AUTOSTART_ARG);
+            // A shortcut click opens its account, not clawshell's window.
+            let clicked = account_to_open(&args).is_some();
+            if !clicked && core.shows_window_at_launch(boot) {
                 tray::show_main_window(app.handle());
             }
             app.manage(feed);
             app.manage(core);
+            tray::open_from_command_line(app.handle(), &args);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -89,6 +98,7 @@ pub fn run() {
             commands::set_account_colour,
             commands::open_account_folder,
             commands::delete_account,
+            commands::add_shortcuts,
             commands::refresh_usage,
             commands::month_cost,
             commands::heatmap,

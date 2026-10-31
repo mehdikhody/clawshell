@@ -5,6 +5,7 @@
 //! colours, the pixels) are in `core::badge`.
 
 use crate::core::badge::{render_badge, rgb};
+use crate::core::shortcuts::encode_ico;
 use std::ffi::c_void;
 use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::*;
@@ -50,6 +51,25 @@ pub fn badge_windows(pids: &[u32], aumid: &str, letter: char, colour: &str) -> u
         unsafe { CoUninitialize() };
     }
     done
+}
+
+/// Sizes stored in a shortcut's icon file: the small and large Explorer and
+/// Start sizes, up to the 256 px jumbo icon.
+const ICO_SIZES: [i32; 6] = [16, 24, 32, 48, 64, 256];
+
+/// The badge as the bytes of an `.ico` file (`None` when `colour` is not
+/// `#rrggbb` or GDI cannot draw the letter).
+pub fn badge_ico(letter: char, colour: &str) -> Option<Vec<u8>> {
+    let colour = rgb(colour)?;
+    let images: Option<Vec<(usize, Vec<u8>)>> = ICO_SIZES
+        .iter()
+        .map(|&size| {
+            let side = usize::try_from(size).ok()?;
+            let pixels = render_badge(side, colour, &letter_coverage(letter, size)?);
+            Some((side, pixels))
+        })
+        .collect();
+    Some(encode_ico(&images?))
 }
 
 fn metric(index: SYSTEM_METRICS_INDEX, fallback: i32) -> i32 {
@@ -264,5 +284,41 @@ mod tests {
         let handle = icon('W', [0x25, 0x63, 0xeb], 32).expect("an icon");
         // SAFETY: the handle was just created and is not used elsewhere.
         unsafe { DestroyIcon(handle).unwrap() };
+    }
+
+    #[test]
+    fn the_badge_becomes_an_ico_file_with_every_size() {
+        let ico = badge_ico('W', "#2563eb").expect("an ico");
+
+        assert_eq!(&ico[..4], &[0, 0, 1, 0], "an icon file");
+        assert_eq!(
+            u16::from_le_bytes([ico[4], ico[5]]) as usize,
+            ICO_SIZES.len()
+        );
+        assert_eq!(badge_ico('W', "blue"), None);
+    }
+
+    #[test]
+    fn windows_loads_the_badge_ico_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("badge.ico");
+        std::fs::write(&path, badge_ico('W', "#2563eb").unwrap()).unwrap();
+
+        for size in [16, 32, 256] {
+            // SAFETY: loads from a file path that outlives the call; the
+            // handle is destroyed at once.
+            let handle = unsafe {
+                LoadImageW(
+                    None,
+                    &windows::core::HSTRING::from(path.as_os_str()),
+                    IMAGE_ICON,
+                    size,
+                    size,
+                    LR_LOADFROMFILE,
+                )
+            }
+            .expect("Windows reads the .ico");
+            unsafe { DestroyIcon(HICON(handle.0)).unwrap() };
+        }
     }
 }

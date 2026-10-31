@@ -4,10 +4,10 @@
 
 **Blocked by:** 12
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Desktop and Start-menu shortcuts are created with the badged icon
-- [ ] Clicking a shortcut launches the account, or focuses it if it's open
-- [ ] Rename and colour change update the shortcuts; delete removes them
-- [ ] Shortcuts keep working after Claude updates itself (they don't point at a versioned exe path)
+- [x] Desktop and Start-menu shortcuts are created with the badged icon
+- [x] Clicking a shortcut launches the account, or focuses it if it's open
+- [x] Rename and colour change update the shortcuts; delete removes them
+- [x] Shortcuts keep working after Claude updates itself (they don't point at a versioned exe path)
 - [ ] Checked by hand on Windows 11

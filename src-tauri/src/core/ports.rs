@@ -135,9 +135,40 @@ pub trait TaskbarIdentity: Send + Sync {
     fn apply(&self, profile: &Path, aumid: &str, badge: char, colour: &str) -> io::Result<()>;
 }
 
+/// Where shortcuts go, and what they point at.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ShortcutPlaces {
+    /// The user's Desktop folder.
+    pub desktop: PathBuf,
+    /// The user's Start menu `Programs` folder (what Start search lists).
+    pub start_menu: PathBuf,
+    /// clawshell's own executable: the one thing a shortcut may launch.
+    pub clawshell_exe: PathBuf,
+}
+
+/// What a shortcut file holds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ShortcutLink {
+    pub target: PathBuf,
+    /// Command-line arguments for `target`.
+    pub args: String,
+    /// The `.ico` file the shortcut shows.
+    pub icon: PathBuf,
+    pub description: String,
+}
+
+/// Every filesystem and shell-link write behind account shortcuts. The core
+/// decides names, targets and what to update; this only writes.
 pub trait Shortcuts: Send + Sync {
-    fn create(&self, profile: &Path, label: &str) -> io::Result<()>;
-    fn remove(&self, profile: &Path) -> io::Result<()>;
+    fn places(&self) -> io::Result<ShortcutPlaces>;
+    /// Writes the badge icon (`badge` on `colour`, `#rrggbb`) to `path` as an
+    /// `.ico`, creating its folder and replacing any file already there.
+    fn write_icon(&self, path: &Path, badge: char, colour: &str) -> io::Result<()>;
+    /// Writes the shortcut file `link`, creating its folder and replacing any
+    /// shortcut already there.
+    fn write_link(&self, link: &Path, spec: &ShortcutLink) -> io::Result<()>;
+    /// Deletes the file at `path`; a file that is not there counts as done.
+    fn delete(&self, path: &Path) -> io::Result<()>;
 }
 
 pub trait LinkHandlerRegistry: Send + Sync {

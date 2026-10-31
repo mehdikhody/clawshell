@@ -629,19 +629,6 @@ fn deleting_an_unknown_account_removes_nothing() {
     assert!(h.fixture.local_app_data().join("Claude-Data").is_dir());
 }
 
-#[test]
-fn delete_also_removes_the_accounts_shortcuts() {
-    let h = Harness::new();
-    h.fixture.add_profile(ID_A);
-
-    h.core().delete_account(ID_A).unwrap();
-
-    assert_eq!(
-        h.os.shortcuts_removed.lock().unwrap().clone(),
-        vec![h.fixture.profile_path(ID_A)]
-    );
-}
-
 // ---- missing folder ----------------------------------------------------------
 
 #[test]
