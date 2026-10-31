@@ -138,5 +138,6 @@
 	"routing_offer_accept": "Turn on",
 	"routing_offer_decline": "Not now",
 	"routing_offer_done": "Got it",
-	"error_routing_failed": "Couldn't change sign-in routing"
+	"error_routing_failed": "Couldn't change sign-in routing",
+	"update_available": "Update available"
 }

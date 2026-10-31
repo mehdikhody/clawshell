@@ -1,11 +1,12 @@
 import { page } from 'vitest/browser';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { emit } from '@tauri-apps/api/event';
 import '../../routes/layout.css';
 import { switchLocale } from '$lib/locale-state.svelte';
 import type { Settings } from '$lib/settings';
 import { mockTauri } from '$lib/test/tauri-ipc';
+import { updateState } from '$lib/update.svelte';
 import AppShell from './app-shell.svelte';
 
 let restore: () => void;
@@ -15,6 +16,7 @@ const core = { list_accounts: () => ({ claudeFound: true, accounts: [] }) };
 afterEach(() => {
 	restore?.();
 	switchLocale('en');
+	updateState.current = { status: 'idle' };
 });
 
 const saved: Settings = {
@@ -76,6 +78,62 @@ describe('AppShell', () => {
 		const commands = tauri.calls.map((c) => c.cmd);
 		expect(commands).toContain('plugin:window|minimize');
 		expect(commands).toContain('plugin:window|close');
+	});
+});
+
+describe('AppShell update badge', () => {
+	const release = { rid: 1, currentVersion: '0.1.0', version: '0.2.0', body: 'Notes', rawJson: {} };
+	const badgeName = 'Update available';
+
+	it('shows no badge when the app is on the latest version', async () => {
+		const tauri = mockTauri({ ...core, 'plugin:updater|check': () => null });
+		({ restore } = tauri);
+		render(AppShell);
+		await expect.element(page.getByRole('tab', { name: 'Usage' })).toBeVisible();
+
+		await vi.waitFor(() =>
+			expect(tauri.calls.map((c) => c.cmd)).toContain('plugin:updater|check')
+		);
+		await expect.element(page.getByRole('button', { name: badgeName })).not.toBeInTheDocument();
+	});
+
+	it('shows no badge and no error when the check fails', async () => {
+		const tauri = mockTauri({
+			...core,
+			'plugin:updater|check': () => {
+				throw new Error('offline');
+			}
+		});
+		({ restore } = tauri);
+		render(AppShell);
+		await expect.element(page.getByRole('tab', { name: 'Usage' })).toBeVisible();
+
+		await vi.waitFor(() =>
+			expect(tauri.calls.map((c) => c.cmd)).toContain('plugin:updater|check')
+		);
+		await expect.element(page.getByRole('button', { name: badgeName })).not.toBeInTheDocument();
+	});
+
+	it('shows the badge after the app name when a newer release exists', async () => {
+		({ restore } = mockTauri({ ...core, 'plugin:updater|check': () => release }));
+		render(AppShell);
+
+		const badge = page.getByRole('button', { name: badgeName });
+		await expect.element(badge).toBeVisible();
+		expect(leftOf(badge)).toBeGreaterThan(leftOf(page.getByText('clawshell', { exact: true })));
+	});
+
+	it('names the badge in Persian when the saved language is Persian', async () => {
+		({ restore } = mockTauri({
+			...core,
+			get_settings: () => ({ ...saved, language: 'fa' }),
+			'plugin:updater|check': () => release
+		}));
+		render(AppShell);
+
+		await expect
+			.element(page.getByRole('button', { name: 'به‌روزرسانی در دسترس است' }))
+			.toBeVisible();
 	});
 });
 

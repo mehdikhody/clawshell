@@ -12,6 +12,7 @@
 	import UsageScreen from '$lib/screens/usage-screen.svelte';
 	import { getSettings } from '$lib/settings';
 	import { startAutoRefresh } from '$lib/auto-refresh.svelte';
+	import { startUpdateChecks } from '$lib/update.svelte';
 	import RoutingOffer from './routing-offer.svelte';
 	import TopBar from './top-bar.svelte';
 	import { scrollFade } from '$lib/scroll-fade';
@@ -41,7 +42,8 @@
 		}
 		// Always applied: the built page carries unfilled lang and dir placeholders.
 		switchLocale(language);
-			startAutoRefresh();
+		startAutoRefresh();
+		startUpdateChecks();
 		ready = true;
 	});
 </script>

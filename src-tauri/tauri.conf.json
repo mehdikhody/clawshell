@@ -29,6 +29,15 @@
 			"csp": null
 		}
 	},
+	"plugins": {
+		"updater": {
+			"pubkey": "PLACEHOLDER_REPLACE_WITH_REAL_UPDATER_PUBLIC_KEY_IN_TICKET_04",
+			"endpoints": ["https://github.com/mehdikhody/clawshell/releases/latest/download/latest.json"],
+			"windows": {
+				"installMode": "passive"
+			}
+		}
+	},
 	"bundle": {
 		"active": true,
 		"targets": "all",
