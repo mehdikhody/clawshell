@@ -3,7 +3,6 @@
 	import {
 		cellsFor,
 		formatDay,
-		formatPercent,
 		intensity,
 		type Heatmap,
 		type HeatmapDay,
@@ -14,6 +13,7 @@
 	import * as ToggleGroup from '$lib/components/ui/toggle-group';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { m } from '$lib/paraglide/messages.js';
+	import { formatPercentValue } from '$lib/locale';
 	import { formatTag } from '$lib/locale-state.svelte';
 
 	let { heatmap }: { heatmap: Heatmap } = $props();
@@ -40,11 +40,11 @@
 
 	const money = (amount: number) => formatUsd(amount, formatTag());
 	const amount = (value: number) =>
-		mode === 'usd' ? money(value) : formatPercent(value, formatTag());
+		mode === 'usd' ? money(value) : formatPercentValue(value, formatTag());
 	const total = (value: number) =>
 		mode === 'usd'
 			? m.cost_estimated({ amount: money(value) })
-			: m.heatmap_total_percent({ percent: formatPercent(value, formatTag()) });
+			: m.heatmap_total_percent({ percent: formatPercentValue(value, formatTag()) });
 	const dateLabel = (date: string) => formatDay(date, formatTag());
 	const labelOf = (day: HeatmapDay) => {
 		const values = valuesOf(day);

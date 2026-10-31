@@ -8,7 +8,7 @@ Intensity is bucketed. Hover or tap shows the date, the total and the per-accoun
 
 **Blocked by:** 06, 07
 
-**Status:** done
+**Status:** resolved
 
 - [x] 30 cells ending today, in local days, fit 400px without scrolling
 - [x] The $ / % toggle works; % mode uses peak weekly averaged across accounts

@@ -9,7 +9,7 @@ Each notification fires at most once per account per window, keyed by that windo
 
 **Blocked by:** 05, 09
 
-**Status:** done
+**Status:** resolved
 
 - [x] Warning, limited and reset notifications fire at the right crossings
 - [x] There are no repeats within the same window, across polls or restarts

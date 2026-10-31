@@ -2,9 +2,10 @@
 //! changes to the UI.
 
 use crate::core::{
-    Account, AccountList, AddError, ColourError, Core, DeleteError, Heatmap, LaunchError,
-    LaunchOptions, LaunchOptionsError, LaunchOutcome, MonthCost, OpenFolderError, RefreshOutcome,
-    RenameError, RoutingChange, RoutingError, Settings, SettingsError, ShortcutError,
+    Account, AccountError, AccountList, AddError, ColourError, Core, DeleteError, Heatmap,
+    LaunchError, LaunchOptions, LaunchOptionsError, LaunchOutcome, MonthCost, OpenFolderError,
+    RefreshOutcome, RenameError, RoutingChange, RoutingError, Settings, SettingsError,
+    ShortcutError,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
@@ -68,6 +69,21 @@ impl CommandError {
     }
 }
 
+/// Maps the two shared account failures; `io_code` is the code an operation
+/// gives a disk or launch failure.
+fn account_error(e: AccountError, io_code: &'static str) -> CommandError {
+    match e {
+        AccountError::Unknown => CommandError::new("unknown-account", "No such account"),
+        AccountError::Io(e) => CommandError::new(io_code, e.to_string()),
+    }
+}
+
+impl From<AccountError> for CommandError {
+    fn from(e: AccountError) -> Self {
+        account_error(e, "io")
+    }
+}
+
 impl From<AddError> for CommandError {
     fn from(e: AddError) -> Self {
         match e {
@@ -83,11 +99,10 @@ impl From<AddError> for CommandError {
 impl From<LaunchError> for CommandError {
     fn from(e: LaunchError) -> Self {
         match e {
-            LaunchError::UnknownAccount => CommandError::new("unknown-account", "No such account"),
+            LaunchError::Account(e) => account_error(e, "launch-failed"),
             LaunchError::ClaudeNotFound => {
                 CommandError::new("claude-not-found", "Claude Desktop was not found")
             }
-            LaunchError::Io(e) => CommandError::new("launch-failed", e.to_string()),
         }
     }
 }
@@ -95,9 +110,8 @@ impl From<LaunchError> for CommandError {
 impl From<RenameError> for CommandError {
     fn from(e: RenameError) -> Self {
         match e {
-            RenameError::UnknownAccount => CommandError::new("unknown-account", "No such account"),
+            RenameError::Account(e) => e.into(),
             RenameError::EmptyLabel => CommandError::new("empty-label", "The name is empty"),
-            RenameError::Io(e) => CommandError::new("io", e.to_string()),
         }
     }
 }
@@ -105,11 +119,10 @@ impl From<RenameError> for CommandError {
 impl From<ColourError> for CommandError {
     fn from(e: ColourError) -> Self {
         match e {
-            ColourError::UnknownAccount => CommandError::new("unknown-account", "No such account"),
+            ColourError::Account(e) => e.into(),
             ColourError::InvalidColour => {
                 CommandError::new("invalid-colour", "The colour must look like #rrggbb")
             }
-            ColourError::Io(e) => CommandError::new("io", e.to_string()),
         }
     }
 }
@@ -118,9 +131,7 @@ impl From<LaunchOptionsError> for CommandError {
     fn from(e: LaunchOptionsError) -> Self {
         // Messages never carry a name or a value: values can be secrets.
         match e {
-            LaunchOptionsError::UnknownAccount => {
-                CommandError::new("unknown-account", "No such account")
-            }
+            LaunchOptionsError::Account(e) => e.into(),
             LaunchOptionsError::InvalidEnvName => CommandError::new(
                 "invalid-env-name",
                 "Names use letters, digits and _ only, and don't start with a digit",
@@ -135,7 +146,6 @@ impl From<LaunchOptionsError> for CommandError {
                 "reserved-flag",
                 "--user-data-dir is set by clawshell and can't be changed",
             ),
-            LaunchOptionsError::Io(e) => CommandError::new("io", e.to_string()),
         }
     }
 }
@@ -143,13 +153,10 @@ impl From<LaunchOptionsError> for CommandError {
 impl From<OpenFolderError> for CommandError {
     fn from(e: OpenFolderError) -> Self {
         match e {
-            OpenFolderError::UnknownAccount => {
-                CommandError::new("unknown-account", "No such account")
-            }
+            OpenFolderError::Account(e) => e.into(),
             OpenFolderError::FolderMissing => {
                 CommandError::new("folder-missing", "The account's folder is missing")
             }
-            OpenFolderError::Io(e) => CommandError::new("io", e.to_string()),
         }
     }
 }
@@ -157,11 +164,10 @@ impl From<OpenFolderError> for CommandError {
 impl From<DeleteError> for CommandError {
     fn from(e: DeleteError) -> Self {
         match e {
-            DeleteError::UnknownAccount => CommandError::new("unknown-account", "No such account"),
+            DeleteError::Account(e) => e.into(),
             DeleteError::Running => {
                 CommandError::new("account-running", "Close the account's Claude first")
             }
-            DeleteError::Io(e) => CommandError::new("io", e.to_string()),
         }
     }
 }
@@ -169,13 +175,10 @@ impl From<DeleteError> for CommandError {
 impl From<ShortcutError> for CommandError {
     fn from(e: ShortcutError) -> Self {
         match e {
-            ShortcutError::UnknownAccount => {
-                CommandError::new("unknown-account", "No such account")
-            }
+            ShortcutError::Account(e) => account_error(e, "shortcuts-failed"),
             ShortcutError::FolderMissing => {
                 CommandError::new("folder-missing", "The account's folder is missing")
             }
-            ShortcutError::Io(e) => CommandError::new("shortcuts-failed", e.to_string()),
         }
     }
 }
@@ -381,4 +384,77 @@ pub fn update_settings(
     // The tray menu follows the saved language.
     crate::tray::refresh(&app, &core);
     Ok(saved)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io;
+
+    fn code_and_message(e: impl Into<CommandError>) -> (&'static str, String) {
+        let e = e.into();
+        (e.code, e.message)
+    }
+
+    fn unknown() -> AccountError {
+        AccountError::Unknown
+    }
+
+    fn disk() -> AccountError {
+        AccountError::Io(io::Error::other("disk"))
+    }
+
+    #[test]
+    fn every_operation_reports_an_unknown_account_the_same_way() {
+        let expected = ("unknown-account", "No such account".to_string());
+        assert_eq!(code_and_message(LaunchError::Account(unknown())), expected);
+        assert_eq!(code_and_message(RenameError::Account(unknown())), expected);
+        assert_eq!(code_and_message(ColourError::Account(unknown())), expected);
+        assert_eq!(
+            code_and_message(LaunchOptionsError::Account(unknown())),
+            expected
+        );
+        assert_eq!(
+            code_and_message(OpenFolderError::Account(unknown())),
+            expected
+        );
+        assert_eq!(code_and_message(DeleteError::Account(unknown())), expected);
+        assert_eq!(
+            code_and_message(ShortcutError::Account(unknown())),
+            expected
+        );
+    }
+
+    #[test]
+    fn disk_failures_keep_each_operations_code() {
+        let message = "disk".to_string();
+        assert_eq!(
+            code_and_message(LaunchError::Account(disk())),
+            ("launch-failed", message.clone())
+        );
+        assert_eq!(
+            code_and_message(ShortcutError::Account(disk())),
+            ("shortcuts-failed", message.clone())
+        );
+        assert_eq!(
+            code_and_message(RenameError::Account(disk())),
+            ("io", message.clone())
+        );
+        assert_eq!(
+            code_and_message(ColourError::Account(disk())),
+            ("io", message.clone())
+        );
+        assert_eq!(
+            code_and_message(LaunchOptionsError::Account(disk())),
+            ("io", message.clone())
+        );
+        assert_eq!(
+            code_and_message(OpenFolderError::Account(disk())),
+            ("io", message.clone())
+        );
+        assert_eq!(
+            code_and_message(DeleteError::Account(disk())),
+            ("io", message)
+        );
+    }
 }

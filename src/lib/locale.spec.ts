@@ -31,6 +31,14 @@ describe('formatInteger', () => {
 describe('formatPercentValue', () => {
 	it('writes a whole percent from 0 to 100', () => {
 		expect(formatPercentValue(79.6, intlLocale('en'))).toBe('80%');
+		expect(formatPercentValue(34.6, 'en-US')).toBe('35%');
+		expect(formatPercentValue(0, 'en-US')).toBe('0%');
+	});
+
+	it('writes a 0-to-1 share once it is scaled to a percent', () => {
+		expect(formatPercentValue(0.8182 * 100, 'en-US')).toBe('82%');
+		expect(formatPercentValue(1 * 100, 'en-US')).toBe('100%');
+		expect(formatPercentValue(0.8182 * 100, intlLocale('fa'))).toBe('۸۲٪');
 	});
 
 	it('uses Persian digits and the Persian percent sign', () => {

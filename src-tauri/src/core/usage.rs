@@ -49,7 +49,7 @@ pub struct WindowUsage {
     pub resets_at: Option<String>,
 }
 
-/// Extra-usage (overage) spend, in minor currency units (cents).
+/// Extra-usage (overage) spend, in US cents.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtraUsage {
@@ -405,8 +405,7 @@ fn parse_window(value: Option<&Value>) -> Option<WindowUsage> {
 fn parse_extra_usage(json: &Value) -> Option<ExtraUsage> {
     let extra = json.get("extra_usage")?.as_object()?;
     let minor = |v: Option<&Value>| v.and_then(Value::as_f64).map(|n| n.round() as i64);
-    let used_minor = minor(extra.get("used_credits"))
-        .or_else(|| minor(json.pointer("/spend/used/amount_minor")));
+    let used_minor = minor(extra.get("used_credits")).or_else(|| spend_used_cents(json));
     Some(ExtraUsage {
         enabled: extra
             .get("is_enabled")
@@ -415,6 +414,19 @@ fn parse_extra_usage(json: &Value) -> Option<ExtraUsage> {
         used_minor,
         limit_minor: minor(extra.get("monthly_limit")),
     })
+}
+
+/// `spend.used` as US cents. Its amount is in minor units of `exponent`
+/// decimal places (2 when absent); anything but USD is not counted.
+fn spend_used_cents(json: &Value) -> Option<i64> {
+    let used = json.pointer("/spend/used")?;
+    if used.get("currency")?.as_str()? != "USD" {
+        return None;
+    }
+    let amount = used.get("amount_minor")?.as_f64()?;
+    let exponent = used.get("exponent").and_then(Value::as_i64).unwrap_or(2);
+    let exponent = i32::try_from(exponent).ok()?;
+    Some((amount * 100.0 / 10f64.powi(exponent)).round() as i64)
 }
 
 /// One reading from the profile's `plan-usage-history.json`.

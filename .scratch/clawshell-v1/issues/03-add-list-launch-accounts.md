@@ -10,7 +10,7 @@ See spec: Domain vocabulary, Launching and windows.
 
 **Blocked by:** 02
 
-**Status:** done
+**Status:** resolved
 
 - [x] Add creates a uniquely named `clawshell-{uuid}` folder and opens Claude at sign-in
 - [x] New accounts are labelled Account 2, Account 3… with no duplicates

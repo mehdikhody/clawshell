@@ -1,6 +1,7 @@
 //! Per-account environment variables and extra launch flags: validation and
 //! the assembly of a launch. Pure functions; the port does the starting.
 
+use super::account_error::{AccountError, wrap_account_error};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -38,7 +39,7 @@ pub struct LaunchOptions {
 
 #[derive(Debug)]
 pub enum LaunchOptionsError {
-    UnknownAccount,
+    Account(AccountError),
     /// A name is empty, holds anything but letters, digits and `_`, or starts
     /// with a digit.
     InvalidEnvName,
@@ -48,14 +49,9 @@ pub enum LaunchOptionsError {
     InvalidEnvValue,
     /// A flag would move Claude off the account's profile folder.
     ReservedFlag,
-    Io(std::io::Error),
 }
 
-impl From<std::io::Error> for LaunchOptionsError {
-    fn from(e: std::io::Error) -> Self {
-        LaunchOptionsError::Io(e)
-    }
-}
+wrap_account_error!(LaunchOptionsError);
 
 /// The switch that names the profile folder; only clawshell may set it.
 const PROFILE_SWITCH: &str = "--user-data-dir";

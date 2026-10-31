@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { formatShare, formatUsd, type AccountCost, type MonthCost } from '$lib/cost';
+	import { formatUsd, type AccountCost, type MonthCost } from '$lib/cost';
 	import * as Item from '$lib/components/ui/item';
 	import { Progress } from '$lib/components/ui/progress';
 	import { m } from '$lib/paraglide/messages.js';
-	import { formatInteger } from '$lib/locale';
+	import { formatInteger, formatPercentValue } from '$lib/locale';
 	import { formatTag } from '$lib/locale-state.svelte';
 
 	let { cost }: { cost: MonthCost } = $props();
@@ -59,7 +59,7 @@
 									{dollars === null ? '—' : usd(dollars)}
 									{#if account.share !== null}
 										<span class="text-muted-foreground"
-											>{formatShare(account.share, formatTag())}</span
+											>{formatPercentValue(account.share * 100, formatTag())}</span
 										>
 									{/if}
 								</span>

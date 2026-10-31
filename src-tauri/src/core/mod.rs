@@ -1,6 +1,7 @@
 //! clawshell's domain core. Independent of Tauri: every outside dependency
 //! arrives through a port in [`ports`], so tests drive it with fakes.
 
+mod account_error;
 pub mod accounts;
 pub mod badge;
 pub mod cost;
@@ -22,6 +23,7 @@ mod signin;
 mod store;
 pub mod usage;
 
+pub use account_error::AccountError;
 pub use accounts::{
     Account, AccountList, AddError, ColourError, DeleteError, LaunchError, LaunchOutcome,
     OpenFolderError, RenameError, Status,

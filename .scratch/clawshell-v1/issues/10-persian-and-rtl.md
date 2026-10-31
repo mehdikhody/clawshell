@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** done
+**Status:** resolved
 
 - [x] The language picker switches between en and fa at runtime and persists
 - [x] fa sets the RTL direction and mirrors the layout correctly

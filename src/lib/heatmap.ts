@@ -60,12 +60,6 @@ export function cellsFor(days: HeatmapDay[]): (HeatmapDay | null)[] {
 	return [...Array<null>(lead).fill(null), ...days];
 }
 
-/** A percent (0 to 100) as a whole percent. */
-export const formatPercent = (percent: number, locale: string): string =>
-	new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(
-		percent / 100
-	);
-
 /** A calendar day as a short date, such as "Jun 15". */
 export const formatDay = (date: string, locale: string): string =>
 	new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(parseDay(date));

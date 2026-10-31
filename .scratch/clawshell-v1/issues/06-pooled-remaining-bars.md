@@ -4,7 +4,7 @@
 
 **Blocked by:** 05
 
-**Status:** done
+**Status:** resolved
 
 - [x] For 3 accounts at 60/0/0% used, the bar shows 80% remaining
 - [x] Signed-out accounts are excluded from both the average and M

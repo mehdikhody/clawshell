@@ -33,7 +33,3 @@ export const monthCost = () => invoke<MonthCost>('month_cost');
 
 export const formatUsd = (amount: number, locale: string): string =>
 	new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(amount);
-
-/** A share (0 to 1) as a whole percent. */
-export const formatShare = (share: number, locale: string): string =>
-	new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(share);

@@ -12,7 +12,7 @@ See spec: Identity and usage.
 
 **Blocked by:** 01, 03
 
-**Status:** done
+**Status:** resolved
 
 - [x] Rows show the email, 5h % with reset, and weekly % with reset
 - [x] Limited status appears at ≥100% on either window, with precedence Signed out > Limited > Running > Idle

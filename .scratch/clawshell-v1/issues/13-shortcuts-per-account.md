@@ -4,7 +4,7 @@
 
 **Blocked by:** 12
 
-**Status:** done
+**Status:** resolved
 
 - [x] Desktop and Start-menu shortcuts are created with the badged icon
 - [x] Clicking a shortcut launches the account, or focuses it if it's open

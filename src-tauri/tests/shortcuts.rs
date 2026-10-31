@@ -1,5 +1,6 @@
 mod support;
 
+use clawshell_lib::core::AccountError;
 use clawshell_lib::core::ports::ClaudeInstall;
 use clawshell_lib::core::shortcuts::{
     ShortcutError, account_to_open, encode_ico, launch_args, shortcut_name,
@@ -248,7 +249,10 @@ fn adding_for_an_unknown_account_writes_nothing() {
 
     let error = h.core().add_shortcuts(ID_B).unwrap_err();
 
-    assert!(matches!(error, ShortcutError::UnknownAccount));
+    assert!(matches!(
+        error,
+        ShortcutError::Account(AccountError::Unknown)
+    ));
     assert!(h.os.links_written.lock().unwrap().is_empty());
     assert!(h.os.icons_written.lock().unwrap().is_empty());
 }
@@ -439,5 +443,8 @@ fn a_shortcut_click_for_a_deleted_account_reports_it() {
 
     let outcome = h.core().open_requested(&line).unwrap();
 
-    assert!(matches!(outcome, Err(LaunchError::UnknownAccount)));
+    assert!(matches!(
+        outcome,
+        Err(LaunchError::Account(AccountError::Unknown))
+    ));
 }

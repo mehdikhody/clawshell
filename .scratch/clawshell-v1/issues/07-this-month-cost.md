@@ -8,7 +8,7 @@ A per-account list shows each account's dollars and share. If prices can't be fe
 
 **Blocked by:** 03, 05
 
-**Status:** done
+**Status:** resolved
 
 - [x] Transcripts map to the right account; transcripts from other or unknown sessions are ignored
 - [x] Duplicate streamed records are counted once

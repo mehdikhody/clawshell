@@ -1,5 +1,6 @@
 mod support;
 
+use clawshell_lib::core::AccountError;
 use clawshell_lib::core::launch_options::{EnvVar, LaunchOptions};
 use clawshell_lib::core::{LaunchOptionsError, LaunchOutcome};
 use support::Harness;
@@ -155,7 +156,10 @@ fn options_for_an_unknown_account_are_refused() {
         .core()
         .set_launch_options(ID_B, options(&[("A", "1")], &[]));
 
-    assert!(matches!(result, Err(LaunchOptionsError::UnknownAccount)));
+    assert!(matches!(
+        result,
+        Err(LaunchOptionsError::Account(AccountError::Unknown))
+    ));
 }
 
 #[test]
