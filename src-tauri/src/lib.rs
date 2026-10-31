@@ -120,7 +120,9 @@ pub fn run() {
             commands::heatmap,
             commands::get_settings,
             commands::update_settings,
-            commands::set_sign_in_routing
+            commands::set_sign_in_routing,
+            commands::routing_needs_choice,
+            commands::open_default_apps
         ])
         .run(tauri::generate_context!());
     if started.is_err() {

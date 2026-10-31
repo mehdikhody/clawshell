@@ -54,7 +54,7 @@ soon.setHours(soon.getHours() + 2, 0, 0, 0);
 const SOON_ISO = soon.toISOString();
 
 describe('UsageScreen pooled bars', () => {
-	it('shows the average remaining percentage for each window', async () => {
+	it('fills each bar with how much of the window is used', async () => {
 		mount(
 			listWith(
 				{
@@ -66,11 +66,11 @@ describe('UsageScreen pooled bars', () => {
 		);
 
 		const five = page.getByRole('progressbar', { name: '5-hour' });
-		await expect.element(five).toHaveAttribute('aria-valuenow', '80');
-		await expect.element(page.getByText('80%', { exact: true })).toBeVisible();
+		await expect.element(five).toHaveAttribute('aria-valuenow', '20');
+		await expect.element(page.getByText('20%', { exact: true })).toBeVisible();
 		const weekly = page.getByRole('progressbar', { name: 'Weekly' });
-		await expect.element(weekly).toHaveAttribute('aria-valuenow', '55');
-		await expect.element(page.getByText('55%', { exact: true })).toBeVisible();
+		await expect.element(weekly).toHaveAttribute('aria-valuenow', '45');
+		await expect.element(page.getByText('45%', { exact: true })).toBeVisible();
 	});
 
 	it('captions each bar with how many accounts are available', async () => {
@@ -126,7 +126,7 @@ describe('UsageScreen pooled bars', () => {
 
 		await expect
 			.element(page.getByRole('progressbar', { name: '5-hour' }))
-			.toHaveAttribute('aria-valuenow', '33');
+			.toHaveAttribute('aria-valuenow', '67');
 		await expect.element(page.getByText('1 of 2 accounts available')).toBeVisible();
 	});
 
@@ -251,7 +251,6 @@ describe('UsageScreen this month', () => {
 		expect(tauri.calls.filter((c) => c.cmd === 'month_cost')).toHaveLength(1);
 	});
 
-
 	it('shows no cost section when the core cannot report one', async () => {
 		mount(listWith(emptyPooled), {
 			month_cost: () => {
@@ -374,7 +373,6 @@ describe('UsageScreen heatmap', () => {
 		await expect.element(page.getByText('No usage data yet').first()).toBeVisible();
 		await expect.element(grid()).not.toBeInTheDocument();
 	});
-
 });
 
 describe('UsageScreen in Persian', () => {
@@ -393,8 +391,8 @@ describe('UsageScreen in Persian', () => {
 		);
 
 		await expect.element(page.getByRole('heading', { name: 'مصرف' })).toBeVisible();
-		await expect.element(page.getByText('۸۰٪', { exact: true })).toBeVisible();
-		await expect.element(page.getByText('۵۵٪', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('۲۰٪', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('۴۵٪', { exact: true })).toBeVisible();
 		await expect.element(page.getByText('۲ از ۳ حساب در دسترس').first()).toBeVisible();
 	});
 
@@ -420,8 +418,8 @@ describe('UsageScreen in Persian', () => {
 		switchLocale('fa');
 		mount(
 			listWith({
-				fiveHour: pooledWindow({ remainingPercent: 25, available: 1, total: 1 }),
-				weekly: pooledWindow({ remainingPercent: 25, available: 1, total: 1 })
+				fiveHour: pooledWindow({ remainingPercent: 75, available: 1, total: 1 }),
+				weekly: pooledWindow({ remainingPercent: 75, available: 1, total: 1 })
 			})
 		);
 

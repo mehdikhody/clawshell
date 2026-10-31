@@ -7,6 +7,8 @@ export type NoEstimate = 'prices-unavailable';
 export type AccountCost = {
 	id: string;
 	label: string;
+	/** The account's badge colour, `#rrggbb`. */
+	colour: string;
 	/** Code-tab estimate, month to date, in dollars. */
 	estimateUsd: number | null;
 	/** Extra-usage spend, month to date, in dollars. */
@@ -41,7 +43,12 @@ export const formatUsd = (amount: number, locale: string): string =>
 /** Short form from a thousand up, like $10K; smaller amounts keep their cents. */
 export const formatUsdShort = (amount: number, locale: string): string =>
 	amount >= 1000
-		? new Intl.NumberFormat('en', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(amount)
+		? new Intl.NumberFormat('en', {
+				style: 'currency',
+				currency: 'USD',
+				notation: 'compact',
+				maximumFractionDigits: 1
+			}).format(amount)
 		: formatUsd(amount, locale);
 
 /** Short count from a thousand up, like 7.5B. */

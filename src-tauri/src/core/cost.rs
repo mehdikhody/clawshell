@@ -45,6 +45,8 @@ pub enum NoEstimate {
 pub struct AccountCost {
     pub id: String,
     pub label: String,
+    /// The account's badge colour, `#rrggbb`.
+    pub colour: String,
     /// Code-tab estimate, month to date.
     pub estimate_usd: Option<f64>,
     /// Extra-usage spend, month to date (zero when the endpoint reports none).
@@ -123,6 +125,7 @@ impl Core {
                 AccountCost {
                     id: a.id.clone(),
                     label: a.label.clone(),
+                    colour: a.colour.clone(),
                     estimate_usd,
                     extra_usd,
                     total_usd: estimate_usd.map(|e| e + extra_usd),

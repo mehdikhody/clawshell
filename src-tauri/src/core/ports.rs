@@ -234,6 +234,10 @@ pub trait LinkHandlerRegistry: Send + Sync {
     /// Puts back exactly what `snapshot` recorded and removes everything
     /// `register_handler` added.
     fn restore_handler(&self, snapshot: &str) -> io::Result<()>;
+    /// Whether the user's Default Apps choice for `claude://` names another
+    /// app. Windows follows that choice over the registered handler, so links
+    /// skip clawshell until the user picks it there.
+    fn chosen_elsewhere(&self) -> bool;
     /// Opens the Windows Default Apps page for clawshell, where the user makes
     /// the one choice Windows will not let a program make for them.
     fn open_default_apps(&self) -> io::Result<()>;

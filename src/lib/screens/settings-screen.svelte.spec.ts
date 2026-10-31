@@ -212,7 +212,7 @@ describe('SettingsScreen', () => {
 		const tauri = mount();
 
 		await expect.element(page.getByRole('slider').first()).toBeVisible();
-		(await page.getByRole('slider').first().element() as HTMLElement).focus();
+		((await page.getByRole('slider').first().element()) as HTMLElement).focus();
 		await userEvent.keyboard('{ArrowRight}');
 
 		await expect.poll(() => updates(tauri.calls)).toEqual([{ ...defaults, warningThreshold: 81 }]);
@@ -227,7 +227,7 @@ describe('SettingsScreen', () => {
 		});
 
 		await expect.element(page.getByRole('slider').first()).toBeVisible();
-		(await page.getByRole('slider').first().element() as HTMLElement).focus();
+		((await page.getByRole('slider').first().element()) as HTMLElement).focus();
 		await userEvent.keyboard('{ArrowRight}'.repeat(20));
 
 		await expect.element(page.getByRole('alert')).toHaveTextContent(/below the limit/i);
@@ -270,12 +270,12 @@ describe('SettingsScreen', () => {
 			expect(routingCalls(tauri.calls)).toEqual([{ enabled: false }]);
 		});
 
-		it('guides the one Default Apps choice the Store build leaves', async () => {
+		it('guides the Default Apps choice Windows leaves', async () => {
 			mount(defaults, routing(true, true));
 
 			await page.getByRole('switch', { name: 'Sign-in routing' }).click();
 
-			await expect.element(page.getByText('One choice left in Windows')).toBeVisible();
+			await expect.element(page.getByText("Sign-in links aren't reaching clawshell")).toBeVisible();
 			await expect.element(page.getByText(/set the claude link type to clawshell/i)).toBeVisible();
 		});
 
@@ -285,7 +285,9 @@ describe('SettingsScreen', () => {
 			await page.getByRole('switch', { name: 'Sign-in routing' }).click();
 
 			await expect.element(page.getByRole('switch', { name: 'Sign-in routing' })).toBeChecked();
-			await expect.element(page.getByText('One choice left in Windows')).not.toBeInTheDocument();
+			await expect
+				.element(page.getByText("Sign-in links aren't reaching clawshell"))
+				.not.toBeInTheDocument();
 		});
 
 		it('drops the Default Apps note when routing is turned off again', async () => {
@@ -302,10 +304,38 @@ describe('SettingsScreen', () => {
 			});
 
 			await page.getByRole('switch', { name: 'Sign-in routing' }).click();
-			await expect.element(page.getByText('One choice left in Windows')).toBeVisible();
+			await expect.element(page.getByText("Sign-in links aren't reaching clawshell")).toBeVisible();
 			await page.getByRole('switch', { name: 'Sign-in routing' }).click();
 
-			await expect.element(page.getByText('One choice left in Windows')).not.toBeInTheDocument();
+			await expect
+				.element(page.getByText("Sign-in links aren't reaching clawshell"))
+				.not.toBeInTheDocument();
+		});
+
+		it('warns on opening when Windows sends links to another app', async () => {
+			mount({ ...defaults, signInRouting: true }, { routing_needs_choice: () => true });
+
+			await expect.element(page.getByText("Sign-in links aren't reaching clawshell")).toBeVisible();
+		});
+
+		it('opens Default Apps from the warning', async () => {
+			const tauri = mount(
+				{ ...defaults, signInRouting: true },
+				{ routing_needs_choice: () => true, open_default_apps: () => null }
+			);
+
+			await page.getByRole('button', { name: 'Open Default Apps' }).click();
+
+			expect(tauri.calls.filter((c) => c.cmd === 'open_default_apps')).toHaveLength(1);
+		});
+
+		it('says nothing when the links reach clawshell', async () => {
+			mount({ ...defaults, signInRouting: true }, { routing_needs_choice: () => false });
+
+			await expect.element(page.getByRole('switch', { name: 'Sign-in routing' })).toBeChecked();
+			await expect
+				.element(page.getByText("Sign-in links aren't reaching clawshell"))
+				.not.toBeInTheDocument();
 		});
 
 		it('puts the switch back and says so when Windows refuses', async () => {

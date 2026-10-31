@@ -15,6 +15,7 @@ export const monthCost = (over: Partial<MonthCost> = {}): MonthCost => ({
 export const accountCost = (id: string, over: Partial<AccountCost> = {}): AccountCost => ({
 	id,
 	label: id,
+	colour: '#d97757',
 	estimateUsd: 0,
 	extraUsd: 0,
 	totalUsd: 0,

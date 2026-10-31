@@ -54,16 +54,23 @@
 
 		{#if cost.accounts.length > 0}
 			<Separator class="my-2" />
-			<Item.Group class="gap-2">
+			<Item.Group class="gap-4">
 				{#each cost.accounts as account (account.id)}
 					{@const dollars = dollarsOf(account)}
 					<Item.Root size="xs" class="p-0" role="listitem">
 						<Item.Content class="group-data-[size=xs]/item:gap-2">
 							<div class="flex items-baseline justify-between text-xs">
-								<span class="truncate font-medium">{account.label}</span>
+								<span class="flex min-w-0 items-center gap-1.5">
+									<span
+										class="size-2 shrink-0 rounded-full"
+										style:background-color={account.colour}
+										aria-hidden="true"
+									></span>
+									<span class="truncate font-medium">{account.label}</span>
+								</span>
 								<span class="tabular-nums">
 									<span class="text-muted-foreground">{formatCountShort(account.tokens)} · </span>
-								{dollars === null ? '—' : usd(dollars)}
+									{dollars === null ? '—' : usd(dollars)}
 									{#if account.share !== null}
 										<span class="text-muted-foreground"
 											>{formatPercentValue(account.share * 100, formatTag())}</span

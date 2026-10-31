@@ -294,6 +294,19 @@ pub fn set_sign_in_routing(
     Ok(core.set_sign_in_routing(enabled)?)
 }
 
+/// Routing is on but Windows sends `claude://` links to another app: the
+/// user has yet to pick clawshell on the Default Apps page.
+#[tauri::command]
+pub fn routing_needs_choice(core: State<'_, Arc<Core>>) -> bool {
+    core.routing_needs_choice()
+}
+
+#[tauri::command]
+pub fn open_default_apps(core: State<'_, Arc<Core>>) -> Result<(), CommandError> {
+    core.open_default_apps()
+        .map_err(|e| CommandError::new("io", e.to_string()))
+}
+
 #[tauri::command]
 pub fn launch_account(
     core: State<'_, Arc<Core>>,
@@ -342,11 +355,18 @@ pub async fn heatmap(core: State<'_, Arc<Core>>) -> Result<Heatmap, CommandError
 /// Polls the account list and emits `accounts-changed` whenever it differs,
 /// so Running / Idle / Signed out follow Claude windows opening and closing.
 pub fn watch_accounts(feed: AccountFeed) {
+    // Claude rewriting its link handler is noticed on the next tick. Its own
+    // loop, so a slow account scan never holds the handler back.
+    let core = feed.core.clone();
     std::thread::spawn(move || {
         loop {
             std::thread::sleep(WATCH_INTERVAL);
-            // Claude rewriting its link handler is noticed on the next tick.
-            feed.core.keep_link_handler();
+            core.keep_link_handler();
+        }
+    });
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(WATCH_INTERVAL);
             feed.publish();
         }
     });

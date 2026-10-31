@@ -49,6 +49,15 @@ export type RoutingChange = {
 export const setSignInRouting = (enabled: boolean) =>
 	invoke<RoutingChange>('set_sign_in_routing', { enabled });
 
+/**
+ * Routing is on, but Windows sends `claude://` links to another app (Claude itself, on the
+ * Store build): the user has yet to pick clawshell on the Default Apps page.
+ */
+export const routingNeedsChoice = () => invoke<boolean>('routing_needs_choice');
+
+/** Opens the Windows Default Apps page for clawshell. */
+export const openDefaultApps = () => invoke<void>('open_default_apps');
+
 /** Calls `handler` once, after the first successful Add, when routing should be offered. */
 export const onRoutingOffer = (handler: () => void): Promise<UnlistenFn> =>
 	listen('routing-offer', () => handler());

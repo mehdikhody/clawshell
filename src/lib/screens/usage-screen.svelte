@@ -114,14 +114,15 @@
 				<Item.Title>{label}</Item.Title>
 				{#if pooled.remainingPercent !== null}
 					<span class="text-lg font-semibold tabular-nums">
-						{formatPercentValue(pooled.remainingPercent, formatTag())}
+						{formatPercentValue(100 - pooled.remainingPercent, formatTag())}
 					</span>
 				{/if}
 			</div>
 			{#if pooled.remainingPercent === null}
 				<p class="text-xs text-muted-foreground">{m.usage_none()}</p>
 			{:else}
-				<Progress value={Math.round(pooled.remainingPercent)} aria-label={label} />
+				<!-- Fills with use, like Claude's own usage meters. -->
+				<Progress value={Math.round(100 - pooled.remainingPercent)} aria-label={label} />
 				<div class="flex items-center justify-between text-xs text-muted-foreground">
 					<span
 						>{m.usage_available({

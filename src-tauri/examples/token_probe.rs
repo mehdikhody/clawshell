@@ -12,7 +12,9 @@ fn main() {
     use clawshell_lib::core::desktop_token as dt;
     use std::path::Path;
 
-    let profile = std::env::args().nth(1).expect("usage: token_probe <profile folder>");
+    let profile = std::env::args()
+        .nth(1)
+        .expect("usage: token_probe <profile folder>");
     let profile = Path::new(&profile);
 
     let read_json = |name: &str| -> serde_json::Value {
@@ -32,10 +34,12 @@ fn main() {
         println!("no oauth:tokenCacheV2 in config.json");
         std::process::exit(1)
     });
-    let wrapped = local_state["os_crypt"]["encrypted_key"].as_str().unwrap_or_else(|| {
-        println!("no os_crypt.encrypted_key in Local State");
-        std::process::exit(1)
-    });
+    let wrapped = local_state["os_crypt"]["encrypted_key"]
+        .as_str()
+        .unwrap_or_else(|| {
+            println!("no os_crypt.encrypted_key in Local State");
+            std::process::exit(1)
+        });
 
     let blob = dt::dpapi_blob_from_encrypted_key(wrapped).expect("encrypted_key shape");
     let key = dpapi_unprotect(&blob).unwrap_or_else(|| {
@@ -77,7 +81,11 @@ fn main() {
     }
 
     for (label, url, beta) in [
-        ("profile", "https://api.anthropic.com/api/oauth/profile", false),
+        (
+            "profile",
+            "https://api.anthropic.com/api/oauth/profile",
+            false,
+        ),
         ("usage", "https://api.anthropic.com/api/oauth/usage", true),
     ] {
         let mut req = ureq::get(url)

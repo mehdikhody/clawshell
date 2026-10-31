@@ -31,13 +31,17 @@ fn scan_lists_only_clawshell_profile_folders_and_stamps_scan_time() {
         scan.scanned_at,
         UNIX_EPOCH + Duration::from_secs(1_781_524_890)
     );
-    assert!(h.http.requests().is_empty(), "a scan makes no network calls");
+    assert!(
+        h.http.requests().is_empty(),
+        "a scan makes no network calls"
+    );
 }
 
 #[test]
 fn scripted_http_replays_responses_in_order_and_records_requests() {
     let h = Harness::new();
-    h.http.respond("https://example.test/usage", 429, "slow down");
+    h.http
+        .respond("https://example.test/usage", 429, "slow down");
     h.http.respond("https://example.test/usage", 200, "{}");
 
     let ask = || {

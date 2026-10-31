@@ -328,6 +328,8 @@ pub struct FakeOs {
     pub register_fails: Mutex<bool>,
     /// Makes restoring the handler fail.
     pub restore_fails: Mutex<bool>,
+    /// The user's Default Apps choice for `claude://` names another app.
+    pub chosen_elsewhere: Mutex<bool>,
     /// How many times the Default Apps page was opened.
     pub default_apps_opened: Mutex<u32>,
     /// Every link handed on to a Claude process, in order.
@@ -366,6 +368,7 @@ impl Default for FakeOs {
             registry_calls: Mutex::default(),
             register_fails: Mutex::new(false),
             restore_fails: Mutex::new(false),
+            chosen_elsewhere: Mutex::new(false),
             default_apps_opened: Mutex::new(0),
             forwarded: Mutex::default(),
         }
@@ -516,6 +519,9 @@ impl LinkHandlerRegistry for FakeOs {
         *self.handler.lock().unwrap() = snapshot.strip_prefix("present:").map(str::to_string);
         *self.handler_extras.lock().unwrap() = false;
         Ok(())
+    }
+    fn chosen_elsewhere(&self) -> bool {
+        *self.chosen_elsewhere.lock().unwrap()
     }
     fn open_default_apps(&self) -> io::Result<()> {
         *self.default_apps_opened.lock().unwrap() += 1;

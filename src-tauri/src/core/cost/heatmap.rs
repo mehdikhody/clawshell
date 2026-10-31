@@ -50,11 +50,20 @@ pub struct DayValues {
 pub struct DayAccount {
     pub id: String,
     pub label: String,
+    /// The account's badge colour, `#rrggbb`.
+    pub colour: String,
     pub value: f64,
 }
 
 /// Values by `(local day, account id)`.
 type ByDay = HashMap<(i64, String), f64>;
+
+/// What a day's breakdown shows of each account.
+struct Name {
+    id: String,
+    label: String,
+    colour: String,
+}
 
 impl Core {
     /// The last 60 local days (today last), with dollars, tokens and percent.
@@ -93,9 +102,13 @@ impl Core {
             self.local_day(time_of(ms))
         });
 
-        let names: Vec<(String, String)> = accounts
+        let names: Vec<Name> = accounts
             .iter()
-            .map(|a| (a.id.clone(), a.label.clone()))
+            .map(|a| Name {
+                id: a.id.clone(),
+                label: a.label.clone(),
+                colour: a.colour.clone(),
+            })
             .collect();
         let days = (first..=today)
             .map(|day| HeatmapDay {
@@ -176,10 +189,10 @@ fn daily_tokens(records: &[(String, Record)], day_of: impl Fn(i64) -> i64) -> To
 }
 
 /// Every account's dollars for `day` (zero when it has none), summed.
-fn summed(day: i64, names: &[(String, String)], by_day: &ByDay) -> DayValues {
-    let accounts = ranked(names.iter().map(|(id, label)| {
-        let value = by_day.get(&(day, id.clone())).copied().unwrap_or(0.0);
-        (id, label, value)
+fn summed(day: i64, names: &[Name], by_day: &ByDay) -> DayValues {
+    let accounts = ranked(names.iter().map(|name| {
+        let value = by_day.get(&(day, name.id.clone())).copied().unwrap_or(0.0);
+        (name, value)
     }));
     DayValues {
         total: accounts.iter().map(|a| a.value).sum(),
@@ -189,11 +202,11 @@ fn summed(day: i64, names: &[(String, String)], by_day: &ByDay) -> DayValues {
 
 /// The percent of the accounts that have a reading for `day`, averaged;
 /// `None` when none do.
-fn averaged(day: i64, names: &[(String, String)], by_day: &ByDay) -> Option<DayValues> {
+fn averaged(day: i64, names: &[Name], by_day: &ByDay) -> Option<DayValues> {
     let accounts = ranked(
         names
             .iter()
-            .filter_map(|(id, label)| Some((id, label, *by_day.get(&(day, id.clone()))?))),
+            .filter_map(|name| Some((name, *by_day.get(&(day, name.id.clone()))?))),
     );
     (!accounts.is_empty()).then(|| DayValues {
         total: accounts.iter().map(|a| a.value).sum::<f64>() / accounts.len() as f64,
@@ -202,11 +215,12 @@ fn averaged(day: i64, names: &[(String, String)], by_day: &ByDay) -> Option<DayV
 }
 
 /// Biggest first, ties by label.
-fn ranked<'a>(rows: impl Iterator<Item = (&'a String, &'a String, f64)>) -> Vec<DayAccount> {
+fn ranked<'a>(rows: impl Iterator<Item = (&'a Name, f64)>) -> Vec<DayAccount> {
     let mut accounts: Vec<DayAccount> = rows
-        .map(|(id, label, value)| DayAccount {
-            id: id.clone(),
-            label: label.clone(),
+        .map(|(name, value)| DayAccount {
+            id: name.id.clone(),
+            label: name.label.clone(),
+            colour: name.colour.clone(),
             value,
         })
         .collect();

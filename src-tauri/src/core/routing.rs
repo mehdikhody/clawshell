@@ -174,7 +174,10 @@ impl Core {
                 }
                 return Err(RoutingError::Registry(e));
             }
-            if self.claude_install().is_some_and(|i| is_store_install(&i)) {
+            // The Store build always leaves the choice to the user; any build
+            // does once the user has picked another app for the links.
+            if self.claude_install().is_some_and(|i| is_store_install(&i)) || os.chosen_elsewhere()
+            {
                 // Best effort: the settings screen tells the user where to go.
                 let _ = os.open_default_apps();
                 needs_default_apps_choice = true;
@@ -211,6 +214,18 @@ impl Core {
         if backup::save(local, &snapshot).is_ok() {
             let _ = os.register_handler();
         }
+    }
+
+    /// Routing is on, but the user's Default Apps choice sends `claude://`
+    /// links to another app (Claude itself, on the Store build), so none
+    /// reach clawshell. Settings warns until clawshell is picked.
+    pub fn routing_needs_choice(&self) -> bool {
+        self.settings().sign_in_routing && self.ports.os.chosen_elsewhere()
+    }
+
+    /// Opens the Default Apps page, where the user picks clawshell for links.
+    pub fn open_default_apps(&self) -> io::Result<()> {
+        self.ports.os.open_default_apps()
     }
 
     /// True the first time it is asked, and only if routing is still off:

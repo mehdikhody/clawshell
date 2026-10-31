@@ -14,7 +14,14 @@
 	import { Slider as SliderPrimitive } from 'bits-ui';
 	import { Switch } from '$lib/components/ui/switch';
 	import { m } from '$lib/paraglide/messages.js';
-	import { getSettings, setSignInRouting, updateSettings, type Settings } from '$lib/settings';
+	import {
+		getSettings,
+		openDefaultApps,
+		routingNeedsChoice,
+		setSignInRouting,
+		updateSettings,
+		type Settings
+	} from '$lib/settings';
 
 	/** What the core has saved. It changes only when the core accepts an update. */
 	let settings = $state<Settings | null>(null);
@@ -31,8 +38,24 @@
 		'routing-failed': () => m.error_routing_failed()
 	};
 
-	/** The Store build leaves one choice on the Default Apps page, which has just been opened. */
-	let defaultAppsNote = $state(false);
+	/** Routing is on but Windows sends links to another app until clawshell is picked in Default Apps. */
+	let needsChoice = $state(false);
+	/** How often the warning looks again, so it clears once the user has picked clawshell. */
+	const CHOICE_RECHECK_MS = 3000;
+
+	async function checkChoice() {
+		try {
+			needsChoice = (await routingNeedsChoice()) === true;
+		} catch {
+			needsChoice = false;
+		}
+	}
+
+	$effect(() => {
+		if (!needsChoice) return;
+		const timer = setInterval(checkChoice, CHOICE_RECHECK_MS);
+		return () => clearInterval(timer);
+	});
 
 	/** Routing has its own command: it also edits the registry, and the core says what is left to do. */
 	async function changeRouting(enabled: boolean) {
@@ -40,7 +63,7 @@
 		try {
 			const change = await setSignInRouting(enabled);
 			settings = change.settings;
-			defaultAppsNote = enabled && change.needsDefaultAppsChoice;
+			needsChoice = enabled && change.needsDefaultAppsChoice;
 		} catch (error) {
 			failure = failureText[errorCode(error) ?? '']?.() ?? m.error_settings_save_failed();
 		}
@@ -54,7 +77,9 @@
 			syncDrafts();
 		} catch {
 			failure = m.error_settings_load_failed();
+			return;
 		}
+		await checkChoice();
 	}
 
 	onMount(loadSettings);
@@ -182,15 +207,15 @@
 	{/if}
 
 	{#if !settings && !failure}
-			<p class="py-10 text-center text-sm text-muted-foreground">{m.loading()}</p>
-		{:else if !settings}
-			<Button variant="outline" size="sm" class="self-center" onclick={loadSettings}>
-				{m.action_retry()}
-			</Button>
-		{/if}
+		<p class="py-10 text-center text-sm text-muted-foreground">{m.loading()}</p>
+	{:else if !settings}
+		<Button variant="outline" size="sm" class="self-center" onclick={loadSettings}>
+			{m.action_retry()}
+		</Button>
+	{/if}
 
-		{#if settings}
-			<h2 class="text-sm font-medium">{m.settings_general()}</h2>
+	{#if settings}
+		<h2 class="text-sm font-medium">{m.settings_general()}</h2>
 		{#each switches as row (row.key)}
 			{@render switchRow(row)}
 		{/each}
@@ -209,11 +234,16 @@
 				/>
 			</Item.Actions>
 		</Item.Root>
-		{#if defaultAppsNote}
+		{#if needsChoice}
 			<Alert.Root role="status">
 				<IconInfoCircle />
-				<Alert.Title>{m.routing_default_apps_title()}</Alert.Title>
-				<Alert.Description>{m.routing_default_apps_body()}</Alert.Description>
+				<Alert.Title>{m.routing_choice_title()}</Alert.Title>
+				<Alert.Description>
+					<p>{m.routing_choice_body()}</p>
+					<Button size="sm" variant="outline" class="mt-2" onclick={() => void openDefaultApps()}>
+						{m.routing_choice_open()}
+					</Button>
+				</Alert.Description>
 			</Alert.Root>
 		{/if}
 
@@ -238,12 +268,12 @@
 							onValueCommit={(value) => saveThreshold(field.key, value)}
 							class="relative flex w-full touch-none items-center select-none"
 						>
-							<span class="bg-muted relative h-1.5 w-full grow overflow-hidden rounded-full">
-								<SliderPrimitive.Range class="bg-primary absolute h-full" />
+							<span class="relative h-1.5 w-full grow overflow-hidden rounded-full bg-muted">
+								<SliderPrimitive.Range class="absolute h-full bg-primary" />
 							</span>
 							<SliderPrimitive.Thumb
 								index={0}
-								class="border-primary bg-background ring-ring/50 block size-4 shrink-0 rounded-full border shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden"
+								class="block size-4 shrink-0 rounded-full border border-primary bg-background shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden"
 							/>
 						</SliderPrimitive.Root>
 						<span class="w-10 text-end text-sm tabular-nums">{field.draft()}%</span>
@@ -277,7 +307,9 @@
 							}}
 						>
 							{#each locales as locale (locale)}
-								<DropdownMenu.RadioItem value={locale} lang={locale}>{languageName[locale]()}</DropdownMenu.RadioItem>
+								<DropdownMenu.RadioItem value={locale} lang={locale}
+									>{languageName[locale]()}</DropdownMenu.RadioItem
+								>
 							{/each}
 						</DropdownMenu.RadioGroup>
 					</DropdownMenu.Content>
@@ -288,7 +320,9 @@
 		<form onsubmit={savePath}>
 			<Item.Root variant="outline" size="sm">
 				<Item.Content>
-					<Item.Title><Label for="setting-claude-path">{m.settings_claude_path()}</Label></Item.Title>
+					<Item.Title
+						><Label for="setting-claude-path">{m.settings_claude_path()}</Label></Item.Title
+					>
 					<Item.Description>{m.settings_claude_path_hint()}</Item.Description>
 				</Item.Content>
 				<Item.Actions class="w-full">

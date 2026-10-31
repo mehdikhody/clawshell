@@ -192,6 +192,50 @@ fn a_general_settings_save_does_not_flip_routing() {
     assert!(!core.settings().close_to_tray);
 }
 
+#[test]
+fn any_build_opens_default_apps_when_another_app_is_chosen_for_links() {
+    let h = Harness::new();
+    *h.os.chosen_elsewhere.lock().unwrap() = true;
+
+    let change = h.core().set_sign_in_routing(true).unwrap();
+
+    assert!(change.needs_default_apps_choice);
+    assert_eq!(*h.os.default_apps_opened.lock().unwrap(), 1);
+}
+
+// The Default Apps choice
+
+#[test]
+fn routing_needs_the_choice_while_another_app_gets_the_links() {
+    let h = Harness::new();
+    let core = h.core();
+    core.set_sign_in_routing(true).unwrap();
+    *h.os.chosen_elsewhere.lock().unwrap() = true;
+
+    assert!(core.routing_needs_choice());
+
+    // The user picks clawshell on the Default Apps page.
+    *h.os.chosen_elsewhere.lock().unwrap() = false;
+    assert!(!core.routing_needs_choice());
+}
+
+#[test]
+fn routing_that_is_off_needs_no_choice() {
+    let h = Harness::new();
+    *h.os.chosen_elsewhere.lock().unwrap() = true;
+
+    assert!(!h.core().routing_needs_choice());
+}
+
+#[test]
+fn the_default_apps_page_opens_on_request() {
+    let h = Harness::new();
+
+    h.core().open_default_apps().unwrap();
+
+    assert_eq!(*h.os.default_apps_opened.lock().unwrap(), 1);
+}
+
 // Handler upkeep
 
 #[test]

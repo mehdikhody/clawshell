@@ -345,6 +345,9 @@ impl LinkHandlerRegistry for WindowsOs {
     fn restore_handler(&self, snapshot: &str) -> io::Result<()> {
         link_registry::restore(&link_registry::Snapshot::from_text(snapshot)?)
     }
+    fn chosen_elsewhere(&self) -> bool {
+        link_registry::chosen_elsewhere()
+    }
     fn open_default_apps(&self) -> io::Result<()> {
         Command::new("explorer.exe")
             .arg(link_registry::DEFAULT_APPS_URI)

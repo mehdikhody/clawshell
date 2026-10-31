@@ -24,6 +24,12 @@ const APP_KEY: &str = r"Software\clawshell";
 const CAPABILITIES_KEY: &str = r"Software\clawshell\Capabilities";
 const REGISTERED_APPS_KEY: &str = r"Software\RegisteredApplications";
 const APP_NAME: &str = "clawshell";
+/// The user's Default Apps choice for `claude://`. When it is set, Windows
+/// follows it over `Software\Classes\claude`.
+const USER_CHOICE_KEY: &str =
+    r"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\claude\UserChoice";
+/// A choice of the plain protocol key runs the command registered under it.
+const PROTOCOL_PROG_ID: &str = "claude";
 /// Where the Default Apps page for this app opens.
 pub const DEFAULT_APPS_URI: &str = "ms-settings:defaultapps?registeredAppUser=clawshell";
 
@@ -320,6 +326,20 @@ pub fn is_registered(command: &str) -> bool {
     read_string(&key, "").is_some_and(|current| current.trim().eq_ignore_ascii_case(command))
 }
 
+/// Whether the user's Default Apps choice for `claude://` names an app other
+/// than clawshell, so links skip clawshell whatever is registered. No choice,
+/// or a registry that can't be read, counts as no other app.
+pub fn chosen_elsewhere() -> bool {
+    let Ok(Some(key)) = open(HKEY_CURRENT_USER, USER_CHOICE_KEY, KEY_READ) else {
+        return false;
+    };
+    read_string(&key, "ProgId").is_some_and(|prog_id| is_other_app(&prog_id))
+}
+
+fn is_other_app(prog_id: &str) -> bool {
+    !prog_id.eq_ignore_ascii_case(PROG_ID) && !prog_id.eq_ignore_ascii_case(PROTOCOL_PROG_ID)
+}
+
 /// Registers `command` for `claude://` under the current user, and clawshell
 /// as an app of its own so the Default Apps page lists it.
 pub fn register(command: &str) -> io::Result<()> {
@@ -414,6 +434,14 @@ mod tests {
         assert_eq!(Snapshot::from_text(&snapshot.to_text()).unwrap(), snapshot);
         let absent = Snapshot { claude: None };
         assert_eq!(Snapshot::from_text(&absent.to_text()).unwrap(), absent);
+    }
+
+    #[test]
+    fn only_a_choice_of_another_app_keeps_links_from_clawshell() {
+        assert!(is_other_app("AppXaem4n1tckgw588q10avtdbzpbgt71c77"));
+        assert!(!is_other_app("clawshell.claude"));
+        assert!(!is_other_app("Clawshell.Claude"));
+        assert!(!is_other_app("claude"));
     }
 
     #[test]

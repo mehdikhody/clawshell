@@ -10,7 +10,7 @@ const DATES = Array.from({ length: 60 }, (_, i) => {
 /** A day's dollars from `[account, value]` pairs; the total is their sum. */
 export const values = (rows: [string, number][]): DayValues => ({
 	total: rows.reduce((s, [, v]) => s + v, 0),
-	accounts: rows.map(([label, value]) => ({ id: label, label, value }))
+	accounts: rows.map(([label, value]) => ({ id: label, label, colour: '#d97757', value }))
 });
 
 /** 60 days with no data anywhere; `days` fills in individual dates. */

@@ -102,7 +102,14 @@
 									<ul class="flex flex-col gap-0.5">
 										{#each day.usd.accounts as account (account.id)}
 											<li class="flex justify-between gap-4">
-												<span class="truncate">{account.label}</span>
+												<span class="flex min-w-0 items-center gap-1.5">
+													<span
+														class="size-2 shrink-0 rounded-full"
+														style:background-color={account.colour}
+														aria-hidden="true"
+													></span>
+													<span class="truncate">{account.label}</span>
+												</span>
 												<span class="tabular-nums">{money(account.value)}</span>
 											</li>
 										{/each}

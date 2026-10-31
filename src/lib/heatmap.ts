@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { NoEstimate } from '$lib/cost';
 
-export type DayAccount = { id: string; label: string; value: number };
+/** `colour` is the account's badge colour, `#rrggbb`. */
+export type DayAccount = { id: string; label: string; colour: string; value: number };
 
 /** A day's total and each account's part, biggest first. */
 export type DayValues = { total: number; accounts: DayAccount[] };
