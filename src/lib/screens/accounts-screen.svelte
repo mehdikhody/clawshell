@@ -4,6 +4,7 @@
 	import IconAlertTriangle from '@tabler/icons-svelte/icons/alert-triangle';
 	import IconAppWindow from '@tabler/icons-svelte/icons/app-window';
 	import IconCheck from '@tabler/icons-svelte/icons/check';
+	import IconCopy from '@tabler/icons-svelte/icons/copy';
 	import IconDots from '@tabler/icons-svelte/icons/dots';
 	import IconFolderOpen from '@tabler/icons-svelte/icons/folder-open';
 	import IconPalette from '@tabler/icons-svelte/icons/palette';
@@ -36,6 +37,7 @@
 	import * as Alert from '$lib/components/ui/alert';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import AccountIcon from '$lib/components/account-icon.svelte';
+	import CopySessionsDialog from '$lib/components/copy-sessions-dialog.svelte';
 	import LaunchOptionsDialog from '$lib/components/launch-options-dialog.svelte';
 	import { Badge, type BadgeVariant } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
@@ -95,6 +97,8 @@
 	let colouring = $state<Account | null>(null);
 	/** The account whose environment variables and flags are being edited. */
 	let editingOptions = $state<Account | null>(null);
+	/** The account whose Code sessions are listed for copying. */
+	let copyingSessions = $state<Account | null>(null);
 	/** The account awaiting delete (or, when its folder is gone, remove) confirmation. */
 	let confirming = $state<Account | null>(null);
 
@@ -450,6 +454,10 @@
 								{m.menu_add_shortcuts()}
 							</ContextMenu.Item>
 						{/if}
+						<ContextMenu.Item onSelect={() => (copyingSessions = account)}>
+							<IconCopy />
+							{m.menu_copy_sessions()}
+						</ContextMenu.Item>
 						<ContextMenu.Item onSelect={() => (editingOptions = account)}>
 							<IconTerminal2 />
 							{m.menu_launch_options()}
@@ -641,6 +649,10 @@
 		</div>
 	</Dialog.Content>
 </Dialog.Root>
+
+{#if copyingSessions}
+	<CopySessionsDialog account={copyingSessions} onclose={() => (copyingSessions = null)} />
+{/if}
 
 {#if editingOptions}
 	<LaunchOptionsDialog

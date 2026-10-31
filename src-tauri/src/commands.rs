@@ -3,10 +3,10 @@
 
 use crate::core::ports::ClaudeLocator;
 use crate::core::{
-    Account, AccountError, AccountList, AddError, ColourError, Core, DeleteError, Heatmap,
-    LaunchError, LaunchOptions, LaunchOptionsError, LaunchOutcome, MonthCost, NewAccount,
-    OpenFolderError, RefreshOutcome, RenameError, RoutingChange, RoutingError, Settings,
-    SettingsError, ShortcutError,
+    Account, AccountError, AccountList, AddError, CodeSession, ColourError, Core, DeleteError,
+    Heatmap, LaunchError, LaunchOptions, LaunchOptionsError, LaunchOutcome, MonthCost, NewAccount,
+    OpenFolderError, RefreshOutcome, RenameError, RoutingChange, RoutingError, SessionsError,
+    Settings, SettingsError, ShortcutError,
 };
 use crate::taskbar::{badge_image, claude_base, plain_image};
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -186,6 +186,18 @@ impl From<DeleteError> for CommandError {
     }
 }
 
+impl From<SessionsError> for CommandError {
+    fn from(e: SessionsError) -> Self {
+        match e {
+            SessionsError::Account(e) => e.into(),
+            SessionsError::LayoutChanged => CommandError::new(
+                "sessions-layout-changed",
+                "Claude's session files look different from what clawshell expects",
+            ),
+        }
+    }
+}
+
 impl From<ShortcutError> for CommandError {
     fn from(e: ShortcutError) -> Self {
         match e {
@@ -268,6 +280,15 @@ pub fn quit_account(
     let result = core.quit_account(&id);
     feed.publish();
     Ok(result?)
+}
+
+/// The account's Code sessions, newest activity first.
+#[tauri::command]
+pub fn list_sessions(
+    core: State<'_, Arc<Core>>,
+    id: String,
+) -> Result<Vec<CodeSession>, CommandError> {
+    Ok(core.list_sessions(&id)?)
 }
 
 #[tauri::command]

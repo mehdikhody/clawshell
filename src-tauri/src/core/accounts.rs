@@ -194,7 +194,7 @@ impl Core {
         records.save(&self.ports.roots.local_app_data)
     }
 
-    fn find_account(&self, id: &str) -> io::Result<Option<Account>> {
+    pub(super) fn find_account(&self, id: &str) -> io::Result<Option<Account>> {
         Ok(self.known_accounts()?.into_iter().find(|a| a.id == id))
     }
 
