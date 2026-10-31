@@ -11,6 +11,16 @@ const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
 
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),
+	{
+		ignores: [
+			'.agents/**',
+			'.claude/**',
+			'**/graphify-out/**',
+			'src-tauri/target/**',
+			'src-tauri/gen/**',
+			'src/lib/components/ui/**'
+		]
+	},
 	js.configs.recommended,
 	ts.configs.recommended,
 	svelte.configs.recommended,
