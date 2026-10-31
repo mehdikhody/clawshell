@@ -483,6 +483,21 @@ describe('UsageScreen in Persian', () => {
 		await expect.element(page.getByText('۸۲٪')).toBeVisible();
 	});
 
+	it('lays the heatmap tooltip out right to left', async () => {
+		switchLocale('fa');
+		mount(listWith(emptyPooled), {
+			heatmap: () =>
+				heatmapOf({ '2026-06-10': { usd: values([['Work', 1]]), tokens: values([['Work', 10]]) } })
+		});
+		const day = page.getByRole('group', { name: '۹ هفته گذشته' }).getByRole('button').nth(52);
+
+		await day.hover();
+
+		const tip = page.getByTestId('heatmap-tooltip');
+		await expect.element(tip).toBeVisible();
+		expect(getComputedStyle(tip.element()).direction).toBe('rtl');
+	});
+
 	it('fills a bar from the right edge', async () => {
 		switchLocale('fa');
 		mount(
