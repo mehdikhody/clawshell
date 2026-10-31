@@ -4,10 +4,10 @@
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Env vars and flags can be added, edited and removed per account, and persist
-- [ ] Invalid env names are rejected with a message
-- [ ] Launch passes the flags and sets the env vars only for that child process
-- [ ] The editor shows the "applies on fresh start" note
-- [ ] Core tests cover validation and launch-argument assembly via a faked launcher; UI tests cover the editor
+- [x] Env vars and flags can be added, edited and removed per account, and persist
+- [x] Invalid env names are rejected with a message
+- [x] Launch passes the flags and sets the env vars only for that child process
+- [x] The editor shows the "applies on fresh start" note
+- [x] Core tests cover validation and launch-argument assembly via a faked launcher; UI tests cover the editor

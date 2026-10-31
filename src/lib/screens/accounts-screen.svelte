@@ -9,6 +9,7 @@
 	import IconPencil from '@tabler/icons-svelte/icons/pencil';
 	import IconPlus from '@tabler/icons-svelte/icons/plus';
 	import IconRefresh from '@tabler/icons-svelte/icons/refresh';
+	import IconTerminal2 from '@tabler/icons-svelte/icons/terminal-2';
 	import IconTrash from '@tabler/icons-svelte/icons/trash';
 	import {
 		addAccount,
@@ -31,6 +32,7 @@
 	} from '$lib/accounts';
 	import * as Alert from '$lib/components/ui/alert';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import LaunchOptionsDialog from '$lib/components/launch-options-dialog.svelte';
 	import { Badge, type BadgeVariant } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -66,6 +68,8 @@
 	/** The account being renamed, and the draft name in the dialog. */
 	let renaming = $state<Account | null>(null);
 	let draftName = $state('');
+	/** The account whose environment variables and flags are being edited. */
+	let editingOptions = $state<Account | null>(null);
 	/** The account awaiting delete (or, when its folder is gone, remove) confirmation. */
 	let confirming = $state<Account | null>(null);
 
@@ -359,6 +363,10 @@
 									<IconAppWindow />
 									{m.menu_add_shortcuts()}
 								</DropdownMenu.Item>
+								<DropdownMenu.Item onSelect={() => (editingOptions = account)}>
+									<IconTerminal2 />
+									{m.menu_launch_options()}
+								</DropdownMenu.Item>
 								<DropdownMenu.Sub>
 									<DropdownMenu.SubTrigger>
 										<IconPalette />
@@ -462,6 +470,17 @@
 		</form>
 	</Dialog.Content>
 </Dialog.Root>
+
+{#if editingOptions}
+	<LaunchOptionsDialog
+		account={editingOptions}
+		onclose={() => (editingOptions = null)}
+		onsaved={() => {
+			editingOptions = null;
+			void refresh();
+		}}
+	/>
+{/if}
 
 <AlertDialog.Root
 	open={confirming !== null}

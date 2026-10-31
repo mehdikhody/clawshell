@@ -293,6 +293,8 @@ pub struct FakeOs {
     pub install: Mutex<Option<ClaudeInstall>>,
     /// `(exe, profile)` of every launch.
     pub launched: Mutex<Vec<(PathBuf, PathBuf)>>,
+    /// The whole spec (arguments and environment) of every launch.
+    pub launch_specs: Mutex<Vec<LaunchSpec>>,
     pub focused: Mutex<Vec<PathBuf>>,
     /// Every folder shown in the file manager.
     pub opened_folders: Mutex<Vec<PathBuf>>,
@@ -323,6 +325,7 @@ impl Default for FakeOs {
         FakeOs {
             install: Mutex::new(Some(fake_install())),
             launched: Mutex::default(),
+            launch_specs: Mutex::default(),
             focused: Mutex::default(),
             opened_folders: Mutex::default(),
             places: Mutex::new(ShortcutPlaces {
@@ -356,11 +359,17 @@ impl ClaudeLocator for FakeOs {
     }
 }
 impl Launcher for FakeOs {
-    fn launch(&self, exe: &Path, profile: &Path) -> io::Result<()> {
+    fn launch(&self, spec: &LaunchSpec) -> io::Result<()> {
+        let profile = spec
+            .args
+            .iter()
+            .find_map(|a| a.strip_prefix("--user-data-dir="))
+            .expect("every launch names its profile folder");
         self.launched
             .lock()
             .unwrap()
-            .push((exe.to_path_buf(), profile.to_path_buf()));
+            .push((spec.exe.clone(), PathBuf::from(profile)));
+        self.launch_specs.lock().unwrap().push(spec.clone());
         Ok(())
     }
 }

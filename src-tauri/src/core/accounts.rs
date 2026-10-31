@@ -2,8 +2,10 @@
 //! folder and deleting.
 
 use super::badge::{PALETTE, app_user_model_id, badge_letter, is_valid_colour};
+use super::launch_options::{EnvVar, LaunchOptions, LaunchOptionsError, launch_args, validate};
 use super::paths::same_path;
 use super::pooled::{PooledRemaining, pool_remaining};
+use super::ports::LaunchSpec;
 use super::signin::is_signed_in;
 use super::store::Records;
 use super::usage::UsageSnapshot;
@@ -48,6 +50,10 @@ pub struct Account {
     pub email: Option<String>,
     /// The latest usage reading; none until the first poll.
     pub usage: Option<UsageSnapshot>,
+    /// Environment variables set on this account's Claude process only.
+    pub env: Vec<EnvVar>,
+    /// Extra launch arguments for this account's Claude.
+    pub flags: Vec<String>,
     #[serde(skip)]
     pub path: PathBuf,
 }
@@ -115,7 +121,8 @@ impl Core {
                 let known = usage.accounts.get(&profile.id);
                 let email = known.and_then(|u| u.email.clone());
                 let snapshot = known.and_then(|u| u.snapshot.clone());
-                account_of(profile, label, colour, &running, email, snapshot)
+                let options = records.options_of(&profile.id);
+                account_of(profile, label, colour, &running, email, snapshot, options)
             })
             .collect();
 
@@ -133,6 +140,8 @@ impl Core {
                 running: false,
                 email: None,
                 usage: None,
+                env: r.env.clone(),
+                flags: r.flags.clone(),
                 path: local.join(format!("{PROFILE_PREFIX}{}", r.id)),
             })
             .collect();
@@ -283,13 +292,26 @@ impl Core {
         let colour = colour_in(&records, &id);
         records.save(local)?;
 
+        // A new account has no flags or variables yet.
         self.ports
             .os
-            .launch(&install.exe, &path)
+            .launch(&LaunchSpec {
+                exe: install.exe,
+                args: launch_args(&path, &[]),
+                env: Vec::new(),
+            })
             .map_err(AddError::Launch)?;
 
         let running = self.ports.processes.running_profiles();
-        let account = account_of(Profile { id, path }, label, colour, &running, None, None);
+        let account = account_of(
+            Profile { id, path },
+            label,
+            colour,
+            &running,
+            None,
+            None,
+            LaunchOptions::default(),
+        );
         self.identify_new_window(&account);
         Ok(account)
     }
@@ -326,6 +348,7 @@ fn account_of(
     running: &HashSet<PathBuf>,
     email: Option<String>,
     usage: Option<UsageSnapshot>,
+    options: LaunchOptions,
 ) -> Account {
     let is_running = running.iter().any(|p| same_path(p, &profile.path));
     let status = if !is_signed_in(&profile.path) {
@@ -346,6 +369,8 @@ fn account_of(
         running: is_running,
         email,
         usage,
+        env: options.env,
+        flags: options.flags,
         path: profile.path,
     }
 }
@@ -388,14 +413,47 @@ impl Core {
         // in its tray): Claude is single-instance per folder, so starting it
         // again hands over to the running copy, which shows its window.
         let install = self.claude_install().ok_or(LaunchError::ClaudeNotFound)?;
+        let options = Records::load(&self.ports.roots.local_app_data).options_of(id);
         self.ports
             .os
-            .launch(&install.exe, &profile.path)
+            .launch(&LaunchSpec {
+                exe: install.exe,
+                args: launch_args(&profile.path, &options.flags),
+                env: options
+                    .env
+                    .into_iter()
+                    .map(|var| (var.name, var.value))
+                    .collect(),
+            })
             .map_err(LaunchError::Io)?;
         if let Ok(Some(account)) = self.find_account(id) {
             self.identify_new_window(&account);
         }
         Ok(LaunchOutcome::Started)
+    }
+}
+
+impl Core {
+    /// Replaces the account's environment variables and extra launch flags.
+    /// They apply the next time its Claude starts fresh.
+    pub fn set_launch_options(
+        &self,
+        id: &str,
+        options: LaunchOptions,
+    ) -> Result<Account, LaunchOptionsError> {
+        let options = validate(options)?;
+        let mut account = self
+            .find_account(id)?
+            .ok_or(LaunchOptionsError::UnknownAccount)?;
+        let local = &self.ports.roots.local_app_data;
+        let mut records = Records::load(local);
+        if !records.set_options(id, options.clone()) {
+            return Err(LaunchOptionsError::UnknownAccount);
+        }
+        records.save(local)?;
+        account.env = options.env;
+        account.flags = options.flags;
+        Ok(account)
     }
 }
 
