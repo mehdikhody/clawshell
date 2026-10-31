@@ -48,5 +48,11 @@
 	"usage_local_history": "From local history, updated {ago}",
 	"refresh_usage": "Refresh usage",
 	"refresh_next": "Next refresh allowed in {time}",
-	"error_refresh_failed": "Couldn't refresh usage"
+	"error_refresh_failed": "Couldn't refresh usage",
+	"usage_remaining": "{percent}%",
+	"usage_available": "{available} of {total} accounts available",
+	"usage_soonest_reset": "Resets {time}",
+	"usage_pooled_stale": "Includes stale data, updated {ago}",
+	"usage_empty": "No signed-in accounts",
+	"usage_empty_hint": "Sign in to an account on the Accounts tab to see your combined usage."
 }

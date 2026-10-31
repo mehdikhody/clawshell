@@ -48,5 +48,11 @@
 	"usage_local_history": "از تاریخچهٔ محلی، به‌روزرسانی {ago}",
 	"refresh_usage": "به‌روزرسانی مصرف",
 	"refresh_next": "به‌روزرسانی بعدی تا {time} دیگر ممکن است",
-	"error_refresh_failed": "به‌روزرسانی مصرف ممکن نشد"
+	"error_refresh_failed": "به‌روزرسانی مصرف ممکن نشد",
+	"usage_remaining": "{percent}٪",
+	"usage_available": "{available} از {total} حساب در دسترس",
+	"usage_soonest_reset": "بازنشانی {time}",
+	"usage_pooled_stale": "شامل داده‌های قدیمی، به‌روزرسانی {ago}",
+	"usage_empty": "حسابی وارد نشده است",
+	"usage_empty_hint": "برای دیدن مصرف مجموع، در برگهٔ حساب‌ها وارد یک حساب شوید."
 }

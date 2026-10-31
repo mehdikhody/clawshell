@@ -6,6 +6,7 @@ pub mod desktop_token;
 pub mod install;
 mod paths;
 pub mod polling;
+pub mod pooled;
 pub mod ports;
 pub mod process;
 mod signin;
@@ -16,6 +17,7 @@ pub use accounts::{
     Account, AccountList, AddError, DeleteError, LaunchError, LaunchOutcome, OpenFolderError,
     RenameError, Status,
 };
+pub use pooled::{PooledRemaining, PooledWindow};
 pub use usage::{RefreshOutcome, UsageSnapshot, UsageSource};
 
 use ports::{Clock, HttpClient, OsAdapters, ProcessInspector, Roots, TokenReader};

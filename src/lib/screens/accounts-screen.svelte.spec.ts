@@ -4,7 +4,8 @@ import { render } from 'vitest-browser-svelte';
 import { emit } from '@tauri-apps/api/event';
 import '../../routes/layout.css';
 import { mockTauri, type IpcHandlers } from '$lib/test/tauri-ipc';
-import type { AccountList } from '$lib/accounts';
+import { emptyPooled, type AccountList } from '$lib/accounts';
+
 import AccountsScreen from './accounts-screen.svelte';
 
 let restore: () => void;
@@ -22,6 +23,7 @@ const account = (id: string, label: string, status: string) => ({
 const threeAccounts: AccountList = {
 	claudeFound: true,
 	refreshAllowedAt: null,
+	pooled: emptyPooled,
 	accounts: [
 		account('id-run', 'Account 2', 'running'),
 		account('id-idle', 'Work', 'idle'),
@@ -51,7 +53,7 @@ describe('AccountsScreen', () => {
 	});
 
 	it('shows an empty state when there are no accounts yet', async () => {
-		mount({}, { claudeFound: true, refreshAllowedAt: null, accounts: [] });
+		mount({}, { claudeFound: true, refreshAllowedAt: null, pooled: emptyPooled, accounts: [] });
 
 		await expect.element(page.getByText('No accounts yet')).toBeVisible();
 	});
@@ -126,7 +128,10 @@ describe('AccountsScreen', () => {
 	});
 
 	it('explains that Claude cannot be found and blocks Add', async () => {
-		const tauri = mount({}, { claudeFound: false, refreshAllowedAt: null, accounts: [] });
+		const tauri = mount(
+			{},
+			{ claudeFound: false, refreshAllowedAt: null, pooled: emptyPooled, accounts: [] }
+		);
 
 		await expect.element(page.getByText('Claude Desktop not found')).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Add account' })).toBeDisabled();
@@ -360,6 +365,7 @@ describe('AccountsScreen', () => {
 		const withMissing: AccountList = {
 			claudeFound: true,
 			refreshAllowedAt: null,
+			pooled: emptyPooled,
 			accounts: [
 				account('id-idle', 'Work', 'idle'),
 				account('id-gone', 'Old laptop', 'missing')
@@ -443,6 +449,7 @@ describe('AccountsScreen usage', () => {
 		({
 			claudeFound: true,
 			refreshAllowedAt: null,
+			pooled: emptyPooled,
 			accounts: [
 				{
 					id: 'id-1',

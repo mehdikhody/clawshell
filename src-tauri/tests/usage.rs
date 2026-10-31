@@ -904,3 +904,196 @@ fn deleted_accounts_are_forgotten() {
     assert_eq!(core.refresh_usage(true).refresh_allowed_at, None);
     assert!(core.list_accounts().unwrap().accounts.is_empty());
 }
+
+// ---- Pooled remaining ----
+
+const ID_C: &str = "c0c0c0c0-0000-4000-8000-000000000003";
+
+/// Signs in each account (in id order: A, B, C) and scripts its usage, then
+/// refreshes once. `usage` is (five-hour %, weekly %) per account.
+fn pooled_core(h: &Harness, usage: &[(&str, f64, f64)]) -> Core {
+    for (i, (id, five, seven)) in usage.iter().enumerate() {
+        signed_in(h, id, &format!("sk-test-token-{i}"));
+        script_ok(h, &format!("user{i}@example.com"), *five, *seven);
+    }
+    let core = h.core();
+    core.refresh_usage(false);
+    core
+}
+
+#[test]
+fn pooled_remaining_is_the_average_of_100_minus_utilisation() {
+    let h = Harness::new();
+    let core = pooled_core(
+        &h,
+        &[(ID_A, 60.0, 30.0), (ID_B, 0.0, 0.0), (ID_C, 0.0, 60.0)],
+    );
+
+    let pooled = core.list_accounts().unwrap().pooled;
+
+    assert_eq!(pooled.five_hour.remaining_percent, Some(80.0));
+    assert_eq!(pooled.weekly.remaining_percent, Some(70.0));
+}
+
+#[test]
+fn available_counts_the_accounts_below_100_percent_of_those_pooled() {
+    let h = Harness::new();
+    let core = pooled_core(
+        &h,
+        &[
+            (ID_A, 100.0, 40.0),
+            (ID_B, 99.0, 100.0),
+            (ID_C, 20.0, 100.0),
+        ],
+    );
+
+    let pooled = core.list_accounts().unwrap().pooled;
+
+    assert_eq!((pooled.five_hour.available, pooled.five_hour.total), (2, 3));
+    assert_eq!((pooled.weekly.available, pooled.weekly.total), (1, 3));
+}
+
+#[test]
+fn a_signed_out_account_is_left_out_of_the_average_and_the_count() {
+    let h = Harness::new();
+    signed_in(&h, ID_A, TOKEN_A);
+    script_ok(&h, "a@example.com", 60.0, 60.0);
+    h.fixture.add_profile(ID_B); // never signed in
+    let core = h.core();
+    core.refresh_usage(false);
+
+    let pooled = core.list_accounts().unwrap().pooled;
+
+    assert_eq!(pooled.five_hour.remaining_percent, Some(40.0));
+    assert_eq!((pooled.five_hour.available, pooled.five_hour.total), (1, 1));
+    assert_eq!((pooled.weekly.available, pooled.weekly.total), (1, 1));
+}
+
+#[test]
+fn with_no_signed_in_accounts_nothing_is_pooled() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A); // signed out
+    let core = h.core();
+    core.refresh_usage(false);
+
+    let pooled = core.list_accounts().unwrap().pooled;
+
+    assert_eq!(pooled.five_hour.remaining_percent, None);
+    assert_eq!((pooled.five_hour.available, pooled.five_hour.total), (0, 0));
+    assert_eq!(pooled.five_hour.soonest_reset, None);
+    assert_eq!(pooled.weekly.remaining_percent, None);
+}
+
+#[test]
+fn a_signed_in_account_with_no_reading_yet_is_not_pooled() {
+    let h = Harness::new();
+    signed_in(&h, ID_A, TOKEN_A); // listed, never refreshed
+
+    let pooled = h.core().list_accounts().unwrap().pooled;
+
+    assert_eq!(pooled.five_hour.remaining_percent, None);
+    assert_eq!(pooled.five_hour.total, 0);
+}
+
+#[test]
+fn the_soonest_reset_is_the_earliest_across_accounts_whatever_their_offset() {
+    let h = Harness::new();
+    for (id, token, five_reset, week_reset) in [
+        (
+            ID_A,
+            "ta",
+            "2026-06-15T18:00:00.000000+00:00",
+            "2026-06-19T09:30:00+00:00",
+        ),
+        // 16:30 UTC written with a +03:30 offset, so textually "later" than A's.
+        (
+            ID_B,
+            "tb",
+            "2026-06-15T20:00:00+03:30",
+            "2026-06-18T09:30:00Z",
+        ),
+        (
+            ID_C,
+            "tc",
+            "2026-06-15T17:00:00.5+00:00",
+            "2026-06-20T09:30:00+00:00",
+        ),
+    ] {
+        signed_in(&h, id, token);
+        h.http.respond(
+            USAGE_URL,
+            200,
+            &usage_body(10.0, five_reset, 10.0, week_reset),
+        );
+        h.http
+            .respond(PROFILE_URL, 200, &profile_body("x@example.com"));
+    }
+    let core = h.core();
+    core.refresh_usage(false);
+
+    let pooled = core.list_accounts().unwrap().pooled;
+
+    assert_eq!(
+        pooled.five_hour.soonest_reset.as_deref(),
+        Some("2026-06-15T20:00:00+03:30")
+    );
+    assert_eq!(
+        pooled.weekly.soonest_reset.as_deref(),
+        Some("2026-06-18T09:30:00Z")
+    );
+}
+
+#[test]
+fn local_history_has_no_reset_so_it_never_supplies_the_soonest() {
+    let h = Harness::new();
+    signed_in(&h, ID_A, TOKEN_A);
+    h.fixture.write_usage_history(
+        ID_A,
+        &format!(r#"{{"samples":[{{"t":{NOW_MS},"u":{{"fh":50,"sd":25}}}}]}}"#),
+    );
+    h.http.respond(USAGE_URL, 500, "{}");
+    let core = h.core();
+    core.refresh_usage(false);
+
+    let pooled = core.list_accounts().unwrap().pooled;
+
+    assert_eq!(pooled.five_hour.remaining_percent, Some(50.0));
+    assert_eq!(pooled.five_hour.soonest_reset, None);
+}
+
+#[test]
+fn live_inputs_are_not_marked_stale() {
+    let h = Harness::new();
+    let core = pooled_core(&h, &[(ID_A, 10.0, 10.0), (ID_B, 20.0, 20.0)]);
+
+    let pooled = core.list_accounts().unwrap().pooled;
+
+    assert_eq!(pooled.five_hour.stale_since_ms, None);
+    assert_eq!(pooled.weekly.stale_since_ms, None);
+}
+
+#[test]
+fn a_stale_input_marks_the_pool_with_the_age_of_its_oldest_stale_number() {
+    let h = Harness::new();
+    signed_in(&h, ID_A, TOKEN_A);
+    signed_in(&h, ID_B, TOKEN_B);
+    script_ok(&h, "a@example.com", 10.0, 10.0);
+    script_ok(&h, "b@example.com", 20.0, 20.0);
+    let core = h.core();
+    core.refresh_usage(false);
+    h.clock.advance(Duration::from_secs(20 * 60));
+    // A's poll now fails (stale); B answers fresh.
+    h.http.respond(USAGE_URL, 500, "{}");
+    h.http.respond(
+        USAGE_URL,
+        200,
+        &usage_body(25.0, FIVE_RESET, 25.0, WEEK_RESET),
+    );
+    core.refresh_usage(true);
+
+    let pooled = core.list_accounts().unwrap().pooled;
+
+    assert_eq!(pooled.five_hour.remaining_percent, Some(82.5));
+    assert_eq!(pooled.five_hour.stale_since_ms, Some(NOW_MS));
+    assert_eq!(pooled.weekly.stale_since_ms, Some(NOW_MS));
+}

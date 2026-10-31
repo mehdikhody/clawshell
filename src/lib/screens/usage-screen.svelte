@@ -1,1 +1,137 @@
-<section class="h-full"></section>
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import IconAlertTriangle from '@tabler/icons-svelte/icons/alert-triangle';
+	import IconRefresh from '@tabler/icons-svelte/icons/refresh';
+	import {
+		listAccounts,
+		onAccountsChanged,
+		refreshUsage,
+		type AccountList,
+		type PooledWindow
+	} from '$lib/accounts';
+	import * as Alert from '$lib/components/ui/alert';
+	import { Button } from '$lib/components/ui/button';
+	import * as Item from '$lib/components/ui/item';
+	import { Progress } from '$lib/components/ui/progress';
+	import { m } from '$lib/paraglide/messages.js';
+	import { getLocale } from '$lib/paraglide/runtime.js';
+	import { formatAgo, formatCountdown, formatReset } from '$lib/usage';
+
+	let list = $state<AccountList | null>(null);
+	let refreshing = $state(false);
+	let failure = $state<string | null>(null);
+	/** Ticks every second so "updated X ago" and the refresh wait stay current. */
+	let now = $state(Date.now());
+	const refreshWaitMs = $derived(Math.max(0, (list?.refreshAllowedAt ?? 0) - now));
+	/** Signed-in accounts exist, whether or not they have a reading yet. */
+	const hasSignedIn = $derived(
+		list?.accounts.some((a) => a.status !== 'signed-out' && a.status !== 'missing') ?? false
+	);
+
+	async function load() {
+		try {
+			list = await listAccounts();
+		} catch {
+			// The core pushes the next snapshot when it can.
+		}
+	}
+
+	async function refreshNow() {
+		refreshing = true;
+		failure = null;
+		try {
+			const outcome = await refreshUsage();
+			if (list) list = { ...list, refreshAllowedAt: outcome.refreshAllowedAt };
+		} catch {
+			failure = m.error_refresh_failed();
+		} finally {
+			refreshing = false;
+			await load();
+		}
+	}
+
+	onMount(() => {
+		const tick = setInterval(() => (now = Date.now()), 1000);
+		void load();
+		const unlisten = onAccountsChanged((next) => (list = next));
+		return () => {
+			clearInterval(tick);
+			void unlisten.then((stop) => stop()).catch(() => {});
+		};
+	});
+</script>
+
+<section class="flex flex-col gap-3 p-4">
+	<header class="flex items-center justify-between">
+		<h1 class="text-base font-semibold">{m.tab_usage()}</h1>
+		<Button
+			size="icon-sm"
+			variant="outline"
+			aria-label={m.refresh_usage()}
+			onclick={refreshNow}
+			disabled={refreshing || refreshWaitMs > 0}
+		>
+			<IconRefresh class={refreshing ? 'animate-spin' : ''} />
+		</Button>
+	</header>
+
+	{#if refreshWaitMs > 0}
+		<p class="text-xs text-muted-foreground">
+			{m.refresh_next({ time: formatCountdown(refreshWaitMs) })}
+		</p>
+	{/if}
+
+	{#if failure}
+		<Alert.Root variant="destructive">
+			<IconAlertTriangle />
+			<Alert.Title>{failure}</Alert.Title>
+		</Alert.Root>
+	{/if}
+
+	{#if list}
+		{#if hasSignedIn}
+			{@render pooledBar(m.usage_five_hour(), list.pooled.fiveHour)}
+			{@render pooledBar(m.usage_weekly(), list.pooled.weekly)}
+		{:else}
+			<div class="flex flex-col items-center gap-1 py-10 text-center">
+				<p class="text-sm font-medium">{m.usage_empty()}</p>
+				<p class="text-xs text-muted-foreground">{m.usage_empty_hint()}</p>
+			</div>
+		{/if}
+	{/if}
+</section>
+
+{#snippet pooledBar(label: string, pooled: PooledWindow)}
+	<Item.Root variant="outline" size="sm">
+		<Item.Content>
+			<div class="flex items-baseline justify-between">
+				<Item.Title>{label}</Item.Title>
+				{#if pooled.remainingPercent !== null}
+					<span class="text-lg font-semibold tabular-nums">
+						{m.usage_remaining({ percent: Math.round(pooled.remainingPercent) })}
+					</span>
+				{/if}
+			</div>
+			{#if pooled.remainingPercent === null}
+				<p class="text-xs text-muted-foreground">{m.usage_none()}</p>
+			{:else}
+				<Progress value={Math.round(pooled.remainingPercent)} aria-label={label} />
+				<div class="flex items-center justify-between text-xs text-muted-foreground">
+					<span>{m.usage_available({ available: pooled.available, total: pooled.total })}</span>
+					{#if pooled.soonestReset}
+						<span>
+							{m.usage_soonest_reset({
+								time: formatReset(pooled.soonestReset, new Date(now), getLocale())
+							})}
+						</span>
+					{/if}
+				</div>
+				{#if pooled.staleSinceMs !== null}
+					<p class="text-[11px] text-muted-foreground">
+						{m.usage_pooled_stale({ ago: formatAgo(pooled.staleSinceMs, now, getLocale()) })}
+					</p>
+				{/if}
+			{/if}
+		</Item.Content>
+	</Item.Root>
+{/snippet}
