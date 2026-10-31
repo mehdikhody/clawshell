@@ -42,13 +42,19 @@ fn rejects_a_wrong_key_without_leaking_anything() {
 #[test]
 fn rejects_a_value_without_the_v10_prefix() {
     let raw = STANDARD.encode(b"v11-not-this-one-at-all-padding-padding");
-    assert_eq!(decrypt_v10(&raw, &hex(KEY)).unwrap_err(), TokenError::NotV10);
+    assert_eq!(
+        decrypt_v10(&raw, &hex(KEY)).unwrap_err(),
+        TokenError::NotV10
+    );
 }
 
 #[test]
 fn encrypted_key_loses_its_dpapi_marker() {
     let blob = STANDARD.encode([b"DPAPI".as_slice(), &[1, 2, 3, 4]].concat());
-    assert_eq!(dpapi_blob_from_encrypted_key(&blob).unwrap(), vec![1, 2, 3, 4]);
+    assert_eq!(
+        dpapi_blob_from_encrypted_key(&blob).unwrap(),
+        vec![1, 2, 3, 4]
+    );
 }
 
 #[test]
@@ -69,7 +75,8 @@ use clawshell_lib::core::desktop_token::extract_token;
 use serde_json::json;
 
 const KEY_PROFILE_ONLY: &str = "acct:a:b:https://api.anthropic.com:user:profile";
-const KEY_WIDE: &str = "acct:a:b:https://api.anthropic.com:user:inference user:file_upload user:profile";
+const KEY_WIDE: &str =
+    "acct:a:b:https://api.anthropic.com:user:inference user:file_upload user:profile";
 const KEY_NO_PROFILE: &str = "acct:a:b:https://api.anthropic.com:user:inference";
 
 #[test]
@@ -116,4 +123,70 @@ fn does_not_leak_the_token_through_debug_output() {
     let cache = json!({ KEY_PROFILE_ONLY: { "token": "super-secret", "expiresAt": 1_i64 } });
     let shown = format!("{:?}", extract_token(&cache).unwrap());
     assert!(!shown.contains("super-secret"));
+}
+
+// ---- reading a whole profile -----------------------------------------------
+
+use aes_gcm::aead::{Aead, KeyInit};
+use aes_gcm::{Aes256Gcm, Nonce};
+use clawshell_lib::core::desktop_token::read_access_token;
+
+const AES_KEY: [u8; 32] = [7; 32];
+const WRAPPED: &[u8] = b"dpapi-wrapped-key-blob";
+
+fn profile_with_cache(cache: &serde_json::Value) -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let nonce = [3u8; 12];
+    let sealed = Aes256Gcm::new_from_slice(&AES_KEY)
+        .unwrap()
+        .encrypt(Nonce::from_slice(&nonce), cache.to_string().as_bytes())
+        .unwrap();
+    let value = STANDARD.encode([b"v10".as_slice(), &nonce, &sealed].concat());
+    std::fs::write(
+        dir.path().join("config.json"),
+        json!({ "oauth:tokenCacheV2": value }).to_string(),
+    )
+    .unwrap();
+    let encrypted_key = STANDARD.encode([b"DPAPI".as_slice(), WRAPPED].concat());
+    std::fs::write(
+        dir.path().join("Local State"),
+        json!({ "os_crypt": { "encrypted_key": encrypted_key } }).to_string(),
+    )
+    .unwrap();
+    dir
+}
+
+fn fake_dpapi(blob: &[u8]) -> Option<Vec<u8>> {
+    (blob == WRAPPED).then(|| AES_KEY.to_vec())
+}
+
+#[test]
+fn reads_the_access_token_and_expiry_from_a_profile_folder() {
+    let cache =
+        json!({ KEY_PROFILE_ONLY: { "token": "tok-1", "expiresAt": 1_900_000_000_000_i64 } });
+    let dir = profile_with_cache(&cache);
+
+    let token = read_access_token(dir.path(), fake_dpapi).unwrap();
+
+    assert_eq!(token.access_token, "tok-1");
+    assert_eq!(token.expires_at_ms, Some(1_900_000_000_000));
+}
+
+#[test]
+fn a_profile_whose_key_cannot_be_unwrapped_has_no_token() {
+    let cache = json!({ KEY_PROFILE_ONLY: { "token": "tok-1" } });
+    let dir = profile_with_cache(&cache);
+
+    assert!(read_access_token(dir.path(), |_| None).is_none());
+}
+
+#[test]
+fn a_profile_with_missing_or_broken_files_has_no_token() {
+    let empty = tempfile::tempdir().unwrap();
+    assert!(read_access_token(empty.path(), fake_dpapi).is_none());
+
+    let cache = json!({ KEY_PROFILE_ONLY: { "token": "tok-1" } });
+    let dir = profile_with_cache(&cache);
+    std::fs::write(dir.path().join("config.json"), "{}").unwrap();
+    assert!(read_access_token(dir.path(), fake_dpapi).is_none());
 }

@@ -1,6 +1,7 @@
 //! Windows adapters behind the core's ports. Thin on purpose: the decisions
 //! live in the core; these only touch the OS and are checked by hand.
 
+use crate::core::desktop_token::{AccessToken, read_access_token};
 use crate::core::install::detect_install;
 use crate::core::ports::*;
 use crate::core::process::DesktopProcesses;
@@ -245,22 +246,88 @@ impl Notifier for WindowsOs {
 }
 impl OsAdapters for WindowsOs {}
 
-/// Placeholder until usage and identity land: no network access yet.
-pub struct OfflineHttp;
+/// The only place an OAuth bearer token may be sent.
+const OAUTH_API_PREFIX: &str = "https://api.anthropic.com/api/oauth/";
+const HTTP_TIMEOUT: Duration = Duration::from_secs(15);
 
-impl HttpClient for OfflineHttp {
-    fn send(&self, _request: HttpRequest) -> Result<HttpResponse, HttpError> {
-        Err(HttpError::Network(
-            "network access is not wired up yet".into(),
-        ))
+/// Blocking HTTPS client for the profile and usage endpoints. It refuses any
+/// other address, follows no redirects, and never puts a URL, header or body
+/// into an error.
+pub struct UreqHttp {
+    agent: ureq::Agent,
+}
+
+impl UreqHttp {
+    pub fn new() -> Self {
+        UreqHttp {
+            agent: ureq::AgentBuilder::new()
+                .redirects(0)
+                .timeout(HTTP_TIMEOUT)
+                .user_agent("clawshell")
+                .build(),
+        }
     }
 }
 
-/// Placeholder until usage lands: signed-in state comes from `config.json`.
-pub struct NoTokens;
+impl HttpClient for UreqHttp {
+    fn send(&self, request: HttpRequest) -> Result<HttpResponse, HttpError> {
+        if !request.url.starts_with(OAUTH_API_PREFIX) {
+            return Err(HttpError::Network("address not allowed".into()));
+        }
+        let mut call = self.agent.get(&request.url);
+        for (name, value) in &request.headers {
+            call = call.set(name, value);
+        }
+        let response = match call.call() {
+            Ok(response) => response,
+            Err(ureq::Error::Status(_, response)) => response,
+            Err(_) => return Err(HttpError::Network("request failed".into())),
+        };
+        let headers = response
+            .headers_names()
+            .into_iter()
+            .filter_map(|name| {
+                let value = response.header(&name)?.to_string();
+                Some((name, value))
+            })
+            .collect();
+        let status = response.status();
+        let body = response
+            .into_string()
+            .map_err(|_| HttpError::Network("unreadable response".into()))?;
+        Ok(HttpResponse {
+            status,
+            headers,
+            body,
+        })
+    }
+}
 
-impl TokenReader for NoTokens {
-    fn read_token(&self, _profile: &Path) -> Option<String> {
-        None
+/// Reads each profile's token cache and unwraps its AES key with DPAPI as the
+/// current user. Plaintext stays in memory; nothing is logged or stored.
+pub struct DesktopTokens;
+
+impl TokenReader for DesktopTokens {
+    fn read_token(&self, profile: &Path) -> Option<AccessToken> {
+        read_access_token(profile, dpapi_unprotect)
+    }
+}
+
+fn dpapi_unprotect(blob: &[u8]) -> Option<Vec<u8>> {
+    use windows::Win32::Foundation::{HLOCAL, LocalFree};
+    use windows::Win32::Security::Cryptography::{CRYPT_INTEGER_BLOB, CryptUnprotectData};
+
+    let input = CRYPT_INTEGER_BLOB {
+        cbData: u32::try_from(blob.len()).ok()?,
+        pbData: blob.as_ptr() as *mut u8,
+    };
+    let mut output = CRYPT_INTEGER_BLOB::default();
+    // SAFETY: `input` points at `blob`, alive for the call; on success
+    // `output` is a buffer the OS allocated, copied out and freed below.
+    unsafe {
+        CryptUnprotectData(&input, None, None, None, None, 0, &mut output).ok()?;
+        let key = std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec();
+        let _ = LocalFree(Some(HLOCAL(output.pbData.cast())));
+        Some(key)
     }
 }

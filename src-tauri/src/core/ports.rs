@@ -2,6 +2,7 @@
 //!
 //! Tests supply fakes (see `tests/support`); the app supplies Windows adapters.
 
+use super::desktop_token::AccessToken;
 use std::collections::HashSet;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -17,10 +18,21 @@ pub struct Roots {
     pub home: PathBuf,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct HttpRequest {
     pub url: String,
     pub headers: Vec<(String, String)>,
+}
+
+/// Header values are never shown: they carry the bearer token.
+impl std::fmt::Debug for HttpRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let names: Vec<_> = self.headers.iter().map(|(name, _)| name).collect();
+        f.debug_struct("HttpRequest")
+            .field("url", &self.url)
+            .field("header_names", &names)
+            .finish()
+    }
 }
 
 impl HttpRequest {
@@ -53,9 +65,9 @@ pub trait Clock: Send + Sync {
     fn now(&self) -> SystemTime;
 }
 
-/// Profile folder -> access token, or none when signed out.
+/// Profile folder -> access token and its expiry, or none when signed out.
 pub trait TokenReader: Send + Sync {
-    fn read_token(&self, profile: &Path) -> Option<String>;
+    fn read_token(&self, profile: &Path) -> Option<AccessToken>;
 }
 
 /// Which profile folders currently have a running Claude Desktop.

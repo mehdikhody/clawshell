@@ -38,5 +38,15 @@
 	"error_rename_failed": "تغییر نام حساب ممکن نشد",
 	"error_open_folder_failed": "باز کردن پوشه ممکن نشد",
 	"error_delete_failed": "حذف حساب ممکن نشد",
-	"error_delete_running": "ابتدا «{label}» را ببندید، سپس حذف کنید."
+	"error_delete_running": "ابتدا «{label}» را ببندید، سپس حذف کنید.",
+	"status_limited": "محدود شده",
+	"usage_five_hour": "۵ ساعته",
+	"usage_weekly": "هفتگی",
+	"usage_resets": "بازنشانی {time}",
+	"usage_none": "هنوز داده‌ای از مصرف نیست",
+	"usage_stale": "قدیمی، به‌روزرسانی {ago}",
+	"usage_local_history": "از تاریخچهٔ محلی، به‌روزرسانی {ago}",
+	"refresh_usage": "به‌روزرسانی مصرف",
+	"refresh_next": "به‌روزرسانی بعدی تا {time} دیگر ممکن است",
+	"error_refresh_failed": "به‌روزرسانی مصرف ممکن نشد"
 }

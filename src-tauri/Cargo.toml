@@ -27,14 +27,13 @@ tauri-plugin-single-instance = "2"
 aes-gcm = "0.10"
 base64 = "0.22"
 sysinfo = { version = "0.40.1", default-features = false, features = ["system"] }
+ureq = "2"
 
 [target."cfg(windows)".dependencies]
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security_Cryptography", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
 tempfile = "3"
-# Only the token_probe example uses these (live feasibility probe).
-ureq = "2"
 
 [target."cfg(windows)".dev-dependencies]
 windows = { version = "0.62", features = ["Win32_Security_Cryptography", "Win32_Foundation"] }

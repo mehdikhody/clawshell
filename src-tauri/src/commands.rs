@@ -3,15 +3,48 @@
 
 use crate::core::{
     Account, AccountList, AddError, Core, DeleteError, LaunchError, LaunchOutcome, OpenFolderError,
-    RenameError,
+    RefreshOutcome, RenameError,
 };
 use serde::Serialize;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, State};
 
 pub const ACCOUNTS_CHANGED: &str = "accounts-changed";
 const WATCH_INTERVAL: Duration = Duration::from_secs(2);
+/// How often the scheduler looks for accounts whose usage poll is due. The
+/// core decides which are; most ticks do nothing.
+const USAGE_TICK: Duration = Duration::from_secs(5);
+
+/// Pushes the account list to the UI whenever it differs from the last one
+/// pushed: status changes and usage snapshot changes alike.
+#[derive(Clone)]
+pub struct AccountFeed {
+    app: AppHandle,
+    core: Arc<Core>,
+    last: Arc<Mutex<Option<AccountList>>>,
+}
+
+impl AccountFeed {
+    pub fn new(app: AppHandle, core: Arc<Core>) -> Self {
+        AccountFeed {
+            app,
+            core,
+            last: Arc::default(),
+        }
+    }
+
+    pub fn publish(&self) {
+        let Ok(list) = self.core.list_accounts() else {
+            return;
+        };
+        let mut last = self.last.lock().unwrap();
+        if last.as_ref() != Some(&list) {
+            let _ = self.app.emit(ACCOUNTS_CHANGED, &list);
+            *last = Some(list);
+        }
+    }
+}
 
 /// What the UI gets on failure: a stable code to localise, plus detail.
 #[derive(Debug, Serialize)]
@@ -127,20 +160,42 @@ pub fn launch_account(
     Ok(core.launch_account(&id)?)
 }
 
+/// Manual refresh. The core refuses it inside the minimum interval; the
+/// outcome says when the next one is allowed.
+#[tauri::command]
+pub async fn refresh_usage(
+    core: State<'_, Arc<Core>>,
+    feed: State<'_, AccountFeed>,
+) -> Result<RefreshOutcome, CommandError> {
+    let (core, feed) = (core.inner().clone(), feed.inner().clone());
+    tauri::async_runtime::spawn_blocking(move || {
+        let outcome = core.refresh_usage(true);
+        feed.publish();
+        outcome
+    })
+    .await
+    .map_err(|e| CommandError::new("io", e.to_string()))
+}
+
 /// Polls the account list and emits `accounts-changed` whenever it differs,
 /// so Running / Idle / Signed out follow Claude windows opening and closing.
-pub fn watch_accounts(app: AppHandle, core: Arc<Core>) {
+pub fn watch_accounts(feed: AccountFeed) {
     std::thread::spawn(move || {
-        let mut last: Option<AccountList> = None;
         loop {
             std::thread::sleep(WATCH_INTERVAL);
-            let Ok(list) = core.list_accounts() else {
-                continue;
-            };
-            if last.as_ref() != Some(&list) {
-                let _ = app.emit(ACCOUNTS_CHANGED, &list);
-                last = Some(list);
+            feed.publish();
+        }
+    });
+}
+
+/// Runs the usage polling schedule and pushes each changed snapshot at once.
+pub fn poll_usage(core: Arc<Core>, feed: AccountFeed) {
+    std::thread::spawn(move || {
+        loop {
+            if core.refresh_usage(false).refreshed > 0 {
+                feed.publish();
             }
+            std::thread::sleep(USAGE_TICK);
         }
     });
 }

@@ -38,5 +38,15 @@
 	"error_rename_failed": "Couldn't rename the account",
 	"error_open_folder_failed": "Couldn't open the folder",
 	"error_delete_failed": "Couldn't delete the account",
-	"error_delete_running": "Close {label} first, then delete it."
+	"error_delete_running": "Close {label} first, then delete it.",
+	"status_limited": "Limited",
+	"usage_five_hour": "5-hour",
+	"usage_weekly": "Weekly",
+	"usage_resets": "resets {time}",
+	"usage_none": "No usage data yet",
+	"usage_stale": "Stale, updated {ago}",
+	"usage_local_history": "From local history, updated {ago}",
+	"refresh_usage": "Refresh usage",
+	"refresh_next": "Next refresh allowed in {time}",
+	"error_refresh_failed": "Couldn't refresh usage"
 }

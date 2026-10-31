@@ -12,12 +12,12 @@ See spec: Identity and usage.
 
 **Blocked by:** 01, 03
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Rows show the email, 5h % with reset, and weekly % with reset
-- [ ] Limited status appears at ≥100% on either window, with precedence Signed out > Limited > Running > Idle
-- [ ] Polling follows the policy; on a 429 it backs off as specified
-- [ ] Manual refresh obeys the minimum interval
-- [ ] An expired token or 401 shows a stale snapshot, then local-history values, and never triggers a token refresh
-- [ ] Snapshot changes are pushed to the UI as events
-- [ ] Core tests (fake HTTP and clock) cover fetch, polling and backoff decisions, stale fallback, and Limited; UI tests cover the row rendering and refresh button states
+- [x] Rows show the email, 5h % with reset, and weekly % with reset
+- [x] Limited status appears at ≥100% on either window, with precedence Signed out > Limited > Running > Idle
+- [x] Polling follows the policy; on a 429 it backs off as specified
+- [x] Manual refresh obeys the minimum interval
+- [x] An expired token or 401 shows a stale snapshot, then local-history values, and never triggers a token refresh
+- [x] Snapshot changes are pushed to the UI as events
+- [x] Core tests (fake HTTP and clock) cover fetch, polling and backoff decisions, stale fallback, and Limited; UI tests cover the row rendering and refresh button states

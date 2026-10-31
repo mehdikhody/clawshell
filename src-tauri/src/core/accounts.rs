@@ -4,6 +4,7 @@
 use super::paths::same_path;
 use super::signin::is_signed_in;
 use super::store::Records;
+use super::usage::UsageSnapshot;
 use super::{Core, PROFILE_PREFIX, Profile};
 use serde::Serialize;
 use std::collections::HashSet;
@@ -11,11 +12,14 @@ use std::io;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-/// What an account row shows. Precedence: Missing > Signed out > Running >
-/// Idle (Limited arrives with usage).
+/// What an account row shows. Precedence: Missing > Signed out > Limited >
+/// Running > Idle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Status {
+    /// A 5-hour or weekly window is at or above 100%. A limited account that
+    /// is also running still has `running` set.
+    Limited,
     Running,
     Idle,
     SignedOut,
@@ -24,7 +28,8 @@ pub enum Status {
     Missing,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Account {
     /// The uuid in the `clawshell-{uuid}` folder name; permanent.
     pub id: String,
@@ -32,15 +37,22 @@ pub struct Account {
     pub status: Status,
     /// A Claude Desktop process uses this profile, whatever the badge says.
     pub running: bool,
+    /// The sign-in's email, once the profile endpoint has answered.
+    pub email: Option<String>,
+    /// The latest usage reading; none until the first poll.
+    pub usage: Option<UsageSnapshot>,
     #[serde(skip)]
     pub path: PathBuf,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountList {
     /// False when Claude Desktop can't be found; the UI explains and blocks Add.
     pub claude_found: bool,
+    /// Epoch ms before which a manual usage refresh is refused; `None` when
+    /// one is allowed now.
+    pub refresh_allowed_at: Option<i64>,
     pub accounts: Vec<Account>,
 }
 
@@ -61,19 +73,22 @@ impl From<io::Error> for AddError {
 
 impl Core {
     pub fn list_accounts(&self) -> io::Result<AccountList> {
+        let accounts = self.known_accounts()?;
         Ok(AccountList {
             claude_found: self.ports.os.locate().is_some(),
-            accounts: self.known_accounts()?,
+            refresh_allowed_at: self.refresh_allowed_at(&accounts),
+            accounts,
         })
     }
 
     /// Every account clawshell knows: profile folders on disk plus recorded
     /// accounts whose folder has vanished (status Missing), ordered by id.
-    fn known_accounts(&self) -> io::Result<Vec<Account>> {
+    pub(super) fn known_accounts(&self) -> io::Result<Vec<Account>> {
         let scan = self.scan_profiles()?;
         let records = self.synced_records(&scan.profiles);
         let running = self.ports.processes.running_profiles();
         let local = &self.ports.roots.local_app_data;
+        let usage = self.usage.lock().unwrap();
 
         let mut accounts: Vec<Account> = scan
             .profiles
@@ -83,7 +98,10 @@ impl Core {
                     .label_of(&profile.id)
                     .unwrap_or_default()
                     .to_string();
-                account_of(profile, label, &running)
+                let known = usage.accounts.get(&profile.id);
+                let email = known.and_then(|u| u.email.clone());
+                let snapshot = known.and_then(|u| u.snapshot.clone());
+                account_of(profile, label, &running, email, snapshot)
             })
             .collect();
 
@@ -97,6 +115,8 @@ impl Core {
                 label: r.label.clone(),
                 status: Status::Missing,
                 running: false,
+                email: None,
+                usage: None,
                 path: local.join(format!("{PROFILE_PREFIX}{}", r.id)),
             })
             .collect();
@@ -180,7 +200,13 @@ impl Core {
             .map_err(AddError::Launch)?;
 
         let running = self.ports.processes.running_profiles();
-        Ok(account_of(Profile { id, path }, label, &running))
+        Ok(account_of(
+            Profile { id, path },
+            label,
+            &running,
+            None,
+            None,
+        ))
     }
 
     /// Records for every profile folder; folders clawshell created but never
@@ -202,10 +228,18 @@ impl Core {
     }
 }
 
-fn account_of(profile: Profile, label: String, running: &HashSet<PathBuf>) -> Account {
+fn account_of(
+    profile: Profile,
+    label: String,
+    running: &HashSet<PathBuf>,
+    email: Option<String>,
+    usage: Option<UsageSnapshot>,
+) -> Account {
     let is_running = running.iter().any(|p| same_path(p, &profile.path));
     let status = if !is_signed_in(&profile.path) {
         Status::SignedOut
+    } else if usage.as_ref().is_some_and(UsageSnapshot::is_limited) {
+        Status::Limited
     } else if is_running {
         Status::Running
     } else {
@@ -216,6 +250,8 @@ fn account_of(profile: Profile, label: String, running: &HashSet<PathBuf>) -> Ac
         label,
         status,
         running: is_running,
+        email,
+        usage,
         path: profile.path,
     }
 }
