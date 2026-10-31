@@ -6,6 +6,10 @@
 //! sent anywhere. The only network call here fetches the public LiteLLM price
 //! list.
 
+mod heatmap;
+
+pub use heatmap::{DayAccount, DayValues, Heatmap, HeatmapDay};
+
 use super::accounts::Status;
 use super::pooled::{days_from_civil, rfc3339_ms};
 use super::ports::HttpRequest;
@@ -161,8 +165,22 @@ impl Core {
         owners: &HashMap<String, String>,
         this_month: (i64, i64),
     ) -> Vec<(String, Record)> {
+        self.records_where(owners, self.month_start_ms(this_month), |at| {
+            self.local_month(at) == this_month
+        })
+    }
+
+    /// Every usage record `keep` accepts in the mapped transcripts, one per
+    /// message, with the account that owns it. Files untouched since a day
+    /// before `since_ms` are not read.
+    fn records_where(
+        &self,
+        owners: &HashMap<String, String>,
+        since_ms: i64,
+        keep: impl Fn(SystemTime) -> bool,
+    ) -> Vec<(String, Record)> {
         let root = self.ports.roots.home.join(".claude").join("projects");
-        let oldest_mtime_ms = self.month_start_ms(this_month) - DAY_MS;
+        let oldest_mtime_ms = since_ms - DAY_MS;
         let mut files = transcript_files(&root, owners);
         files.sort();
 
@@ -185,7 +203,7 @@ impl Core {
                 };
                 let at =
                     UNIX_EPOCH + Duration::from_millis(u64::try_from(record.at_ms).unwrap_or(0));
-                if self.local_month(at) != this_month {
+                if !keep(at) {
                     continue;
                 }
                 match seen.get(&record.key) {
@@ -262,7 +280,13 @@ fn epoch_ms(at: SystemTime) -> i64 {
 
 /// `(year, month)` of a count of milliseconds since 1970-01-01 on a calendar.
 fn civil_month(ms: i64) -> (i64, i64) {
-    let z = ms.div_euclid(DAY_MS) + 719_468;
+    let (year, month, _) = civil_date(ms.div_euclid(DAY_MS));
+    (year, month)
+}
+
+/// `(year, month, day)` of a count of days since 1970-01-01.
+fn civil_date(days: i64) -> (i64, i64, i64) {
+    let z = days + 719_468;
     let era = z.div_euclid(146_097);
     let doe = z - era * 146_097;
     let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
@@ -270,7 +294,8 @@ fn civil_month(ms: i64) -> (i64, i64) {
     let mp = (5 * doy + 2) / 153;
     let month = if mp < 10 { mp + 3 } else { mp - 9 };
     let year = yoe + era * 400 + i64::from(month <= 2);
-    (year, month)
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    (year, month, day)
 }
 
 // Mapping transcripts to accounts
@@ -496,4 +521,9 @@ fn price_records(records: &[(String, Record)], prices: &Prices) -> (HashMap<Stri
         }
     }
     (by_account, unpriced)
+}
+
+/// One message's dollars; `None` when its model has no price.
+fn price_of(prices: &Prices, record: &Record) -> Option<f64> {
+    prices.of(&record.model).map(|p| p.cost(&record.usage))
 }

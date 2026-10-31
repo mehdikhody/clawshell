@@ -61,5 +61,16 @@
 	"cost_extra_usage": "مصرف اضافه",
 	"cost_no_estimate": "تخمینی در دسترس نیست",
 	"cost_prices_unavailable": "قیمت مدل‌ها دریافت نشد، پس تخمینی برای برگهٔ Code نیست. اتصال خود را بررسی و دوباره به‌روزرسانی کنید.",
-	"cost_unpriced": "{count} پیام از مدل‌هایی بدون قیمت شناخته‌شده هستند و کنار گذاشته شدند."
+	"cost_unpriced": "{count} پیام از مدل‌هایی بدون قیمت شناخته‌شده هستند و کنار گذاشته شدند.",
+	"heatmap_title": "۳۰ روز گذشته",
+	"heatmap_mode_label": "معیار نقشهٔ حرارتی",
+	"heatmap_mode_usd": "$",
+	"heatmap_mode_percent": "٪",
+	"heatmap_no_data": "بدون داده",
+	"heatmap_cell": "{date}: {value}",
+	"heatmap_cell_no_data": "{date}: بدون داده",
+	"heatmap_total_percent": "{percent} اوج هفتگی (میانگین)",
+	"heatmap_legend_less": "کمتر",
+	"heatmap_legend_more": "بیشتر",
+	"heatmap_no_prices": "تخمین دلاری در دسترس نیست: قیمت مدل‌ها دریافت نشد."
 }

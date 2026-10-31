@@ -6,6 +6,7 @@ import '../../routes/layout.css';
 import { mockTauri, type IpcHandlers } from '$lib/test/tauri-ipc';
 import { pooledWindow } from '$lib/test/pooled';
 import { accountCost, monthCost } from '$lib/test/cost';
+import { heatmapOf, values } from '$lib/test/heatmap';
 import { emptyPooled, type AccountList, type PooledRemaining } from '$lib/accounts';
 import UsageScreen from './usage-screen.svelte';
 
@@ -293,5 +294,165 @@ describe('UsageScreen this month', () => {
 
 		await expect.element(page.getByText('No usage data yet').first()).toBeVisible();
 		await expect.element(page.getByText('This month')).not.toBeInTheDocument();
+	});
+});
+
+describe('UsageScreen heatmap', () => {
+	const MAP = heatmapOf({
+		'2026-06-10': {
+			usd: values([
+				['Work', 6],
+				['Spare', 2]
+			]),
+			percent: values(
+				[
+					['Work', 80],
+					['Spare', 40]
+				],
+				true
+			)
+		},
+		'2026-06-11': { usd: values([['Work', 0]]), percent: values([['Work', 0]], true) },
+		'2026-06-12': { usd: values([['Work', 1]]) }
+	});
+
+	const withMap = (map = MAP) => mount(listWith(emptyPooled), { heatmap: () => map });
+	const grid = () => page.getByRole('group', { name: 'Last 30 days' });
+	const tooltip = () => page.getByTestId('heatmap-tooltip');
+	const cell = (name: RegExp) => grid().getByRole('button', { name });
+
+	it('asks the core for the heatmap on load and draws 30 days', async () => {
+		const tauri = withMap();
+
+		await expect.element(grid()).toBeVisible();
+		expect(grid().getByRole('button').elements()).toHaveLength(30);
+		expect(tauri.calls.filter((c) => c.cmd === 'heatmap')).toHaveLength(1);
+	});
+
+	it('starts in dollars, each day labelled with its Code estimate', async () => {
+		withMap();
+
+		await expect.element(cell(/Jun 10/)).toHaveAccessibleName(/\$8\.00 est\./);
+		await expect.element(cell(/Jun 12/)).toHaveAccessibleName(/\$1\.00 est\./);
+	});
+
+	it('switches to the peak weekly percent averaged across accounts', async () => {
+		withMap();
+
+		await page.getByRole('radio', { name: '%' }).click();
+
+		await expect.element(cell(/Jun 10/)).toHaveAccessibleName(/60%/);
+		// A day with only dollars has no percent reading.
+		await expect.element(cell(/Jun 12/)).toHaveAccessibleName(/no data/i);
+	});
+
+	it('switches back to dollars', async () => {
+		withMap();
+		await page.getByRole('radio', { name: '%' }).click();
+
+		await page.getByRole('radio', { name: '$' }).click();
+
+		await expect.element(cell(/Jun 10/)).toHaveAccessibleName(/\$8\.00 est\./);
+	});
+
+	it('shows the date, the total and each account on hover', async () => {
+		withMap();
+
+		await cell(/Jun 10/).hover();
+
+		const tip = tooltip();
+		await expect.element(tip).toBeVisible();
+		await expect.element(tip).toHaveTextContent('Jun 10');
+		await expect.element(tip).toHaveTextContent('$8.00 est.');
+		await expect.element(tip).toHaveTextContent(/Work\s*\$6\.00/);
+		await expect.element(tip).toHaveTextContent(/Spare\s*\$2\.00/);
+	});
+
+	it('shows percent totals and per-account percents in the percent tooltip', async () => {
+		withMap();
+		await page.getByRole('radio', { name: '%' }).click();
+
+		await cell(/Jun 10/).hover();
+
+		const tip = tooltip();
+		await expect.element(tip).toHaveTextContent('60%');
+		await expect.element(tip).toHaveTextContent(/Work\s*80%/);
+		await expect.element(tip).toHaveTextContent(/Spare\s*40%/);
+	});
+
+	it('shows a tooltip on keyboard focus, so a tap works too', async () => {
+		withMap();
+
+		await expect.element(cell(/Jun 10/)).toBeVisible();
+		(cell(/Jun 10/).element() as HTMLElement).focus();
+
+		await expect.element(tooltip()).toHaveTextContent('$8.00 est.');
+	});
+
+	it('opens the tooltip on a click, for taps', async () => {
+		withMap();
+
+		await cell(/Jun 10/).click();
+
+		await expect.element(tooltip()).toHaveTextContent(/Spare\s*\$2\.00/);
+	});
+
+	it('draws a day with no data differently from a day at zero', async () => {
+		withMap();
+		const border = (name: RegExp) => getComputedStyle(cell(name).element()).borderStyle;
+
+		await expect.element(cell(/Jun 11/)).toHaveAccessibleName(/\$0\.00 est\./);
+		await expect.element(cell(/Jun 9:/)).toHaveAccessibleName(/no data/i);
+		expect(border(/Jun 9:/)).toBe('dashed');
+		expect(border(/Jun 11/)).not.toBe('dashed');
+
+		await cell(/Jun 9:/).hover();
+		await expect.element(tooltip()).toHaveTextContent('No data');
+	});
+
+	it('fits the 400px window without scrolling sideways', async () => {
+		await page.viewport(400, 780);
+		withMap();
+		await expect.element(grid()).toBeVisible();
+
+		const el = grid().element() as HTMLElement;
+		expect(el.scrollWidth).toBeLessThanOrEqual(el.clientWidth);
+		expect(el.getBoundingClientRect().right).toBeLessThanOrEqual(400);
+		expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(400);
+	});
+
+	it('says why the dollars are empty when prices could not be fetched', async () => {
+		withMap(
+			heatmapOf(
+				{ '2026-06-10': { percent: values([['Work', 50]], true) } },
+				{
+					noEstimate: 'prices-unavailable'
+				}
+			)
+		);
+
+		await expect.element(page.getByText(/no dollar estimate/i)).toBeVisible();
+		await page.getByRole('radio', { name: '%' }).click();
+		await expect.element(page.getByText(/no dollar estimate/i)).not.toBeInTheDocument();
+		await expect.element(cell(/Jun 10/)).toHaveAccessibleName(/50%/);
+	});
+
+	it('shows no heatmap when there is nothing to show', async () => {
+		withMap(heatmapOf());
+
+		await expect.element(page.getByText('No usage data yet').first()).toBeVisible();
+		await expect.element(grid()).not.toBeInTheDocument();
+	});
+
+	it('reads the heatmap again after a manual refresh', async () => {
+		const tauri = mount(listWith(emptyPooled), {
+			heatmap: () => MAP,
+			refresh_usage: () => ({ refreshed: 1, refreshAllowedAt: Date.now() + 3 * MIN })
+		});
+		await expect.element(grid()).toBeVisible();
+
+		await page.getByRole('button', { name: 'Refresh usage' }).click();
+
+		await vi.waitFor(() => expect(tauri.calls.filter((c) => c.cmd === 'heatmap')).toHaveLength(2));
 	});
 });

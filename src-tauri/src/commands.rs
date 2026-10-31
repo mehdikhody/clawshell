@@ -2,8 +2,8 @@
 //! changes to the UI.
 
 use crate::core::{
-    Account, AccountList, AddError, Core, DeleteError, LaunchError, LaunchOutcome, MonthCost,
-    OpenFolderError, RefreshOutcome, RenameError,
+    Account, AccountList, AddError, Core, DeleteError, Heatmap, LaunchError, LaunchOutcome,
+    MonthCost, OpenFolderError, RefreshOutcome, RenameError,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
@@ -183,6 +183,16 @@ pub async fn refresh_usage(
 pub async fn month_cost(core: State<'_, Arc<Core>>) -> Result<MonthCost, CommandError> {
     let core = core.inner().clone();
     tauri::async_runtime::spawn_blocking(move || core.month_cost())
+        .await
+        .map_err(|e| CommandError::new("io", e.to_string()))
+}
+
+/// The 30-day heatmap in both modes. Reads transcripts and may fetch the
+/// price list, so it runs off the UI thread.
+#[tauri::command]
+pub async fn heatmap(core: State<'_, Arc<Core>>) -> Result<Heatmap, CommandError> {
+    let core = core.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || core.heatmap())
         .await
         .map_err(|e| CommandError::new("io", e.to_string()))
 }
