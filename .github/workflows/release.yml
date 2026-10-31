@@ -39,6 +39,20 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          notes="docs/updates/v$version.md"
+          if [ ! -f "$notes" ]; then
+            echo "::error::$notes is missing. Add the release notes before tagging. See the README section 'Releasing'."
+            exit 1
+          fi
+          # The in-app update dialog shows plain text, so drop the screenshots, the top
+          # heading (the release title already says it) and the maintainer-only section.
+          awk '/^## For maintainers/{exit} /^<img /{next} {print}' "$notes" \
+            | sed '1{/^# /d}' | sed '1{/^$/d}' | sed '/^$/N;/^\n$/D' > "$RUNNER_TEMP/release-notes.md"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -71,3 +85,9 @@ jobs:
           uploadUpdaterSignatures: true
           # The manifest points at the NSIS setup.exe rather than the .msi.
           updaterJsonPreferNsis: true
+
+      - name: Set release notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-notes.md"
