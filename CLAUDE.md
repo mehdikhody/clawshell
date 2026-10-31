@@ -13,6 +13,21 @@ Rules:
 
 - Never add a `Co-Authored-By:` line (or any co-author trailer) to git commit messages. This applies to every commit, with no exceptions.
 
+## /implement-spec
+
+Run tickets one at a time: keep exactly one implementer subagent active, and start the next frontier ticket only after the merger subagent has merged the previous one into the integration branch. This overrides the skill's background, maximum-concurrency instructions.
+
+### Model routing
+
+While running `/implement-spec`, set `model` and `effort` on every Agent call by the subagent's role:
+
+| Role | `model` | `effort` |
+|---|---|---|
+| Implementer subagents, including the one that fixes code-review findings | `sonnet` | `high` |
+| Merger subagent | `sonnet` | `medium` |
+| Subagents spawned by `code-review`, and any UI/UX review | `opus` | `high` |
+| Exploration subagent, and any subagent that only runs tests | `haiku` | `medium` |
+
 ## Grilling
 
 - Ask every grilling question through the `AskUserQuestion` tool, never as a numbered list in chat.
