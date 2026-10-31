@@ -5,7 +5,8 @@ use crate::core::desktop_token::{AccessToken, read_access_token};
 use crate::core::install::detect_install;
 use crate::core::ports::*;
 use crate::core::process::DesktopProcesses;
-use crate::taskbar::badge_windows;
+use crate::shell_link;
+use crate::taskbar::{badge_ico, badge_windows};
 use std::collections::HashMap;
 use std::io;
 use std::os::windows::process::CommandExt;
@@ -281,11 +282,29 @@ impl TaskbarIdentity for WindowsOs {
     }
 }
 impl Shortcuts for WindowsOs {
-    fn create(&self, _profile: &Path, _label: &str) -> io::Result<()> {
-        Ok(())
+    fn places(&self) -> io::Result<ShortcutPlaces> {
+        Ok(ShortcutPlaces {
+            desktop: shell_link::desktop_folder()?,
+            start_menu: shell_link::start_menu_folder()?,
+            clawshell_exe: std::env::current_exe()?,
+        })
     }
-    fn remove(&self, _profile: &Path) -> io::Result<()> {
-        Ok(())
+    fn write_icon(&self, path: &Path, badge: char, colour: &str) -> io::Result<()> {
+        let bytes = badge_ico(badge, colour)
+            .ok_or_else(|| io::Error::other("the badge icon could not be drawn"))?;
+        if let Some(folder) = path.parent() {
+            std::fs::create_dir_all(folder)?;
+        }
+        std::fs::write(path, bytes)
+    }
+    fn write_link(&self, link: &Path, spec: &ShortcutLink) -> io::Result<()> {
+        shell_link::write_link(link, spec)
+    }
+    fn delete(&self, path: &Path) -> io::Result<()> {
+        match std::fs::remove_file(path) {
+            Err(e) if e.kind() != io::ErrorKind::NotFound => Err(e),
+            _ => Ok(()),
+        }
     }
 }
 impl LinkHandlerRegistry for WindowsOs {

@@ -158,10 +158,12 @@ impl Core {
             return Err(RenameError::UnknownAccount);
         }
         records.save(local)?;
+        let before = account.clone();
         account.label = label.to_string();
         account.badge = badge_letter(label);
         // A new initial is a new identity for a running window.
         self.apply_taskbar_identities(std::slice::from_ref(&account));
+        self.update_shortcuts(&before, &account);
         Ok(account)
     }
 
@@ -179,8 +181,10 @@ impl Core {
             return Err(ColourError::UnknownAccount);
         }
         records.save(local)?;
+        let before = account.clone();
         account.colour = colour;
         self.apply_taskbar_identities(std::slice::from_ref(&account));
+        self.update_shortcuts(&before, &account);
         Ok(account)
     }
 
@@ -258,7 +262,7 @@ impl Core {
         records.remove(id);
         records.save(local)?;
         // Best effort: the account is already gone, stale shortcuts are not fatal.
-        let _ = self.ports.os.remove(&account.path);
+        self.remove_shortcuts(&account);
         Ok(())
     }
 
@@ -396,7 +400,7 @@ impl Core {
 }
 
 /// A well-formed account id: the hyphenated uuid in a `clawshell-{uuid}` name.
-fn is_account_id(id: &str) -> bool {
+pub(super) fn is_account_id(id: &str) -> bool {
     id.len() == 36 && Uuid::parse_str(id).is_ok()
 }
 

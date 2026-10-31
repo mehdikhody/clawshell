@@ -312,6 +312,33 @@ describe('AccountsScreen', () => {
 			await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't open the folder");
 		});
 
+		it('adds the account shortcuts and says where they went', async () => {
+			const tauri = mount({ add_shortcuts: () => null });
+
+			await menuOf('Work').click();
+			await page.getByRole('menuitem', { name: 'Add shortcuts' }).click();
+
+			expect(tauri.calls.filter((c) => c.cmd === 'add_shortcuts')).toEqual([
+				{ cmd: 'add_shortcuts', args: { id: 'id-idle' } }
+			]);
+			await expect
+				.element(page.getByRole('status'))
+				.toHaveTextContent('Shortcuts added to the Desktop and Start menu');
+		});
+
+		it('shows a clear message when the shortcuts cannot be added', async () => {
+			mount({
+				add_shortcuts: () => {
+					throw { code: 'shortcuts-failed', message: 'Access is denied' };
+				}
+			});
+
+			await menuOf('Work').click();
+			await page.getByRole('menuitem', { name: 'Add shortcuts' }).click();
+
+			await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't add the shortcuts");
+		});
+
 		it('renames only the label and shows the new name', async () => {
 			let label = 'Work';
 			const tauri = mount({
@@ -509,7 +536,7 @@ describe('AccountsScreen', () => {
 			await expect.poll(() => page.getByRole('listitem').elements().length).toBe(1);
 		});
 
-		it('cannot be launched, and its folder cannot be opened', async () => {
+		it('cannot be launched, and its folder cannot be opened or shortcut added', async () => {
 			const tauri = mount({}, withMissing);
 
 			await page.getByRole('listitem').nth(1).dblClick();
@@ -517,6 +544,9 @@ describe('AccountsScreen', () => {
 
 			await expect
 				.element(page.getByRole('menuitem', { name: 'Open folder' }))
+				.toHaveAttribute('aria-disabled', 'true');
+			await expect
+				.element(page.getByRole('menuitem', { name: 'Add shortcuts' }))
 				.toHaveAttribute('aria-disabled', 'true');
 			expect(tauri.calls.some((c) => c.cmd === 'launch_account')).toBe(false);
 		});

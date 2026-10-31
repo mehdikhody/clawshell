@@ -14,6 +14,7 @@ pub mod ports;
 pub mod process;
 mod settings;
 mod shell;
+pub mod shortcuts;
 mod signin;
 mod store;
 pub mod usage;
@@ -26,6 +27,7 @@ pub use cost::{AccountCost, Heatmap, MonthCost, NoEstimate};
 pub use pooled::{PooledRemaining, PooledWindow};
 pub use settings::{Language, OverrideAware, Settings, SettingsError};
 pub use shell::{CloseAction, TrayEntry, TrayLabels};
+pub use shortcuts::ShortcutError;
 pub use usage::{RefreshOutcome, UsageSnapshot, UsageSource};
 
 use ports::{Clock, HttpClient, OsAdapters, ProcessInspector, Roots, TokenReader};

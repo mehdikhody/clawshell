@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import IconAlertTriangle from '@tabler/icons-svelte/icons/alert-triangle';
+	import IconAppWindow from '@tabler/icons-svelte/icons/app-window';
 	import IconCheck from '@tabler/icons-svelte/icons/check';
 	import IconDots from '@tabler/icons-svelte/icons/dots';
 	import IconFolderOpen from '@tabler/icons-svelte/icons/folder-open';
@@ -11,6 +12,7 @@
 	import IconTrash from '@tabler/icons-svelte/icons/trash';
 	import {
 		addAccount,
+		addShortcuts,
 		emptyPooled,
 		deleteAccount,
 		errorCode,
@@ -48,6 +50,8 @@
 		palette: [],
 		accounts: []
 	});
+	/** How long a confirmation stays on screen. */
+	const NOTICE_MS = 5000;
 	let loaded = $state(false);
 	let adding = $state(false);
 	let refreshing = $state(false);
@@ -56,6 +60,8 @@
 	/** How long until a manual refresh is allowed again; 0 when it is allowed now. */
 	const refreshWaitMs = $derived(Math.max(0, (list.refreshAllowedAt ?? 0) - now));
 	let failure = $state<string | null>(null);
+	/** A short confirmation for an action that otherwise shows nothing. */
+	let notice = $state<string | null>(null);
 
 	/** The account being renamed, and the draft name in the dialog. */
 	let renaming = $state<Account | null>(null);
@@ -168,6 +174,20 @@
 		}
 	}
 
+	async function createShortcuts(account: Account) {
+		failure = null;
+		notice = null;
+		try {
+			await addShortcuts(account.id);
+			const shown = (notice = m.shortcuts_added());
+			setTimeout(() => {
+				if (notice === shown) notice = null;
+			}, NOTICE_MS);
+		} catch (error) {
+			failure = describe(error, m.error_shortcuts_failed());
+		}
+	}
+
 	function askDelete(account: Account) {
 		if (account.running) {
 			failure = m.error_delete_running({ label: account.label });
@@ -249,6 +269,13 @@
 		</Alert.Root>
 	{/if}
 
+	{#if notice}
+		<Alert.Root role="status">
+			<IconCheck />
+			<Alert.Title>{notice}</Alert.Title>
+		</Alert.Root>
+	{/if}
+
 	{#if list.accounts.length > 0}
 		<Item.Group class="gap-2">
 			{#each list.accounts as account (account.id)}
@@ -324,6 +351,13 @@
 								>
 									<IconFolderOpen />
 									{m.menu_open_folder()}
+								</DropdownMenu.Item>
+								<DropdownMenu.Item
+									disabled={account.status === 'missing'}
+									onSelect={() => createShortcuts(account)}
+								>
+									<IconAppWindow />
+									{m.menu_add_shortcuts()}
 								</DropdownMenu.Item>
 								<DropdownMenu.Sub>
 									<DropdownMenu.SubTrigger>

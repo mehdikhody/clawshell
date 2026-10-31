@@ -1,6 +1,7 @@
 //! The tray icon and its menu. What the menu offers is decided by the core
 //! (`Core::tray_entries`); this only draws it and routes clicks back.
 
+use crate::core::shortcuts::account_to_open;
 use crate::core::{Core, TrayEntry};
 use std::sync::Arc;
 use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem};
@@ -20,6 +21,24 @@ pub fn show_main_window(app: &AppHandle) {
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+
+/// Opens the account a shortcut click names on the command line, or brings it
+/// forward when it is already running. Returns false when `args` name no
+/// account. A failed launch shows the main window, as the tray does.
+pub fn open_from_command_line(app: &AppHandle, args: &[String]) -> bool {
+    if account_to_open(args).is_none() {
+        return false;
+    }
+    let (app, args) = (app.clone(), args.to_vec());
+    std::thread::spawn(move || {
+        let core = app.state::<Arc<Core>>().inner().clone();
+        if matches!(core.open_requested(&args), Some(Err(_))) {
+            show_main_window(&app);
+        }
+        refresh(&app, &core);
+    });
+    true
 }
 
 pub fn build(app: &AppHandle, core: &Core) -> tauri::Result<()> {

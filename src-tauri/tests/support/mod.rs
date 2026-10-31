@@ -33,6 +33,16 @@ impl Fixture {
         self.dir.path().join("Home")
     }
 
+    /// The fake Desktop folder.
+    pub fn desktop(&self) -> PathBuf {
+        self.dir.path().join("Desktop")
+    }
+
+    /// The fake Start menu `Programs` folder.
+    pub fn start_menu(&self) -> PathBuf {
+        self.dir.path().join("StartMenu/Programs")
+    }
+
     pub fn projects_dir(&self) -> PathBuf {
         self.home().join(".claude/projects")
     }
@@ -286,8 +296,14 @@ pub struct FakeOs {
     pub focused: Mutex<Vec<PathBuf>>,
     /// Every folder shown in the file manager.
     pub opened_folders: Mutex<Vec<PathBuf>>,
-    /// Profiles whose shortcuts were removed.
-    pub shortcuts_removed: Mutex<Vec<PathBuf>>,
+    /// Where the fake Desktop, Start menu and clawshell exe are.
+    pub places: Mutex<ShortcutPlaces>,
+    /// Every `(path, badge, colour)` handed to `write_icon`, in order.
+    pub icons_written: Mutex<Vec<(PathBuf, char, String)>>,
+    /// Every shortcut file written, in order.
+    pub links_written: Mutex<Vec<(PathBuf, ShortcutLink)>>,
+    /// Every path handed to `delete`, in order.
+    pub deleted: Mutex<Vec<PathBuf>>,
     /// Whether `focus` finds a window to bring forward.
     pub has_window: Mutex<bool>,
     /// Every value passed to the autostart port, in order.
@@ -309,7 +325,14 @@ impl Default for FakeOs {
             launched: Mutex::default(),
             focused: Mutex::default(),
             opened_folders: Mutex::default(),
-            shortcuts_removed: Mutex::default(),
+            places: Mutex::new(ShortcutPlaces {
+                desktop: PathBuf::from("C:/Users/test/Desktop"),
+                start_menu: PathBuf::from("C:/Users/test/StartMenu/Programs"),
+                clawshell_exe: PathBuf::from("C:/Apps/clawshell/clawshell.exe"),
+            }),
+            icons_written: Mutex::default(),
+            links_written: Mutex::default(),
+            deleted: Mutex::default(),
             has_window: Mutex::new(true),
             autostart: Mutex::default(),
             autostart_fails: Mutex::new(false),
@@ -380,15 +403,35 @@ impl TaskbarIdentity for FakeOs {
     }
 }
 impl Shortcuts for FakeOs {
-    fn create(&self, _profile: &Path, _label: &str) -> io::Result<()> {
-        Ok(())
+    fn places(&self) -> io::Result<ShortcutPlaces> {
+        Ok(self.places.lock().unwrap().clone())
     }
-    fn remove(&self, profile: &Path) -> io::Result<()> {
-        self.shortcuts_removed
+    // The fake leaves a stub file in the (temp) folders, so the core's "is
+    // there a shortcut to update" check has something real to look at.
+    fn write_icon(&self, path: &Path, badge: char, colour: &str) -> io::Result<()> {
+        fs::create_dir_all(path.parent().unwrap())?;
+        fs::write(path, "ico")?;
+        self.icons_written
             .lock()
             .unwrap()
-            .push(profile.to_path_buf());
+            .push((path.to_path_buf(), badge, colour.to_string()));
         Ok(())
+    }
+    fn write_link(&self, link: &Path, spec: &ShortcutLink) -> io::Result<()> {
+        fs::create_dir_all(link.parent().unwrap())?;
+        fs::write(link, "lnk")?;
+        self.links_written
+            .lock()
+            .unwrap()
+            .push((link.to_path_buf(), spec.clone()));
+        Ok(())
+    }
+    fn delete(&self, path: &Path) -> io::Result<()> {
+        self.deleted.lock().unwrap().push(path.to_path_buf());
+        match fs::remove_file(path) {
+            Err(e) if e.kind() != io::ErrorKind::NotFound => Err(e),
+            _ => Ok(()),
+        }
     }
 }
 impl LinkHandlerRegistry for FakeOs {
@@ -431,13 +474,21 @@ pub struct Harness {
 impl Harness {
     /// Starts at 2026-06-15 12:00:00 UTC.
     pub fn new() -> Self {
+        let fixture = Fixture::new();
+        let os = FakeOs::default();
+        // Shortcuts land in the fixture's temp folders, never the real ones.
+        *os.places.lock().unwrap() = ShortcutPlaces {
+            desktop: fixture.desktop(),
+            start_menu: fixture.start_menu(),
+            clawshell_exe: PathBuf::from("C:/Apps/clawshell/clawshell.exe"),
+        };
         Harness {
-            fixture: Fixture::new(),
+            fixture,
             http: FakeHttp::new(),
             clock: FakeClock::at_unix_secs(1_781_524_800),
             tokens: Arc::new(FakeTokens::default()),
             processes: Arc::new(FakeProcesses::default()),
-            os: Arc::new(FakeOs::default()),
+            os: Arc::new(os),
         }
     }
 

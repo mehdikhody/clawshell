@@ -4,7 +4,7 @@
 use crate::core::{
     Account, AccountList, AddError, ColourError, Core, DeleteError, Heatmap, LaunchError,
     LaunchOutcome, MonthCost, OpenFolderError, RefreshOutcome, RenameError, Settings,
-    SettingsError,
+    SettingsError, ShortcutError,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
@@ -136,6 +136,26 @@ impl From<DeleteError> for CommandError {
             DeleteError::Io(e) => CommandError::new("io", e.to_string()),
         }
     }
+}
+
+impl From<ShortcutError> for CommandError {
+    fn from(e: ShortcutError) -> Self {
+        match e {
+            ShortcutError::UnknownAccount => {
+                CommandError::new("unknown-account", "No such account")
+            }
+            ShortcutError::FolderMissing => {
+                CommandError::new("folder-missing", "The account's folder is missing")
+            }
+            ShortcutError::Io(e) => CommandError::new("shortcuts-failed", e.to_string()),
+        }
+    }
+}
+
+/// Puts "Claude - <name>" shortcuts on the Desktop and in the Start menu.
+#[tauri::command]
+pub fn add_shortcuts(core: State<'_, Arc<Core>>, id: String) -> Result<(), CommandError> {
+    Ok(core.add_shortcuts(&id)?)
 }
 
 #[tauri::command]

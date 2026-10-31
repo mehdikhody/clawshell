@@ -102,6 +102,8 @@ export const setAccountColour = (id: string, colour: string) =>
 	invoke<Account>('set_account_colour', { id, colour });
 export const openAccountFolder = (id: string) => invoke<void>('open_account_folder', { id });
 export const deleteAccount = (id: string) => invoke<void>('delete_account', { id });
+/** Puts "Claude - <name>" shortcuts on the Desktop and in the Start menu. */
+export const addShortcuts = (id: string) => invoke<void>('add_shortcuts', { id });
 /** Manual usage refresh; the core refuses it inside the minimum interval. */
 export const refreshUsage = () => invoke<RefreshOutcome>('refresh_usage');
 
