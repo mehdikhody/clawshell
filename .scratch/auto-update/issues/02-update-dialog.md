@@ -4,12 +4,12 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The badge opens the dialog with the version and release notes; Later closes it and the badge remains
-- [ ] Update moves the shared state through downloading (with progress) and installing, then calls relaunch
-- [ ] Progress shows a percentage when the content length is known and is indeterminate when it isn't
-- [ ] A failure shows the error and Retry; Retry starts the download again
-- [ ] `update_title` (with version), `update_notes`, `update_now`, `update_later`, `update_downloading`, `update_installing`, `update_failed` and `update_retry` exist in English and Persian
-- [ ] Unit tests cover the state moving through progress to install and to failure
-- [ ] Component tests cover opening the dialog, progress then relaunch, failure with Retry, and the dialog rendering right to left in Persian
+- [x] The badge opens the dialog with the version and release notes; Later closes it and the badge remains
+- [x] Update moves the shared state through downloading (with progress) and installing, then calls relaunch
+- [x] Progress shows a percentage when the content length is known and is indeterminate when it isn't
+- [x] A failure shows the error and Retry; Retry starts the download again
+- [x] `update_title` (with version), `update_notes`, `update_now`, `update_later`, `update_downloading`, `update_installing`, `update_failed` and `update_retry` exist in English and Persian
+- [x] Unit tests cover the state moving through progress to install and to failure
+- [x] Component tests cover opening the dialog, progress then relaunch, failure with Retry, and the dialog rendering right to left in Persian

@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Both plugins are registered, the updater config and capabilities are in place, and the app still builds and runs locally without a signing key
-- [ ] A check runs once at startup and then every 6 hours; a failed check is swallowed and leaves the state unchanged
-- [ ] A check that finds nothing newer clears an earlier badge, except while a download is in progress
-- [ ] The header shows a badge button named "Update available" only while an update is available or further along
-- [ ] `update_available` exists in English and Persian
-- [ ] Unit tests (updater mocked, fake timers) cover the startup check, the 6-hour interval, a swallowed error and the badge-clearing rule
-- [ ] Component tests (existing `mockTauri` harness) show the badge hidden with no update and shown with one
+- [x] Both plugins are registered, the updater config and capabilities are in place, and the app still builds and runs locally without a signing key
+- [x] A check runs once at startup and then every 6 hours; a failed check is swallowed and leaves the state unchanged
+- [x] A check that finds nothing newer clears an earlier badge, except while a download is in progress
+- [x] The header shows a badge button named "Update available" only while an update is available or further along
+- [x] `update_available` exists in English and Persian
+- [x] Unit tests (updater mocked, fake timers) cover the startup check, the 6-hour interval, a swallowed error and the badge-clearing rule
+- [x] Component tests (existing `mockTauri` harness) show the badge hidden with no update and shown with one
