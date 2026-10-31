@@ -257,6 +257,19 @@ pub fn open_account_folder(core: State<'_, Arc<Core>>, id: String) -> Result<(),
     Ok(core.open_account_folder(&id)?)
 }
 
+/// Ends every Claude process of the account, then redraws the list and the
+/// tray so neither shows it running.
+#[tauri::command]
+pub fn quit_account(
+    core: State<'_, Arc<Core>>,
+    feed: State<'_, AccountFeed>,
+    id: String,
+) -> Result<(), CommandError> {
+    let result = core.quit_account(&id);
+    feed.publish();
+    Ok(result?)
+}
+
 #[tauri::command]
 pub fn delete_account(core: State<'_, Arc<Core>>, id: String) -> Result<(), CommandError> {
     Ok(core.delete_account(&id)?)

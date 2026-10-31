@@ -27,6 +27,8 @@
 	"accounts_actions": "Actions for {label}",
 	"menu_rename": "Rename",
 	"menu_open_folder": "Open folder",
+	"menu_quit_claude": "Quit Claude",
+	"error_quit_failed": "Couldn't quit Claude",
 	"menu_delete": "Delete",
 	"menu_badge_colour": "Badge colour",
 	"error_colour_failed": "Couldn't change the colour",

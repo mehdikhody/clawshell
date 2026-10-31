@@ -83,6 +83,8 @@ pub trait TokenReader: Send + Sync {
 /// Which profile folders currently have a running Claude Desktop.
 pub trait ProcessInspector: Send + Sync {
     fn running_profiles(&self) -> HashSet<PathBuf>;
+    /// Pids of the Desktop processes using `profile`, hidden ones included.
+    fn pids_for(&self, profile: &Path) -> Vec<u32>;
 }
 
 /// One running OS process, as the process lister sees it.
@@ -248,6 +250,12 @@ pub trait LinkHandlerRegistry: Send + Sync {
     fn forward_link(&self, forward: &LinkForward) -> io::Result<()>;
 }
 
+pub trait ProcessKiller: Send + Sync {
+    /// Ends every process in `pids` at once, with no graceful step. A process
+    /// that is already gone counts as ended.
+    fn end(&self, pids: &[u32]) -> io::Result<()>;
+}
+
 pub trait Autostart: Send + Sync {
     fn set_enabled(&self, enabled: bool) -> io::Result<()>;
 }
@@ -265,6 +273,7 @@ pub trait OsAdapters:
     + TaskbarIdentity
     + Shortcuts
     + LinkHandlerRegistry
+    + ProcessKiller
     + Autostart
     + Notifier
 {

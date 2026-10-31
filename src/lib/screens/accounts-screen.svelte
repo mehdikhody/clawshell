@@ -9,6 +9,7 @@
 	import IconPalette from '@tabler/icons-svelte/icons/palette';
 	import IconPencil from '@tabler/icons-svelte/icons/pencil';
 	import IconPlus from '@tabler/icons-svelte/icons/plus';
+	import IconPower from '@tabler/icons-svelte/icons/power';
 	import IconTerminal2 from '@tabler/icons-svelte/icons/terminal-2';
 	import IconTrash from '@tabler/icons-svelte/icons/trash';
 	import {
@@ -22,6 +23,7 @@
 		newAccountDefaults,
 		onAccountsChanged,
 		openAccountFolder,
+		quitAccount,
 		renameAccount,
 		reorderAccounts,
 		setAccountColour,
@@ -236,6 +238,17 @@
 		}
 	}
 
+	async function quitClaude(account: Account) {
+		failure = null;
+		try {
+			await quitAccount(account.id);
+		} catch (error) {
+			failure = describe(error, m.error_quit_failed());
+		} finally {
+			await refresh();
+		}
+	}
+
 	async function createShortcuts(account: Account) {
 		failure = null;
 		notice = null;
@@ -421,6 +434,12 @@
 							<IconFolderOpen />
 							{m.menu_open_folder()}
 						</ContextMenu.Item>
+						{#if account.running}
+							<ContextMenu.Item onSelect={() => quitClaude(account)}>
+								<IconPower />
+								{m.menu_quit_claude()}
+							</ContextMenu.Item>
+						{/if}
 						{#if !account.isDefault}
 							<ContextMenu.Item
 								disabled={account.status === 'missing'}

@@ -295,13 +295,37 @@ impl TokenReader for FakeTokens {
     }
 }
 
-/// Process inspector faked at its port: the profile folders "running" Claude.
+/// Process inspector faked at its port: the profile folders "running" Claude,
+/// and the pids each one's processes have.
 #[derive(Default)]
-pub struct FakeProcesses(pub Mutex<HashSet<PathBuf>>);
+pub struct FakeProcesses(
+    pub Mutex<HashSet<PathBuf>>,
+    pub Mutex<HashMap<PathBuf, Vec<u32>>>,
+);
+
+impl FakeProcesses {
+    /// Makes Claude run on `profile` with these processes.
+    pub fn run(&self, profile: &Path, pids: &[u32]) {
+        self.0.lock().unwrap().insert(profile.to_path_buf());
+        self.1
+            .lock()
+            .unwrap()
+            .insert(profile.to_path_buf(), pids.to_vec());
+    }
+}
 
 impl ProcessInspector for FakeProcesses {
     fn running_profiles(&self) -> HashSet<PathBuf> {
         self.0.lock().unwrap().clone()
+    }
+
+    fn pids_for(&self, profile: &Path) -> Vec<u32> {
+        self.1
+            .lock()
+            .unwrap()
+            .get(profile)
+            .cloned()
+            .unwrap_or_default()
     }
 }
 
@@ -362,6 +386,10 @@ pub struct FakeOs {
     pub default_apps_opened: Mutex<u32>,
     /// Every link handed on to a Claude process, in order.
     pub forwarded: Mutex<Vec<LinkForward>>,
+    /// Every process id handed to the process killer, in order.
+    pub ended: Mutex<Vec<u32>>,
+    /// Makes ending processes fail, as a protected process would.
+    pub end_fails: Mutex<bool>,
 }
 
 /// What the fake registry holds once clawshell has taken over `claude://`.
@@ -399,6 +427,8 @@ impl Default for FakeOs {
             chosen_elsewhere: Mutex::new(false),
             default_apps_opened: Mutex::new(0),
             forwarded: Mutex::default(),
+            ended: Mutex::default(),
+            end_fails: Mutex::new(false),
         }
     }
 }
@@ -577,6 +607,15 @@ impl Notifier for FakeOs {
             .lock()
             .unwrap()
             .push((title.to_string(), body.to_string()));
+    }
+}
+impl ProcessKiller for FakeOs {
+    fn end(&self, pids: &[u32]) -> io::Result<()> {
+        if *self.end_fails.lock().unwrap() {
+            return Err(io::Error::other("access denied"));
+        }
+        self.ended.lock().unwrap().extend_from_slice(pids);
+        Ok(())
     }
 }
 impl OsAdapters for FakeOs {}

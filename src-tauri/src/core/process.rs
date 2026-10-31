@@ -52,15 +52,6 @@ impl DesktopProcesses {
             })
             .collect()
     }
-
-    /// Pids of the Desktop processes using `profile`, for window lookup.
-    pub fn pids_for(&self, profile: &Path) -> Vec<u32> {
-        self.desktop_processes()
-            .into_iter()
-            .filter(|(dir, _)| same_path(dir, profile))
-            .map(|(_, p)| p.pid)
-            .collect()
-    }
 }
 
 impl ProcessInspector for DesktopProcesses {
@@ -68,6 +59,14 @@ impl ProcessInspector for DesktopProcesses {
         self.desktop_processes()
             .into_iter()
             .map(|(dir, _)| dir)
+            .collect()
+    }
+
+    fn pids_for(&self, profile: &Path) -> Vec<u32> {
+        self.desktop_processes()
+            .into_iter()
+            .filter(|(dir, _)| same_path(dir, profile))
+            .map(|(_, p)| p.pid)
             .collect()
     }
 }

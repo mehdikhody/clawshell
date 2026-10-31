@@ -603,6 +603,80 @@ fn open_folder_for_a_missing_folder_says_so_and_opens_nothing() {
     assert!(h.os.opened_folders.lock().unwrap().is_empty());
 }
 
+// ---- quit --------------------------------------------------------------------
+
+#[test]
+fn quit_ends_only_the_processes_of_that_accounts_profile() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.processes
+        .run(&h.fixture.profile_path(ID_A), &[10, 11, 12]);
+    h.processes.run(&h.fixture.profile_path(ID_B), &[20, 21]);
+
+    h.core().quit_account(ID_A).unwrap();
+
+    assert_eq!(h.os.ended.lock().unwrap().clone(), vec![10, 11, 12]);
+}
+
+#[test]
+fn quit_works_for_the_default_account_too() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    let default = h
+        .core()
+        .list_accounts()
+        .unwrap()
+        .accounts
+        .into_iter()
+        .find(|a| a.is_default)
+        .unwrap();
+    h.processes.run(&default.path, &[5, 6]);
+    h.processes.run(&h.fixture.profile_path(ID_A), &[10]);
+
+    h.core().quit_account("default").unwrap();
+
+    assert_eq!(h.os.ended.lock().unwrap().clone(), vec![5, 6]);
+}
+
+#[test]
+fn quit_on_an_account_that_is_not_running_ends_nothing() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+
+    h.core().quit_account(ID_A).unwrap();
+
+    assert!(h.os.ended.lock().unwrap().is_empty());
+}
+
+#[test]
+fn quit_for_an_unknown_account_ends_nothing() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.processes.run(&h.fixture.profile_path(ID_A), &[10]);
+
+    for id in [ID_B, "..", "../Claude-Data"] {
+        assert!(matches!(
+            h.core().quit_account(id).unwrap_err(),
+            AccountError::Unknown
+        ));
+    }
+    assert!(h.os.ended.lock().unwrap().is_empty());
+}
+
+#[test]
+fn quit_reports_a_failure_to_end_the_processes() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.processes.run(&h.fixture.profile_path(ID_A), &[10]);
+    *h.os.end_fails.lock().unwrap() = true;
+
+    assert!(matches!(
+        h.core().quit_account(ID_A).unwrap_err(),
+        AccountError::Io(_)
+    ));
+}
+
 // ---- delete ------------------------------------------------------------------
 
 fn ids(h: &Harness) -> Vec<String> {

@@ -381,6 +381,47 @@ impl LinkHandlerRegistry for WindowsOs {
         )
     }
 }
+/// How long an ended process is waited for, so the status read right after
+/// no longer sees it.
+const END_WAIT_MS: u32 = 2_000;
+
+impl ProcessKiller for WindowsOs {
+    fn end(&self, pids: &[u32]) -> io::Result<()> {
+        use windows::Win32::Foundation::{CloseHandle, ERROR_INVALID_PARAMETER};
+        use windows::Win32::System::Threading::{
+            OpenProcess, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, TerminateProcess,
+            WaitForSingleObject,
+        };
+
+        let mut failure = None;
+        for &pid in pids {
+            // SAFETY: the handle is used only below and closed once.
+            let handle =
+                match unsafe { OpenProcess(PROCESS_TERMINATE | PROCESS_SYNCHRONIZE, false, pid) } {
+                    Ok(handle) => handle,
+                    // The process is gone already: nothing left to end.
+                    Err(e) if e.code() == ERROR_INVALID_PARAMETER.to_hresult() => continue,
+                    Err(e) => {
+                        failure.get_or_insert(io::Error::from(e));
+                        continue;
+                    }
+                };
+            // SAFETY: `handle` is open and owned here.
+            unsafe {
+                match TerminateProcess(handle, 1) {
+                    Ok(()) => {
+                        WaitForSingleObject(handle, END_WAIT_MS);
+                    }
+                    Err(e) => {
+                        failure.get_or_insert(io::Error::from(e));
+                    }
+                }
+                let _ = CloseHandle(handle);
+            }
+        }
+        failure.map_or(Ok(()), Err)
+    }
+}
 impl Autostart for WindowsOs {
     fn set_enabled(&self, enabled: bool) -> io::Result<()> {
         set_run_key(enabled, &std::env::current_exe()?)

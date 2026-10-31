@@ -27,6 +27,8 @@
 	"accounts_actions": "اقدامات برای {label}",
 	"menu_rename": "تغییر نام",
 	"menu_open_folder": "باز کردن پوشه",
+	"menu_quit_claude": "بستن Claude",
+	"error_quit_failed": "بستن Claude ممکن نشد",
 	"menu_delete": "حذف",
 	"menu_badge_colour": "رنگ نشان",
 	"error_colour_failed": "تغییر رنگ ممکن نشد",

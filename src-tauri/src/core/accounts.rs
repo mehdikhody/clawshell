@@ -302,6 +302,18 @@ impl Core {
         Ok(())
     }
 
+    /// Ends every Claude Desktop process of the account's profile, the ones
+    /// hidden in Claude's own tray included. Claude has no quit command, so
+    /// the end is forced. An account that is not running has nothing to end.
+    pub fn quit_account(&self, id: &str) -> Result<(), AccountError> {
+        let account = self.find_account(id)?.ok_or(AccountError::Unknown)?;
+        let pids = self.ports.processes.pids_for(&account.path);
+        if !pids.is_empty() {
+            self.ports.os.end(&pids)?;
+        }
+        Ok(())
+    }
+
     /// Removes the profile folder, the account's record and its shortcuts.
     /// Refused while Claude is running on the account, and always for the
     /// default account, whose folder is Claude's own. A Missing account has

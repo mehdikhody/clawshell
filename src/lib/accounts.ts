@@ -159,6 +159,8 @@ export const setAccountColour = (id: string, colour: string) =>
 export const setLaunchOptions = (id: string, options: LaunchOptions) =>
 	invoke<Account>('set_launch_options', { id, options });
 export const openAccountFolder = (id: string) => invoke<void>('open_account_folder', { id });
+/** Ends every Claude process of the account, hidden ones included. */
+export const quitAccount = (id: string) => invoke<void>('quit_account', { id });
 export const deleteAccount = (id: string) => invoke<void>('delete_account', { id });
 /** Puts "Claude - <name>" shortcuts on the Desktop and in the Start menu. */
 export const addShortcuts = (id: string) => invoke<void>('add_shortcuts', { id });

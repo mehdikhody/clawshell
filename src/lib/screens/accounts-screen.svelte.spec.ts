@@ -398,6 +398,71 @@ describe('AccountsScreen', () => {
 			await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't open the folder");
 		});
 
+		it('offers Quit Claude on a running account and calls quit_account', async () => {
+			const tauri = mount({ quit_account: () => null });
+
+			await menuOf('Account 2').click({ button: 'right' });
+			await page.getByRole('menuitem', { name: 'Quit Claude' }).click();
+
+			expect(tauri.calls.filter((c) => c.cmd === 'quit_account')).toEqual([
+				{ cmd: 'quit_account', args: { id: 'id-run' } }
+			]);
+		});
+
+		it('offers Quit Claude on the default account when it is running', async () => {
+			const tauri = mount(
+				{ quit_account: () => null, claude_icon: () => 'data:test,claude' },
+				{
+					...threeAccounts,
+					accounts: [
+						account('default', 'Claude', 'running'),
+						account('id-idle', 'Work', 'idle')
+					] as AccountList['accounts']
+				}
+			);
+
+			await menuOf('Claude').click({ button: 'right' });
+			await page.getByRole('menuitem', { name: 'Quit Claude' }).click();
+
+			expect(tauri.calls.filter((c) => c.cmd === 'quit_account')).toEqual([
+				{ cmd: 'quit_account', args: { id: 'default' } }
+			]);
+		});
+
+		it('hides Quit Claude when the account is not running', async () => {
+			mount();
+
+			await menuOf('Work').click({ button: 'right' });
+
+			await expect.element(page.getByRole('menuitem', { name: 'Open folder' })).toBeVisible();
+			await expect
+				.element(page.getByRole('menuitem', { name: 'Quit Claude' }))
+				.not.toBeInTheDocument();
+		});
+
+		it('quits without asking for a confirmation', async () => {
+			mount({ quit_account: () => null });
+
+			await menuOf('Account 2').click({ button: 'right' });
+			await page.getByRole('menuitem', { name: 'Quit Claude' }).click();
+
+			await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument();
+			await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+		});
+
+		it('shows a clear message when Claude cannot be quit', async () => {
+			mount({
+				quit_account: () => {
+					throw { code: 'io', message: 'Access is denied' };
+				}
+			});
+
+			await menuOf('Account 2').click({ button: 'right' });
+			await page.getByRole('menuitem', { name: 'Quit Claude' }).click();
+
+			await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't quit Claude");
+		});
+
 		it('adds the account shortcuts and says where they went', async () => {
 			const tauri = mount({ add_shortcuts: () => null });
 

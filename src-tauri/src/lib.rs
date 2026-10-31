@@ -123,6 +123,7 @@ pub fn run() {
             commands::reorder_accounts,
             commands::set_account_colour,
             commands::open_account_folder,
+            commands::quit_account,
             commands::delete_account,
             commands::add_shortcuts,
             commands::refresh_usage,
