@@ -20,6 +20,10 @@ Rules:
 - Record breaking changes, deprecations and removals, even when they are small.
 - At release, rename `## [Unreleased]` to `## [x.y.z] - YYYY-MM-DD`, start a new empty `## [Unreleased]` above it, and update the link references at the bottom of the file.
 
+## Releasing
+
+- Before every release, update `CHANGELOG.md` and `README.md`, including the README screenshots and the data they show.
+
 ## /implement-spec
 
 Run tickets one at a time: keep exactly one implementer subagent active, and start the next frontier ticket only after the merger subagent has merged the previous one into the integration branch. This overrides the skill's background, maximum-concurrency instructions.
