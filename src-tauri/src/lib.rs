@@ -5,28 +5,34 @@ mod commands;
 mod tray;
 
 use adapters::{
-    AUTOSTART_ARG, DesktopTokens, SysinfoLister, SystemClock, UreqHttp, WindowsLocator, WindowsOs,
+    AUTOSTART_ARG, DesktopTokens, SysinfoLister, SystemClock, Toast, UreqHttp, WindowsLocator,
+    WindowsOs,
 };
 use core::ports::{ClaudeLocator, ProcessLister, Roots};
 use core::process::DesktopProcesses;
 use core::{CloseAction, Core, OverrideAware, Ports};
 use std::sync::Arc;
 use tauri::{Manager, WindowEvent};
+use tauri_plugin_notification::NotificationExt;
 
-fn build_core(roots: Roots) -> Arc<Core> {
+fn build_core(roots: Roots, app: tauri::AppHandle) -> Arc<Core> {
     let detected = Arc::new(WindowsLocator::new(roots.local_app_data.clone()));
     // Detection plus the saved Claude.exe override, shared by launching and
     // by the running check.
     let locator: Arc<dyn ClaudeLocator> =
         Arc::new(OverrideAware::new(detected, roots.local_app_data.clone()));
     let lister: Arc<dyn ProcessLister> = Arc::new(SysinfoLister);
+    // A toast that cannot be shown (notifications blocked in Windows) is dropped.
+    let toast: Toast = Box::new(move |title, body| {
+        let _ = app.notification().builder().title(title).body(body).show();
+    });
     Arc::new(Core::new(Ports {
         roots,
         http: Arc::new(UreqHttp::new()),
         clock: Arc::new(SystemClock),
         tokens: Arc::new(DesktopTokens),
         processes: Arc::new(DesktopProcesses::new(lister.clone(), locator.clone())),
-        os: Arc::new(WindowsOs::new(locator, lister)),
+        os: Arc::new(WindowsOs::new(locator, lister, toast)),
     }))
 }
 
@@ -38,6 +44,7 @@ pub fn run() {
             tray::show_main_window(app);
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event
                 && window.label() == "main"
@@ -53,10 +60,13 @@ pub fn run() {
         })
         .setup(|app| {
             let paths = app.path();
-            let core = build_core(Roots {
-                local_app_data: paths.local_data_dir()?,
-                home: paths.home_dir()?,
-            });
+            let core = build_core(
+                Roots {
+                    local_app_data: paths.local_data_dir()?,
+                    home: paths.home_dir()?,
+                },
+                app.handle().clone(),
+            );
             let feed = commands::AccountFeed::new(app.handle().clone(), core.clone());
             commands::watch_accounts(feed.clone());
             commands::poll_usage(core.clone(), feed.clone());

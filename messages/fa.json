@@ -90,5 +90,16 @@
 	"error_settings_autostart": "تغییر اجرای خودکار clawshell با ویندوز ممکن نشد",
 	"error_claude_path_missing": "این فایل وجود ندارد.",
 	"error_claude_path_not_a_file": "این مسیر یک پوشه است، نه فایل.",
-	"error_claude_path_not_claude": "این فایل Claude.exe نیست."
+	"error_claude_path_not_claude": "این فایل Claude.exe نیست.",
+	"settings_notifications": "اعلان‌ها",
+	"settings_notify_warning": "هشدار نزدیک شدن",
+	"settings_notify_warning_hint": "وقتی مصرف یک حساب به آستانهٔ هشدار برسد، اعلان بده.",
+	"settings_notify_limited": "هشدار رسیدن به سقف",
+	"settings_notify_limited_hint": "وقتی مصرف یک حساب به آستانهٔ سقف برسد، اعلان بده.",
+	"settings_notify_reset": "هشدار بازنشانی",
+	"settings_notify_reset_hint": "وقتی پنجرهٔ یک حساب محدودشده بازنشانی شود، اعلان بده.",
+	"settings_warning_threshold": "هشدار در (٪)",
+	"settings_limit_threshold": "سقف در (٪)",
+	"settings_thresholds_hint": "هر اعلان در هر پنجره یک بار ارسال می‌شود، چه برای سقف ۵ ساعته چه هفتگی.",
+	"error_thresholds_invalid": "آستانهٔ هشدار باید پایین‌تر از سقف باشد و هر دو بین ۱ تا ۱۰۰ باشند."
 }

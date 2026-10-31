@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import '../../routes/layout.css';
@@ -19,7 +19,12 @@ const defaults: Settings = {
 	startHidden: false,
 	closeToTray: true,
 	language: 'en',
-	claudePath: null
+	claudePath: null,
+	notifyWarning: true,
+	notifyLimited: true,
+	notifyReset: true,
+	warningThreshold: 80,
+	limitThreshold: 100
 };
 
 function mount(stored: Settings = defaults, overrides: IpcHandlers = {}) {
@@ -176,5 +181,72 @@ describe('SettingsScreen', () => {
 
 		const field = page.getByRole('textbox', { name: 'مسیر Claude.exe' });
 		await expect.element(field).toHaveAttribute('dir', 'ltr');
+	});
+
+	it('shows each notification switch in the state the core saved', async () => {
+		mount({ ...defaults, notifyWarning: false, notifyReset: false });
+
+		await expect.element(page.getByRole('switch', { name: 'Warning alert' })).not.toBeChecked();
+		await expect.element(page.getByRole('switch', { name: 'Limit alert' })).toBeChecked();
+		await expect.element(page.getByRole('switch', { name: 'Reset alert' })).not.toBeChecked();
+	});
+
+	it('saves the whole settings when a notification switch is flipped', async () => {
+		const tauri = mount();
+
+		await page.getByRole('switch', { name: 'Limit alert' }).click();
+
+		await expect.element(page.getByRole('switch', { name: 'Limit alert' })).not.toBeChecked();
+		expect(updates(tauri.calls)).toEqual([{ ...defaults, notifyLimited: false }]);
+	});
+
+	it('shows the saved thresholds', async () => {
+		mount({ ...defaults, warningThreshold: 65, limitThreshold: 90 });
+
+		await expect.element(page.getByRole('spinbutton', { name: 'Warning at (%)' })).toHaveValue(65);
+		await expect.element(page.getByRole('spinbutton', { name: 'Limit at (%)' })).toHaveValue(90);
+	});
+
+	it('saves an edited threshold as soon as the field is committed', async () => {
+		const tauri = mount();
+
+		await page.getByRole('spinbutton', { name: 'Warning at (%)' }).fill('70');
+		await userEvent.keyboard('{Tab}');
+
+		expect(updates(tauri.calls)).toEqual([{ ...defaults, warningThreshold: 70 }]);
+		await page.getByRole('spinbutton', { name: 'Limit at (%)' }).fill('95');
+		await userEvent.keyboard('{Tab}');
+		expect(updates(tauri.calls).at(-1)).toEqual({
+			...defaults,
+			warningThreshold: 70,
+			limitThreshold: 95
+		});
+	});
+
+	it('says so and goes back to the saved value when the core refuses a threshold', async () => {
+		const tauri = mount(defaults, {
+			update_settings: () => {
+				throw { code: 'invalid-thresholds', message: 'nope' };
+			}
+		});
+
+		const field = page.getByRole('spinbutton', { name: 'Warning at (%)' });
+		await field.fill('100');
+		await userEvent.keyboard('{Tab}');
+
+		await expect.element(page.getByRole('alert')).toHaveTextContent(/below the limit/i);
+		await expect.element(field).toHaveValue(80);
+		expect(updates(tauri.calls)).toHaveLength(1);
+	});
+
+	it('does not send an empty or out-of-range threshold', async () => {
+		const tauri = mount();
+
+		const field = page.getByRole('spinbutton', { name: 'Warning at (%)' });
+		await field.fill('');
+		await userEvent.keyboard('{Tab}');
+
+		expect(updates(tauri.calls)).toHaveLength(0);
+		await expect.element(field).toHaveValue(80);
 	});
 });

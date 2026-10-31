@@ -233,6 +233,10 @@ impl From<SettingsError> for CommandError {
             SettingsError::ClaudePathNotClaude => {
                 CommandError::new("claude-path-not-claude", "That file is not Claude.exe")
             }
+            SettingsError::InvalidThresholds => CommandError::new(
+                "invalid-thresholds",
+                "The warning must be below the limit, both from 1 to 100",
+            ),
             SettingsError::Autostart(e) => CommandError::new("autostart-failed", e.to_string()),
             SettingsError::Io(e) => CommandError::new("io", e.to_string()),
         }
