@@ -4,10 +4,10 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Decrypts `oauth:tokenCacheV2` for a real signed-in profile on this machine without writing secrets anywhere
-- [ ] Documents the decrypted token-cache structure (key names only), including where the access token and expiry live
-- [ ] Reports the HTTP status of the profile and usage endpoints, and the response key names
-- [ ] Findings, including whether the token is accepted, are appended to the spec's Further Notes; if it is rejected, a follow-up note says which fallback replaces it
-- [ ] No token refresh is attempted
+- [x] Decrypts `oauth:tokenCacheV2` for a real signed-in profile on this machine without writing secrets anywhere
+- [x] Documents the decrypted token-cache structure (key names only), including where the access token and expiry live
+- [x] Reports the HTTP status of the profile and usage endpoints, and the response key names
+- [x] Findings, including whether the token is accepted, are appended to the spec's Further Notes; if it is rejected, a follow-up note says which fallback replaces it
+- [x] No token refresh is attempted

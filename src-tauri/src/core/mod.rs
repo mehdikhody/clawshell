@@ -1,6 +1,7 @@
 //! clawshell's domain core. Independent of Tauri: every outside dependency
 //! arrives through a port in [`ports`], so tests drive it with fakes.
 
+pub mod desktop_token;
 pub mod ports;
 
 use ports::{Clock, HttpClient, OsAdapters, ProcessInspector, Roots, TokenReader};
