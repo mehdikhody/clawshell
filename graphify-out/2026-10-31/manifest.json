@@ -450,15 +450,15 @@
     "semantic_hash": ""
   },
   "messages/en.json": {
-    "mtime": 1793471386.9596322,
-    "seen": 1793471635.771668,
-    "ast_hash": "02ffccafea860ad4991861658e43bb73",
+    "mtime": 1793471671.7807,
+    "seen": 1793471764.3091087,
+    "ast_hash": "2fded9d062b52c590419adec03762a03",
     "semantic_hash": ""
   },
   "messages/fa.json": {
-    "mtime": 1793471386.975914,
-    "seen": 1793471635.771669,
-    "ast_hash": "bb5e476db00857c497f4c45b0dcc768c",
+    "mtime": 1793471671.9502196,
+    "seen": 1793471764.3091097,
+    "ast_hash": "387c95a79eb56030ec19dcc2848c547a",
     "semantic_hash": ""
   },
   "package.json": {
@@ -582,9 +582,9 @@
     "semantic_hash": ""
   },
   "src/lib/screens/usage-screen.svelte": {
-    "mtime": 1793471387.048543,
-    "seen": 1793471635.771912,
-    "ast_hash": "0f546fb376ea15a4382c55e207b2e7f0",
+    "mtime": 1793471780.8333561,
+    "seen": 1793471844.6195717,
+    "ast_hash": "f22d39e66c96f0080146a74993bd714d",
     "semantic_hash": ""
   },
   "src/lib/test/tauri-ipc.ts": {
@@ -4824,9 +4824,9 @@
     "semantic_hash": ""
   },
   "src/lib/screens/usage-screen.svelte.spec.ts": {
-    "mtime": 1793471412.6727717,
-    "seen": 1793471635.7719133,
-    "ast_hash": "fb3437eddb0be6a354e560a4df0c610e",
+    "mtime": 1793471780.8842008,
+    "seen": 1793471844.6195729,
+    "ast_hash": "c4306cbf474edad93758e1d9222c4591",
     "semantic_hash": ""
   },
   "src/lib/test/pooled.ts": {
@@ -4878,9 +4878,9 @@
     "semantic_hash": ""
   },
   "src-tauri/tests/heatmap.rs": {
-    "mtime": 1793471386.9244325,
-    "seen": 1793471635.7717388,
-    "ast_hash": "718a5f1e367ceab4e9a73964e8d239ed",
+    "mtime": 1793471657.5627685,
+    "seen": 1793471764.3091514,
+    "ast_hash": "ce49f0950f25342e58890930e1e50a78",
     "semantic_hash": ""
   },
   "src/lib/components/ui/toggle-group/index.ts": {
@@ -4950,27 +4950,27 @@
     "semantic_hash": ""
   },
   "src/lib/components/usage-heatmap.svelte": {
-    "mtime": 1793470555.4888144,
-    "seen": 1793471635.7718968,
-    "ast_hash": "c5a5aaa7c7d828af8ea71b0b49d3fb15",
+    "mtime": 1793471775.075255,
+    "seen": 1793471844.619554,
+    "ast_hash": "3502811c0ee60a68a224be0862190e0b",
     "semantic_hash": ""
   },
   "src/lib/heatmap.spec.ts": {
-    "mtime": 1793469253.8565874,
-    "seen": 1793471635.7719002,
-    "ast_hash": "10a0294d4c3d3ccc88aaaa44c1e0807c",
+    "mtime": 1793471775.0912397,
+    "seen": 1793471844.6195579,
+    "ast_hash": "dd7d6cf70a0dd8df605ba453a02af2a8",
     "semantic_hash": ""
   },
   "src/lib/heatmap.ts": {
-    "mtime": 1793471386.9418845,
-    "seen": 1793471635.7719014,
-    "ast_hash": "fe340823bed4c87a75ee6fa4be1ffce4",
+    "mtime": 1793471672.075656,
+    "seen": 1793471764.309254,
+    "ast_hash": "34e83bfdbd0dc55c3191ec0179aac184",
     "semantic_hash": ""
   },
   "src/lib/test/heatmap.ts": {
-    "mtime": 1793469253.8600974,
-    "seen": 1793471635.7719169,
-    "ast_hash": "07c1ecf63c84aca3c84c7c20fb5b00b3",
+    "mtime": 1793471694.0451684,
+    "seen": 1793471764.309264,
+    "ast_hash": "cf1fa396170c7316f1e2d0257d01f5f8",
     "semantic_hash": ""
   },
   "src-tauri/src/core/settings.rs": {
@@ -5076,21 +5076,21 @@
     "semantic_hash": ""
   },
   "src-tauri/src/core/badge.rs": {
-    "mtime": 1793471591.4522429,
-    "seen": 1793471635.7716875,
-    "ast_hash": "ffe512cb4fdfb4b3f254a3083e5739f0",
+    "mtime": 1793471776.5118828,
+    "seen": 1793471844.619322,
+    "ast_hash": "64623a709728d59c6ff5b7a9c431373c",
     "semantic_hash": ""
   },
   "src-tauri/src/taskbar.rs": {
-    "mtime": 1793471591.456254,
-    "seen": 1793471635.7717273,
-    "ast_hash": "f7b1ec361f38488f7ff0a270f405768a",
+    "mtime": 1793471823.7637253,
+    "seen": 1793471844.6193645,
+    "ast_hash": "49336f87904b1ae19933618cd9b9c71b",
     "semantic_hash": ""
   },
   "src-tauri/tests/badge.rs": {
-    "mtime": 1793471591.4607668,
-    "seen": 1793471635.7717326,
-    "ast_hash": "d3190e519d5e337ce42432d806bbf666",
+    "mtime": 1793471791.4959867,
+    "seen": 1793471844.6193693,
+    "ast_hash": "f4ba09d102040c46cf47ba762fa25f41",
     "semantic_hash": ""
   },
   "src-tauri/src/core/shortcuts.rs": {
