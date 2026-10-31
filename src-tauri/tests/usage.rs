@@ -1097,3 +1097,57 @@ fn a_stale_input_marks_the_pool_with_the_age_of_its_oldest_stale_number() {
     assert_eq!(pooled.five_hour.stale_since_ms, Some(NOW_MS));
     assert_eq!(pooled.weekly.stale_since_ms, Some(NOW_MS));
 }
+
+/// The extra-usage spend read from a body whose only spend is `spend.used`.
+fn spend_used_minor(used_json: &str) -> Option<i64> {
+    let h = Harness::new();
+    signed_in(&h, ID_A, TOKEN_A);
+    h.http.respond(
+        USAGE_URL,
+        200,
+        &format!(
+            r#"{{"five_hour":{{"utilization":1,"resets_at":null}},
+                "seven_day":{{"utilization":2,"resets_at":null}},
+                "extra_usage":{{"is_enabled":true}},
+                "spend":{{"used":{used_json}}}}}"#
+        ),
+    );
+    h.http
+        .respond(PROFILE_URL, 200, &profile_body("a@example.com"));
+    let core = h.core();
+
+    core.refresh_usage(false);
+
+    account(&core, ID_A)
+        .usage
+        .unwrap()
+        .extra_usage
+        .unwrap()
+        .used_minor
+}
+
+#[test]
+fn spend_money_object_in_another_currency_is_not_counted() {
+    assert_eq!(
+        spend_used_minor(r#"{"amount_minor":830,"currency":"EUR","exponent":2}"#),
+        None
+    );
+    assert_eq!(
+        spend_used_minor(r#"{"amount_minor":830,"exponent":2}"#),
+        None
+    );
+}
+
+#[test]
+fn spend_money_object_converts_its_exponent_to_cents() {
+    // 830 whole dollars.
+    assert_eq!(
+        spend_used_minor(r#"{"amount_minor":830,"currency":"USD","exponent":0}"#),
+        Some(83_000)
+    );
+    // 830 thousandths of a dollar.
+    assert_eq!(
+        spend_used_minor(r#"{"amount_minor":830,"currency":"USD","exponent":3}"#),
+        Some(83)
+    );
+}

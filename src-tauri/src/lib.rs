@@ -2,6 +2,7 @@ pub mod core;
 
 mod adapters;
 mod commands;
+mod fatal;
 mod link_registry;
 mod shell_link;
 mod taskbar;
@@ -43,7 +44,8 @@ fn build_core(roots: Roots, app: tauri::AppHandle) -> Arc<Core> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    fatal::install_panic_hook();
+    let started = tauri::Builder::default()
         // Must be registered first: a second launch focuses the running window.
         // A shortcut click lands here too: it opens its account instead.
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
@@ -116,6 +118,8 @@ pub fn run() {
             commands::update_settings,
             commands::set_sign_in_routing
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .run(tauri::generate_context!());
+    if started.is_err() {
+        fatal::exit_after_startup_failure();
+    }
 }

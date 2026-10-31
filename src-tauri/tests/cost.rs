@@ -617,6 +617,30 @@ fn treats_absent_extra_usage_fields_as_zero() {
 }
 
 #[test]
+fn counts_no_extra_usage_spend_when_extra_usage_is_disabled() {
+    let h = Harness::new();
+    account_with_session(&h, ID_A, SESSION_A, &[]);
+    // A leftover spend figure on an account whose extra usage is switched off.
+    with_extra_usage(
+        &h,
+        ID_A,
+        r#""extra_usage":{"is_enabled":false,"used_credits":1250}"#,
+    );
+    let mut m = msg("msg_1", "req_1");
+    m.input = 1_000_000;
+    write_transcript(&h, &format!("proj-x/{SESSION_A}.jsonl"), &[m]);
+    prices_ok(&h);
+    let core = h.core();
+    core.refresh_usage(true);
+
+    let cost = core.month_cost();
+
+    assert_close(cost.extra_usd, 0.0);
+    assert_close(account_cost(&cost, ID_A).extra_usd, 0.0);
+    assert_close(cost.total_usd.unwrap(), 1.0);
+}
+
+#[test]
 fn still_reports_extra_usage_when_there_is_no_estimate() {
     let h = Harness::new();
     account_with_session(&h, ID_A, SESSION_A, &[]);

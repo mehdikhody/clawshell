@@ -9,7 +9,7 @@ An account whose folder disappeared outside clawshell is flagged and offered for
 
 **Blocked by:** 03
 
-**Status:** done
+**Status:** resolved
 
 - [x] Rename updates the label everywhere, and it persists across restarts
 - [x] Open folder opens the right `clawshell-{uuid}` folder

@@ -2,6 +2,7 @@
 //! Start menu, each with the account's badge icon, launching through clawshell.
 
 use super::Core;
+use super::account_error::{AccountError, wrap_account_error};
 use super::accounts::{Account, LaunchError, LaunchOutcome, Status, is_account_id};
 use super::ports::{ShortcutLink, ShortcutPlaces};
 use std::io;
@@ -114,17 +115,12 @@ pub fn encode_ico(images: &[(usize, Vec<u8>)]) -> Vec<u8> {
 /// Why shortcuts could not be added.
 #[derive(Debug)]
 pub enum ShortcutError {
-    UnknownAccount,
+    Account(AccountError),
     /// The account's profile folder is gone; there is nothing to launch.
     FolderMissing,
-    Io(io::Error),
 }
 
-impl From<io::Error> for ShortcutError {
-    fn from(e: io::Error) -> Self {
-        ShortcutError::Io(e)
-    }
-}
+wrap_account_error!(ShortcutError);
 
 impl Core {
     /// Handles a shortcut click: the account named on the command line is
@@ -142,7 +138,7 @@ impl Core {
             .known_accounts()?
             .into_iter()
             .find(|a| a.id == id)
-            .ok_or(ShortcutError::UnknownAccount)?;
+            .ok_or(AccountError::Unknown)?;
         if account.status == Status::Missing {
             return Err(ShortcutError::FolderMissing);
         }

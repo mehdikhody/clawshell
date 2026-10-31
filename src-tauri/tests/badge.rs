@@ -1,5 +1,6 @@
 mod support;
 
+use clawshell_lib::core::AccountError;
 use clawshell_lib::core::badge::{PALETTE, app_user_model_id, badge_letter, is_valid_colour};
 use support::Harness;
 
@@ -191,7 +192,7 @@ fn an_invalid_colour_or_unknown_account_is_refused_and_changes_nothing() {
     ));
     assert!(matches!(
         h.core().set_account_colour(ID_B, "#123456").unwrap_err(),
-        ColourError::UnknownAccount
+        ColourError::Account(AccountError::Unknown)
     ));
     assert_eq!(h.core().list_accounts().unwrap().accounts[0].colour, before);
 }

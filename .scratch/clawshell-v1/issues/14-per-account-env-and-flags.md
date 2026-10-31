@@ -4,7 +4,7 @@
 
 **Blocked by:** 04
 
-**Status:** done
+**Status:** resolved
 
 - [x] Env vars and flags can be added, edited and removed per account, and persist
 - [x] Invalid env names are rejected with a message

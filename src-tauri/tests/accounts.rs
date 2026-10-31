@@ -1,5 +1,6 @@
 mod support;
 
+use clawshell_lib::core::AccountError;
 use clawshell_lib::core::Status;
 use support::Harness;
 
@@ -374,7 +375,7 @@ fn launching_an_unknown_account_is_refused() {
 
     let err = h.core().launch_account(ID_B).unwrap_err();
 
-    assert!(matches!(err, LaunchError::UnknownAccount));
+    assert!(matches!(err, LaunchError::Account(AccountError::Unknown)));
     assert!(h.os.launched.lock().unwrap().is_empty());
 }
 
@@ -387,7 +388,7 @@ fn an_id_that_is_not_a_clawshell_profile_is_refused_even_if_the_folder_exists() 
     for id in ["../Claude-Data", "ClaudeProfile-Account 2", ".."] {
         assert!(matches!(
             h.core().launch_account(id).unwrap_err(),
-            LaunchError::UnknownAccount
+            LaunchError::Account(AccountError::Unknown)
         ));
     }
     assert!(h.os.launched.lock().unwrap().is_empty());
@@ -483,7 +484,7 @@ fn renaming_an_unknown_account_is_refused() {
 
     assert!(matches!(
         h.core().rename_account(ID_B, "Work").unwrap_err(),
-        RenameError::UnknownAccount
+        RenameError::Account(AccountError::Unknown)
     ));
 }
 
@@ -527,7 +528,7 @@ fn open_folder_for_an_unknown_account_opens_nothing() {
     for id in [ID_B, "..", "../Claude-Data"] {
         assert!(matches!(
             h.core().open_account_folder(id).unwrap_err(),
-            OpenFolderError::UnknownAccount
+            OpenFolderError::Account(AccountError::Unknown)
         ));
     }
     assert!(h.os.opened_folders.lock().unwrap().is_empty());
@@ -622,7 +623,7 @@ fn deleting_an_unknown_account_removes_nothing() {
     for id in [ID_B, "..", "../Claude-Data", "Claude-Data"] {
         assert!(matches!(
             h.core().delete_account(id).unwrap_err(),
-            DeleteError::UnknownAccount
+            DeleteError::Account(AccountError::Unknown)
         ));
     }
     assert!(h.fixture.profile_path(ID_A).is_dir());
@@ -682,7 +683,7 @@ fn a_missing_account_cannot_be_launched() {
 
     assert!(matches!(
         h.core().launch_account(ID_A).unwrap_err(),
-        LaunchError::UnknownAccount
+        LaunchError::Account(AccountError::Unknown)
     ));
     assert!(h.os.launched.lock().unwrap().is_empty());
 }
@@ -702,7 +703,7 @@ fn a_tampered_record_with_a_path_like_id_is_never_listed_or_deleted() {
     assert!(ids(&h).is_empty());
     assert!(matches!(
         h.core().delete_account("../Claude-Data").unwrap_err(),
-        DeleteError::UnknownAccount
+        DeleteError::Account(AccountError::Unknown)
     ));
     assert!(h.fixture.local_app_data().join("Claude-Data").is_dir());
 }

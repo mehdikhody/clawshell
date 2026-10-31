@@ -14,7 +14,7 @@ Use shadcn-svelte components first. See spec: Platform and stack, Testing Decisi
 
 **Blocked by:** None (can start immediately)
 
-**Status:** done
+**Status:** resolved
 
 - [x] App opens as a 400×780 frameless, rounded, non-resizable window that can be dragged by the top bar
 - [x] Minimize works; close quits for now (close to tray comes in 09)

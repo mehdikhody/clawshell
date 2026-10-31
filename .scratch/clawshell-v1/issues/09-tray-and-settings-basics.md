@@ -14,7 +14,7 @@ See spec: Settings, user stories 7–11, 72–74, 79–82.
 
 **Blocked by:** 03
 
-**Status:** done
+**Status:** resolved
 
 - [x] Tray menu items all work; running accounts are ticked
 - [x] Close hides or quits according to the setting

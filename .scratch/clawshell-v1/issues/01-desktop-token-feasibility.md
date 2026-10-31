@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** done
+**Status:** resolved
 
 - [x] Decrypts `oauth:tokenCacheV2` for a real signed-in profile on this machine without writing secrets anywhere
 - [x] Documents the decrypted token-cache structure (key names only), including where the access token and expiry live

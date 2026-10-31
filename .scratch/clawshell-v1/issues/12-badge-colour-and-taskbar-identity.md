@@ -4,7 +4,7 @@
 
 **Blocked by:** 04
 
-**Status:** done
+**Status:** resolved
 
 - [x] New accounts get distinct auto colours; the picker in the ⋯ menu changes the colour, and it persists
 - [x] Rows show the badge colour and letter

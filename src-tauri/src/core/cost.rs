@@ -263,12 +263,14 @@ impl Core {
     }
 }
 
-/// Extra-usage spend in dollars; an absent field means none.
+/// Extra-usage spend in dollars; an absent field means none, and so does an
+/// account whose extra usage is not enabled.
 fn extra_usd_of(account: &Account) -> f64 {
     account
         .usage
         .as_ref()
         .and_then(|u| u.extra_usage.as_ref())
+        .filter(|e| e.enabled)
         .and_then(|e| e.used_minor)
         .map_or(0.0, |cents| cents as f64 / 100.0)
 }

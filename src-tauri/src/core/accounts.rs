@@ -1,6 +1,7 @@
 //! Accounts: listing with status, adding, launching, renaming, opening the
 //! folder and deleting.
 
+use super::account_error::{AccountError, wrap_account_error};
 use super::badge::{PALETTE, app_user_model_id, badge_letter, is_valid_colour};
 use super::launch_options::{EnvVar, LaunchOptions, LaunchOptionsError, launch_args, validate};
 use super::paths::same_path;
@@ -154,19 +155,31 @@ impl Core {
         Ok(self.known_accounts()?.into_iter().find(|a| a.id == id))
     }
 
+    /// Finds the account, lets `mutate` change its record (it answers whether
+    /// the record exists) and saves the records. Returns the account as it
+    /// was found, for the caller to update.
+    fn update_record(
+        &self,
+        id: &str,
+        mutate: impl FnOnce(&mut Records) -> bool,
+    ) -> Result<Account, AccountError> {
+        let account = self.find_account(id)?.ok_or(AccountError::Unknown)?;
+        let local = &self.ports.roots.local_app_data;
+        let mut records = Records::load(local);
+        if !mutate(&mut records) {
+            return Err(AccountError::Unknown);
+        }
+        records.save(local)?;
+        Ok(account)
+    }
+
     /// Changes the account's label and nothing else: the folder and id stay.
     pub fn rename_account(&self, id: &str, label: &str) -> Result<Account, RenameError> {
         let label = label.trim();
         if label.is_empty() {
             return Err(RenameError::EmptyLabel);
         }
-        let mut account = self.find_account(id)?.ok_or(RenameError::UnknownAccount)?;
-        let local = &self.ports.roots.local_app_data;
-        let mut records = Records::load(local);
-        if !records.rename(id, label) {
-            return Err(RenameError::UnknownAccount);
-        }
-        records.save(local)?;
+        let mut account = self.update_record(id, |records| records.rename(id, label))?;
         let before = account.clone();
         account.label = label.to_string();
         account.badge = badge_letter(label);
@@ -183,13 +196,7 @@ impl Core {
             return Err(ColourError::InvalidColour);
         }
         let colour = colour.to_ascii_lowercase();
-        let mut account = self.find_account(id)?.ok_or(ColourError::UnknownAccount)?;
-        let local = &self.ports.roots.local_app_data;
-        let mut records = Records::load(local);
-        if !records.set_colour(id, &colour) {
-            return Err(ColourError::UnknownAccount);
-        }
-        records.save(local)?;
+        let mut account = self.update_record(id, |records| records.set_colour(id, &colour))?;
         let before = account.clone();
         account.colour = colour;
         self.apply_taskbar_identities(std::slice::from_ref(&account));
@@ -245,9 +252,7 @@ impl Core {
 
     /// Shows the account's `clawshell-{uuid}` folder in Explorer.
     pub fn open_account_folder(&self, id: &str) -> Result<(), OpenFolderError> {
-        let account = self
-            .find_account(id)?
-            .ok_or(OpenFolderError::UnknownAccount)?;
+        let account = self.find_account(id)?.ok_or(AccountError::Unknown)?;
         if account.status == Status::Missing {
             return Err(OpenFolderError::FolderMissing);
         }
@@ -259,7 +264,7 @@ impl Core {
     /// Refused while Claude is running on the account. A Missing account has
     /// no folder left, so only its record goes. The caller confirms first.
     pub fn delete_account(&self, id: &str) -> Result<(), DeleteError> {
-        let account = self.find_account(id)?.ok_or(DeleteError::UnknownAccount)?;
+        let account = self.find_account(id)?.ok_or(AccountError::Unknown)?;
         if account.running {
             return Err(DeleteError::Running);
         }
@@ -388,22 +393,22 @@ pub enum LaunchOutcome {
 
 #[derive(Debug)]
 pub enum LaunchError {
-    /// No clawshell account has this id.
-    UnknownAccount,
+    Account(AccountError),
     ClaudeNotFound,
-    Io(io::Error),
 }
+
+wrap_account_error!(LaunchError);
 
 impl Core {
     /// Starts the account's Claude, or focuses it when it is already running
     /// so no second copy opens.
     pub fn launch_account(&self, id: &str) -> Result<LaunchOutcome, LaunchError> {
-        let scan = self.scan_profiles().map_err(LaunchError::Io)?;
+        let scan = self.scan_profiles()?;
         let profile = scan
             .profiles
             .into_iter()
             .find(|p| p.id == id)
-            .ok_or(LaunchError::UnknownAccount)?;
+            .ok_or(AccountError::Unknown)?;
 
         let signed_out = !is_signed_in(&profile.path);
         let running = self.ports.processes.running_profiles();
@@ -429,7 +434,7 @@ impl Core {
                     .map(|var| (var.name, var.value))
                     .collect(),
             })
-            .map_err(LaunchError::Io)?;
+            .map_err(AccountError::Io)?;
         self.launches.lock().unwrap().note(id, signed_out);
         if let Ok(Some(account)) = self.find_account(id) {
             self.identify_new_window(&account);
@@ -447,15 +452,8 @@ impl Core {
         options: LaunchOptions,
     ) -> Result<Account, LaunchOptionsError> {
         let options = validate(options)?;
-        let mut account = self
-            .find_account(id)?
-            .ok_or(LaunchOptionsError::UnknownAccount)?;
-        let local = &self.ports.roots.local_app_data;
-        let mut records = Records::load(local);
-        if !records.set_options(id, options.clone()) {
-            return Err(LaunchOptionsError::UnknownAccount);
-        }
-        records.save(local)?;
+        let mut account =
+            self.update_record(id, |records| records.set_options(id, options.clone()))?;
         account.env = options.env;
         account.flags = options.flags;
         Ok(account)
@@ -469,56 +467,36 @@ pub(super) fn is_account_id(id: &str) -> bool {
 
 #[derive(Debug)]
 pub enum RenameError {
-    UnknownAccount,
+    Account(AccountError),
     /// The new label is empty or only spaces.
     EmptyLabel,
-    Io(io::Error),
 }
 
-impl From<io::Error> for RenameError {
-    fn from(e: io::Error) -> Self {
-        RenameError::Io(e)
-    }
-}
+wrap_account_error!(RenameError);
 
 #[derive(Debug)]
 pub enum ColourError {
-    UnknownAccount,
+    Account(AccountError),
     /// Not `#rrggbb`.
     InvalidColour,
-    Io(io::Error),
 }
 
-impl From<io::Error> for ColourError {
-    fn from(e: io::Error) -> Self {
-        ColourError::Io(e)
-    }
-}
+wrap_account_error!(ColourError);
 
 #[derive(Debug)]
 pub enum OpenFolderError {
-    UnknownAccount,
+    Account(AccountError),
     /// The profile folder no longer exists.
     FolderMissing,
-    Io(io::Error),
 }
 
-impl From<io::Error> for OpenFolderError {
-    fn from(e: io::Error) -> Self {
-        OpenFolderError::Io(e)
-    }
-}
+wrap_account_error!(OpenFolderError);
 
 #[derive(Debug)]
 pub enum DeleteError {
-    UnknownAccount,
+    Account(AccountError),
     /// Claude is running on the account; deleting would corrupt a live profile.
     Running,
-    Io(io::Error),
 }
 
-impl From<io::Error> for DeleteError {
-    fn from(e: io::Error) -> Self {
-        DeleteError::Io(e)
-    }
-}
+wrap_account_error!(DeleteError);
