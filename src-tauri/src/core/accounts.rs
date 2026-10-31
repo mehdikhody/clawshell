@@ -2,6 +2,7 @@
 //! folder and deleting.
 
 use super::paths::same_path;
+use super::pooled::{PooledRemaining, pool_remaining};
 use super::signin::is_signed_in;
 use super::store::Records;
 use super::usage::UsageSnapshot;
@@ -53,6 +54,8 @@ pub struct AccountList {
     /// Epoch ms before which a manual usage refresh is refused; `None` when
     /// one is allowed now.
     pub refresh_allowed_at: Option<i64>,
+    /// The 5-hour and weekly windows pooled over the signed-in accounts.
+    pub pooled: PooledRemaining,
     pub accounts: Vec<Account>,
 }
 
@@ -77,6 +80,7 @@ impl Core {
         Ok(AccountList {
             claude_found: self.ports.os.locate().is_some(),
             refresh_allowed_at: self.refresh_allowed_at(&accounts),
+            pooled: pool_remaining(&accounts),
             accounts,
         })
     }

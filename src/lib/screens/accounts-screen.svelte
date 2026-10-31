@@ -9,6 +9,7 @@
 	import IconTrash from '@tabler/icons-svelte/icons/trash';
 	import {
 		addAccount,
+		emptyPooled,
 		deleteAccount,
 		errorCode,
 		launchAccount,
@@ -36,7 +37,12 @@
 	import { getLocale } from '$lib/paraglide/runtime.js';
 	import { formatAgo, formatCountdown, formatReset } from '$lib/usage';
 
-	let list = $state<AccountList>({ claudeFound: true, refreshAllowedAt: null, accounts: [] });
+	let list = $state<AccountList>({
+		claudeFound: true,
+		refreshAllowedAt: null,
+		pooled: emptyPooled,
+		accounts: []
+	});
 	let loaded = $state(false);
 	let adding = $state(false);
 	let refreshing = $state(false);

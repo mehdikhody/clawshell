@@ -37,11 +37,44 @@ export type Account = {
 	usage: UsageSnapshot | null;
 };
 
+/** One window pooled over the signed-in accounts that report it. */
+export type PooledWindow = {
+	/** Average of (100 - utilisation); null when no account reports the window. */
+	remainingPercent: number | null;
+	/** Accounts below 100% used: N in "N of M accounts available". */
+	available: number;
+	/** Accounts counted: M. */
+	total: number;
+	/** Earliest reset among them (RFC 3339); null when none has a reset time. */
+	soonestReset: string | null;
+	/** Epoch ms the oldest not-live input was taken; null when every input is live. */
+	staleSinceMs: number | null;
+};
+
+export type PooledRemaining = {
+	fiveHour: PooledWindow;
+	weekly: PooledWindow;
+};
+
+/** Nothing pooled yet: no signed-in account has a reading. */
+export const emptyPooled: PooledRemaining = {
+	fiveHour: {
+		remainingPercent: null,
+		available: 0,
+		total: 0,
+		soonestReset: null,
+		staleSinceMs: null
+	},
+	weekly: { remainingPercent: null, available: 0, total: 0, soonestReset: null, staleSinceMs: null }
+};
+
 export type AccountList = {
 	/** False when Claude Desktop can't be found. */
 	claudeFound: boolean;
 	/** Epoch ms before which a manual usage refresh is refused; null when allowed now. */
 	refreshAllowedAt: number | null;
+	/** The 5-hour and weekly windows pooled over the signed-in accounts. */
+	pooled: PooledRemaining;
 	accounts: Account[];
 };
 
