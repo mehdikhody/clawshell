@@ -109,10 +109,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::list_accounts,
             commands::account_icon,
+            commands::new_account_defaults,
             commands::add_account,
             commands::launch_account,
             commands::set_launch_options,
             commands::rename_account,
+            commands::reorder_accounts,
             commands::set_account_colour,
             commands::open_account_folder,
             commands::delete_account,

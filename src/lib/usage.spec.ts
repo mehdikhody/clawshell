@@ -37,10 +37,10 @@ describe('formatReset in Persian', () => {
 		expect(formatReset(at(2026, 6, 15, 15, 0).toISOString(), now, fa)).toBe('۱۵:۰۰');
 	});
 
-	it('keeps Gregorian dates, with Persian digits', () => {
-		// 25 June 2026 is 4 Tir 1405 on the Persian calendar; the spec keeps Gregorian.
+	it('writes the date in the Jalali calendar, with Persian digits', () => {
+		// 25 June 2026 is 4 Tir 1405.
 		const text = formatReset(at(2026, 6, 25, 9, 30).toISOString(), now, fa);
-		expect(text).toBe('۲۵ ژوئن، ۹:۳۰');
+		expect(text).toBe('۴ تیر، ۹:۳۰');
 	});
 });
 

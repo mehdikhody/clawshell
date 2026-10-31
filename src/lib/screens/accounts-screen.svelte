@@ -19,9 +19,11 @@
 		errorCode,
 		launchAccount,
 		listAccounts,
+		newAccountDefaults,
 		onAccountsChanged,
 		openAccountFolder,
 		renameAccount,
+		reorderAccounts,
 		setAccountColour,
 		type Account,
 		type AccountList,
@@ -44,6 +46,16 @@
 	import { formatTag } from '$lib/locale-state.svelte';
 	import { formatPercentValue } from '$lib/locale';
 	import { formatAgo, formatReset } from '$lib/usage';
+	import { getSettings } from '$lib/settings';
+	import { addRequest } from '$lib/add-account-request.svelte';
+	import { moveAccount } from '$lib/account-order';
+	import { attachDraggable, attachDroppable, type DragDropState } from '@thisux/sveltednd';
+	import {
+		defaultThresholds,
+		usageBarClass,
+		usageStage,
+		type UsageThresholds
+	} from '$lib/usage-stage';
 
 	let list = $state<AccountList>({
 		claudeFound: true,
@@ -59,8 +71,19 @@
 		/** Ticks every second so "updated X ago" and the refresh wait stay current. */
 	let now = $state(Date.now());
 	let failure = $state<string | null>(null);
+	/** The warning and limit thresholds that colour the usage bars; the defaults until the saved ones load. */
+	let thresholds = $state<UsageThresholds>(defaultThresholds);
 	/** A short confirmation for an action that otherwise shows nothing. */
 	let notice = $state<string | null>(null);
+
+	/** The Add dialog: whether it is open, and the name and badge colour the new account starts with. */
+	let addOpen = $state(false);
+	let newName = $state('');
+	let newColour = $state('');
+	/** The badge letter the new account will show: the first letter or digit of its name, in capitals. */
+	const newBadge = $derived(
+		[...newName.trim()].find((c) => /[\p{L}\p{N}]/u.test(c))?.toUpperCase() ?? '?'
+	);
 
 	/** The account being renamed, and the draft name in the dialog. */
 	let renaming = $state<Account | null>(null);
@@ -87,6 +110,15 @@
 		missing: 'destructive'
 	};
 
+	async function loadThresholds() {
+		try {
+			const saved = await getSettings();
+			if (saved) thresholds = saved;
+		} catch {
+			// Keep the defaults.
+		}
+	}
+
 	async function refresh() {
 		try {
 			list = await listAccounts();
@@ -100,11 +132,30 @@
 		return errorCode(error) === 'claude-not-found' ? m.claude_missing_title() : fallback;
 	}
 
-	async function add() {
+	/** Opens the Add dialog with the default name and colour. Without Claude Desktop the page's alert explains instead. */
+	async function openAdd() {
+		if (!list.claudeFound) return;
+		failure = null;
+		try {
+			const next = await newAccountDefaults();
+			newName = next.label;
+			newColour = next.colour;
+			addOpen = true;
+		} catch (error) {
+			failure = describe(error, m.error_add_failed());
+		}
+	}
+
+	/** Creates the account the dialog describes. The dialog closes first, so a failure shows on the page. */
+	async function createAccount() {
+		const label = newName.trim();
+		if (!label) return;
+		const colour = newColour;
+		addOpen = false;
 		adding = true;
 		failure = null;
 		try {
-			await addAccount();
+			await addAccount(label, colour);
 		} catch (error) {
 			failure = describe(error, m.error_add_failed());
 		} finally {
@@ -155,7 +206,28 @@
 		}
 	}
 
-	async function openFolder(account: Account) {
+	/** Saves the order a row was dropped into, beside the row it landed on. */
+		async function reorder(state: DragDropState<Account>) {
+			const { sourceContainer, targetContainer, dropPosition } = state;
+			if (!targetContainer || !dropPosition) return;
+			const ids = moveAccount(
+				list.accounts.map((account) => account.id),
+				sourceContainer,
+				targetContainer,
+				dropPosition
+			);
+			if (!ids) return;
+			failure = null;
+			try {
+				await reorderAccounts(ids);
+			} catch (error) {
+				failure = describe(error, m.error_reorder_failed());
+			} finally {
+				await refresh();
+			}
+		}
+
+		async function openFolder(account: Account) {
 		failure = null;
 		try {
 			await openAccountFolder(account.id);
@@ -209,7 +281,15 @@
 		untrack(() => void refresh());
 	});
 
+	// The tray asked for a new account: open the dialog once, then clear the request.
+	$effect(() => {
+		if (!addRequest.pending) return;
+		addRequest.pending = false;
+		untrack(() => void openAdd());
+	});
+
 	onMount(() => {
+		void loadThresholds();
 		const tick = setInterval(() => (now = Date.now()), 1000);
 		const unlisten = onAccountsChanged((next) => {
 			list = next;
@@ -226,7 +306,7 @@
 	<header class="flex items-center justify-between">
 		<h1 class="text-base font-semibold">{m.accounts_title()}</h1>
 		<div class="flex items-center gap-2">
-			<Button size="sm" onclick={add} disabled={adding || !list.claudeFound}>
+			<Button size="sm" onclick={openAdd} disabled={adding || !list.claudeFound}>
 				<IconPlus />
 				{m.accounts_add()}
 			</Button>
@@ -266,6 +346,14 @@
 					size="sm"
 					tabindex={0}
 					class="cursor-default flex-wrap select-none"
+					{@attach (node) => {
+						const drag = attachDraggable(() => ({ container: account.id, dragData: account }))(node);
+						const drop = attachDroppable(() => ({ container: account.id, callbacks: { onDrop: reorder } }))(node);
+						return () => {
+							if (typeof drag === 'function') drag();
+							if (typeof drop === 'function') drop();
+						};
+					}}
 					ondblclick={() => launch(account)}
 					onkeydown={(event: KeyboardEvent) => {
 						// Keys pressed on the row's own buttons belong to those buttons.
@@ -365,7 +453,7 @@
 			<Progress
 				value={window.utilization}
 				aria-label={label}
-				class={window.utilization >= 100 ? '*:data-[slot=progress-indicator]:bg-destructive' : ''}
+				class={usageBarClass[usageStage(window.utilization, thresholds)]}
 			/>
 			{#if window.resetsAt}
 				<p class="text-[11px] text-muted-foreground">
@@ -386,6 +474,59 @@
 		</p>
 	{/if}
 {/snippet}
+
+<Dialog.Root
+	open={addOpen}
+	onOpenChange={(open) => {
+		if (!open) addOpen = false;
+	}}
+>
+	<Dialog.Content class="sm:max-w-sm">
+		<form
+			class="flex flex-col gap-4"
+			onsubmit={(event) => {
+				event.preventDefault();
+				void createAccount();
+			}}
+		>
+			<Dialog.Header>
+				<Dialog.Title>{m.add_title()}</Dialog.Title>
+			</Dialog.Header>
+			<div class="flex items-center gap-3">
+				<AccountIcon badge={newBadge} colour={newColour} />
+				<Input aria-label={m.add_name()} bind:value={newName} autocomplete="off" />
+			</div>
+			<div
+				role="group"
+				aria-label={m.menu_badge_colour()}
+				class="grid grid-cols-5 justify-items-center gap-3"
+			>
+				{#each list.palette as colour (colour)}
+					<button
+						type="button"
+						aria-label={colour}
+						aria-pressed={colour === newColour}
+						class="flex size-9 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+						style="background-color: {colour}"
+						onclick={() => (newColour = colour)}
+					>
+						{#if colour === newColour}
+							<IconCheck />
+						{/if}
+					</button>
+				{/each}
+			</div>
+			<Dialog.Footer>
+				<Dialog.Close type="button">
+					{#snippet child({ props })}
+						<Button {...props} variant="outline">{m.action_cancel()}</Button>
+					{/snippet}
+				</Dialog.Close>
+				<Button type="submit" disabled={newName.trim() === ''}>{m.add_create()}</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
 
 <Dialog.Root
 	open={renaming !== null}

@@ -78,9 +78,19 @@ pub struct AccountList {
 pub enum AddError {
     /// Claude Desktop isn't installed (or can't be found).
     ClaudeNotFound,
+    /// The name is empty or only spaces.
+    EmptyLabel,
+    /// Not `#rrggbb`.
+    InvalidColour,
     Io(io::Error),
-    /// The account exists, but Claude would not start on it.
-    Launch(io::Error),
+}
+
+/// The name and colour a new account starts with in the Add dialog.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewAccount {
+    pub label: String,
+    pub colour: String,
 }
 
 impl From<io::Error> for AddError {
@@ -102,7 +112,7 @@ impl Core {
     }
 
     /// Every account clawshell knows: profile folders on disk plus recorded
-    /// accounts whose folder has vanished (status Missing), ordered by id.
+    /// accounts whose folder has vanished (status Missing), in the saved order.
     pub(super) fn known_accounts(&self) -> io::Result<Vec<Account>> {
         let scan = self.scan_profiles()?;
         let records = self.synced_records(&scan.profiles);
@@ -147,8 +157,17 @@ impl Core {
             })
             .collect();
         accounts.extend(missing);
-        accounts.sort_by(|a, b| a.id.cmp(&b.id));
+        accounts.sort_by_key(|a| records.position_of(&a.id));
         Ok(accounts)
+    }
+
+    /// Saves the order the accounts were dropped into, as `ids` lists them.
+    /// Every list of accounts follows it from then on.
+    pub fn reorder_accounts(&self, ids: &[String]) -> io::Result<()> {
+        let scan = self.scan_profiles()?;
+        let mut records = self.synced_records(&scan.profiles);
+        records.reorder(ids);
+        records.save(&self.ports.roots.local_app_data)
     }
 
     fn find_account(&self, id: &str) -> io::Result<Option<Account>> {
@@ -280,11 +299,32 @@ impl Core {
         Ok(())
     }
 
-    /// Creates a profile folder, records it as "Account N" and opens Claude on
-    /// it, which lands on the sign-in screen. If Claude fails to start the
-    /// account is kept so it can be launched again.
-    pub fn add_account(&self) -> Result<Account, AddError> {
-        let install = self.claude_install().ok_or(AddError::ClaudeNotFound)?;
+    /// The name and colour a new account starts with: the default "Account N"
+    /// and the least used palette colour.
+    pub fn new_account_defaults(&self) -> io::Result<NewAccount> {
+        let scan = self.scan_profiles()?;
+        let records = self.synced_records(&scan.profiles);
+        Ok(NewAccount {
+            label: records.next_label(),
+            colour: records.fresh_colour().to_string(),
+        })
+    }
+
+    /// Creates a profile folder and records it under `label` and `colour`.
+    /// Claude is not started: the account lands on Claude's sign-in screen
+    /// the first time it is launched.
+    pub fn add_account(&self, label: &str, colour: &str) -> Result<Account, AddError> {
+        let label = label.trim();
+        if label.is_empty() {
+            return Err(AddError::EmptyLabel);
+        }
+        if !is_valid_colour(colour) {
+            return Err(AddError::InvalidColour);
+        }
+        let colour = colour.to_ascii_lowercase();
+        if self.claude_install().is_none() {
+            return Err(AddError::ClaudeNotFound);
+        }
         let local = &self.ports.roots.local_app_data;
 
         let scan = self.scan_profiles()?;
@@ -293,34 +333,19 @@ impl Core {
         let id = Uuid::new_v4().to_string();
         let path = local.join(format!("{PROFILE_PREFIX}{id}"));
         std::fs::create_dir_all(&path)?;
-        let label = records.add(&id);
-        let colour = colour_in(&records, &id);
+        records.insert(&id, label, &colour);
         records.save(local)?;
 
-        // A new account has no flags or variables yet.
-        self.ports
-            .os
-            .launch(&LaunchSpec {
-                exe: install.exe,
-                args: launch_args(&path, &[]),
-                env: Vec::new(),
-            })
-            .map_err(AddError::Launch)?;
-
         let running = self.ports.processes.running_profiles();
-        let account = account_of(
+        Ok(account_of(
             Profile { id, path },
-            label,
+            label.to_string(),
             colour,
             &running,
             None,
             None,
             LaunchOptions::default(),
-        );
-        self.identify_new_window(&account);
-        // A new account has no sign-in yet: its browser sign-in link is next.
-        self.launches.lock().unwrap().note(&account.id, true);
-        Ok(account)
+        ))
     }
 
     /// Records for every profile folder; folders clawshell created but never
@@ -328,7 +353,8 @@ impl Core {
     fn synced_records(&self, profiles: &[Profile]) -> Records {
         let local = &self.ports.roots.local_app_data;
         let mut records = Records::load(local);
-        let mut changed = false;
+        // Before any new account is added, so it lands at the end.
+        let mut changed = records.adopt_id_order();
         for profile in profiles {
             if records.label_of(&profile.id).is_none() {
                 records.add(&profile.id);

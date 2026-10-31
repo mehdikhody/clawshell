@@ -212,22 +212,15 @@ fn averaged(day: i64, names: &[Name], by_day: &ByDay) -> Option<DayValues> {
     })
 }
 
-/// Biggest first, ties by label.
+/// In the order the rows come in: the saved account order.
 fn ranked<'a>(rows: impl Iterator<Item = (&'a Name, f64)>) -> Vec<DayAccount> {
-    let mut accounts: Vec<DayAccount> = rows
-        .map(|(name, value)| DayAccount {
-            id: name.id.clone(),
-            label: name.label.clone(),
-            colour: name.colour.clone(),
-            value,
-        })
-        .collect();
-    accounts.sort_by(|a, b| {
-        b.value
-            .total_cmp(&a.value)
-            .then_with(|| a.label.cmp(&b.label))
-    });
-    accounts
+    rows.map(|(name, value)| DayAccount {
+        id: name.id.clone(),
+        label: name.label.clone(),
+        colour: name.colour.clone(),
+        value,
+    })
+    .collect()
 }
 
 /// Each account's highest reading per local day, for the days in `window`.

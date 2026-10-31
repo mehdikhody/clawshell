@@ -2,7 +2,7 @@ mod support;
 
 use clawshell_lib::core::AccountError;
 use clawshell_lib::core::badge::{PALETTE, app_user_model_id, badge_letter, is_valid_colour};
-use support::Harness;
+use support::{Harness, add_default};
 
 const ID_A: &str = "3f2b8c1e-5a4d-4e7b-9c10-2d6f8a9b0c11";
 const ID_B: &str = "a0b1c2d3-e4f5-4a6b-8c7d-9e0f1a2b3c4d";
@@ -79,7 +79,7 @@ fn new_accounts_get_distinct_colours() {
     let core = h.core();
 
     let colours: Vec<_> = (0..PALETTE.len())
-        .map(|_| core.add_account().unwrap().colour)
+        .map(|_| add_default(&core).colour)
         .collect();
 
     let mut unique = colours.clone();
@@ -93,10 +93,10 @@ fn colours_are_reused_only_once_the_palette_runs_out() {
     let h = Harness::new();
     let core = h.core();
     for _ in 0..PALETTE.len() {
-        core.add_account().unwrap();
+        add_default(&core);
     }
 
-    let next = core.add_account().unwrap();
+    let next = add_default(&core);
 
     assert!(PALETTE.contains(&next.colour.as_str()));
 }
@@ -104,7 +104,7 @@ fn colours_are_reused_only_once_the_palette_runs_out() {
 #[test]
 fn an_accounts_colour_survives_a_restart() {
     let h = Harness::new();
-    let added = h.core().add_account().unwrap();
+    let added = add_default(&h.core());
 
     // A fresh Core over the same machine, as after an app restart.
     let again = h.core().list_accounts().unwrap().accounts;
@@ -397,8 +397,9 @@ fn launching_asks_for_the_badge_before_the_window_first_shows() {
 fn a_new_account_is_badged_as_its_sign_in_window_opens() {
     let h = Harness::new();
     let core = h.core();
+    let added = add_default(&core);
 
-    let added = core.add_account().unwrap();
+    core.launch_account(&added.id).unwrap();
 
     let calls = h.os.taskbar.lock().unwrap().clone();
     assert_eq!(calls.len(), 1);

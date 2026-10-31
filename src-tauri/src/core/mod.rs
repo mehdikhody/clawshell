@@ -26,7 +26,7 @@ pub mod usage;
 pub use account_error::AccountError;
 pub use accounts::{
     Account, AccountList, AddError, ColourError, DeleteError, LaunchError, LaunchOutcome,
-    OpenFolderError, RenameError, Status,
+    NewAccount, OpenFolderError, RenameError, Status,
 };
 pub use cost::{AccountCost, Heatmap, MonthCost, NoEstimate};
 pub use launch_options::{EnvVar, LaunchOptions, LaunchOptionsError};

@@ -120,11 +120,20 @@ export function accountIcon(badge: string, colour: string): Promise<string> {
 	}
 	return icon;
 }
-export const addAccount = () => invoke<Account>('add_account');
+
+/** The name and badge colour the Add dialog starts with. */
+export type NewAccount = { label: string; colour: string };
+
+export const newAccountDefaults = () => invoke<NewAccount>('new_account_defaults');
+/** Creates an account under `label` and `colour`. Claude is not started on it. */
+export const addAccount = (label: string, colour: string) =>
+	invoke<Account>('add_account', { label, colour });
 export const launchAccount = (id: string) =>
 	invoke<'started' | 'focused'>('launch_account', { id });
 export const renameAccount = (id: string, label: string) =>
 	invoke<Account>('rename_account', { id, label });
+/** Saves the account order, top to bottom, as `ids` lists the accounts. */
+export const reorderAccounts = (ids: string[]) => invoke<void>('reorder_accounts', { ids });
 export const setAccountColour = (id: string, colour: string) =>
 	invoke<Account>('set_account_colour', { id, colour });
 /** Saves the account's env vars and flags, or rejects with a code such as `invalid-env-name`. */
@@ -140,6 +149,10 @@ export const refreshUsage = () => invoke<RefreshOutcome>('refresh_usage');
 /** Calls `handler` whenever the core reports a changed account list. */
 export const onAccountsChanged = (handler: (list: AccountList) => void): Promise<UnlistenFn> =>
 	listen<AccountList>('accounts-changed', (event) => handler(event.payload));
+
+/** Calls `handler` when the tray asks for a new account. */
+export const onAddAccountRequested = (handler: () => void): Promise<UnlistenFn> =>
+	listen('add-account-requested', () => handler());
 
 export function errorCode(error: unknown): string | undefined {
 	return typeof error === 'object' && error !== null && 'code' in error

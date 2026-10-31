@@ -349,8 +349,10 @@ impl LinkHandlerRegistry for WindowsOs {
         link_registry::chosen_elsewhere()
     }
     fn open_default_apps(&self) -> io::Result<()> {
-        Command::new("explorer.exe")
-            .arg(link_registry::DEFAULT_APPS_URI)
+        // Explorer opens Documents for a settings URI it cannot parse; `start` hands the URI to Windows.
+        Command::new("cmd")
+            .args(["/C", "start", "", link_registry::DEFAULT_APPS_URI])
+            .creation_flags(CREATE_NO_WINDOW)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())

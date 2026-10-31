@@ -185,10 +185,10 @@ fn a_new_window_can_warn_again() {
 
     core.refresh_usage(false);
     poll(&h, &core);
-    assert_eq!(sent(&h).len(), 1, "a reset below the warning is quiet");
+    assert_eq!(sent(&h).len(), 2, "the reset is announced: {:?}", sent(&h));
     poll(&h, &core);
 
-    assert_eq!(sent(&h).len(), 2);
+    assert_eq!(sent(&h).len(), 3, "the new window warns again");
 }
 
 #[test]
@@ -214,7 +214,7 @@ fn a_wobble_in_resets_at_is_still_the_same_window() {
 }
 
 #[test]
-fn a_limited_window_that_resets_says_the_account_is_usable_again() {
+fn a_reset_names_the_account_window_and_its_usage() {
     let h = Harness::new();
     signed_in(&h);
     script(&h, (100.0, FIVE_RESET_1), (10.0, WEEK_RESET_1));
@@ -228,8 +228,11 @@ fn a_limited_window_that_resets_says_the_account_is_usable_again() {
 
     let notes = sent(&h);
     assert_eq!(notes.len(), 2, "limit, then one reset: {notes:?}");
-    assert!(notes[1].0.contains("usable again"), "{notes:?}");
-    assert!(notes[1].1.contains("5-hour"), "{notes:?}");
+    assert!(
+        notes[1].0.contains("Account 2's 5-hour window has reset"),
+        "{notes:?}"
+    );
+    assert!(notes[1].1.contains("2% used"), "{notes:?}");
 }
 
 #[test]
@@ -249,7 +252,7 @@ fn a_reset_is_not_repeated_after_a_restart() {
 }
 
 #[test]
-fn a_window_that_was_never_limited_resets_quietly() {
+fn a_window_that_was_never_limited_still_announces_its_reset() {
     let h = Harness::new();
     signed_in(&h);
     script(&h, (70.0, FIVE_RESET_1), (10.0, WEEK_RESET_1));
@@ -259,7 +262,27 @@ fn a_window_that_was_never_limited_resets_quietly() {
     core.refresh_usage(false);
     poll(&h, &core);
 
-    assert!(sent(&h).is_empty());
+    let notes = sent(&h);
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    assert!(notes[0].0.contains("5-hour window has reset"), "{notes:?}");
+}
+
+#[test]
+fn the_weekly_window_announces_its_reset_too() {
+    let h = Harness::new();
+    signed_in(&h);
+    script(&h, (10.0, FIVE_RESET_1), (40.0, WEEK_RESET_1));
+    script(&h, (10.0, FIVE_RESET_1), (1.0, WEEK_RESET_2));
+    let core = h.core();
+
+    core.refresh_usage(false);
+    assert!(sent(&h).is_empty(), "the first reading says nothing");
+    poll(&h, &core);
+
+    let notes = sent(&h);
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    assert!(notes[0].0.contains("weekly window has reset"), "{notes:?}");
+    assert!(notes[0].1.contains("1% used"), "{notes:?}");
 }
 
 #[test]
@@ -476,7 +499,7 @@ fn each_notification_type_has_its_own_switch() {
 
     let notes = sent(&h);
     assert_eq!(notes.len(), 1, "the reset switch is still on: {notes:?}");
-    assert!(notes[0].0.contains("usable again"), "{notes:?}");
+    assert!(notes[0].0.contains("5-hour window has reset"), "{notes:?}");
 }
 
 #[test]

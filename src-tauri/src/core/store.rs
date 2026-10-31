@@ -29,8 +29,13 @@ pub struct Record {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Records {
+    /// The accounts in the order the user chose; the order they are listed in.
     #[serde(default)]
     pub accounts: Vec<Record>,
+    /// Set once the order is saved. Older files lack it: their accounts were
+    /// listed by id, and keep that order until the first sync.
+    #[serde(default)]
+    pub ordered: bool,
 }
 
 fn file(local_app_data: &Path) -> PathBuf {
@@ -55,6 +60,40 @@ impl Records {
             serde_json::to_vec_pretty(self).map_err(io::Error::other)?,
         )?;
         std::fs::rename(tmp, path)
+    }
+
+    /// Gives an older file's accounts the id order they were listed in, the
+    /// first time; true when that saved a new order.
+    pub fn adopt_id_order(&mut self) -> bool {
+        if self.ordered {
+            return false;
+        }
+        self.accounts.sort_by(|a, b| a.id.cmp(&b.id));
+        self.ordered = true;
+        true
+    }
+
+    /// Where `id` sits in the saved order; an unknown id sorts last.
+    pub fn position_of(&self, id: &str) -> usize {
+        self.accounts
+            .iter()
+            .position(|r| r.id == id)
+            .unwrap_or(usize::MAX)
+    }
+
+    /// Puts the records in the order of `ids`. Unknown ids are ignored, and a
+    /// record `ids` does not name keeps its place after the named ones.
+    pub fn reorder(&mut self, ids: &[String]) {
+        let mut rest = std::mem::take(&mut self.accounts);
+        let mut ordered = Vec::with_capacity(rest.len());
+        for id in ids {
+            if let Some(at) = rest.iter().position(|r| &r.id == id) {
+                ordered.push(rest.remove(at));
+            }
+        }
+        ordered.extend(rest);
+        self.accounts = ordered;
+        self.ordered = true;
     }
 
     pub fn label_of(&self, id: &str) -> Option<&str> {
@@ -150,17 +189,27 @@ impl Records {
             .expect("an unused label exists")
     }
 
+    /// The colour a new account would get: the least used palette colour.
+    pub fn fresh_colour(&self) -> &'static str {
+        next_colour(self.accounts.iter().filter_map(|r| r.colour.as_deref()))
+    }
+
     /// Records `id` under a fresh default label and returns that label.
     pub fn add(&mut self, id: &str) -> String {
         let label = self.next_label();
-        let colour = next_colour(self.accounts.iter().filter_map(|r| r.colour.as_deref()));
+        let colour = self.fresh_colour();
+        self.insert(id, &label, colour);
+        label
+    }
+
+    /// Records `id` under `label` and `colour`, at the end of the order.
+    pub fn insert(&mut self, id: &str, label: &str, colour: &str) {
         self.accounts.push(Record {
             id: id.to_string(),
-            label: label.clone(),
+            label: label.to_string(),
             colour: Some(colour.to_string()),
             env: Vec::new(),
             flags: Vec::new(),
         });
-        label
     }
 }

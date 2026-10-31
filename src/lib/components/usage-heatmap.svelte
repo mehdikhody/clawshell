@@ -11,17 +11,22 @@
 	import * as Item from '$lib/components/ui/item';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { m } from '$lib/paraglide/messages.js';
-	import { formatTag } from '$lib/locale-state.svelte';
+	import { active, formatTag } from '$lib/locale-state.svelte';
+	import { weekStartOf } from '$lib/locale';
 
 	let { heatmap }: { heatmap: Heatmap } = $props();
 
 	/** The day whose tooltip is open: hover, focus and tap all land here. */
 	let openDate = $state<string | null>(null);
 
-	const cells = $derived(cellsFor(heatmap.days));
-	/** Sunday first, matching the grid: row 0 is Sunday. */
-	const weekdayLabels = Array.from({ length: 7 }, (_, i) =>
-		new Intl.DateTimeFormat(formatTag(), { weekday: 'narrow' }).format(new Date(2024, 0, 7 + i))
+	/** The week's first day, so the grid and its labels start on it: Saturday in Persian. */
+	const firstDay = weekStartOf(active.locale);
+	const cells = $derived(cellsFor(heatmap.days, firstDay));
+	/** Row 0 is the first day of the week. 7 Jan 2024 was a Sunday, so 7 + the day counts from it. */
+	const weekdayLabels = Array.from({ length: 7 }, (_, row) =>
+		new Intl.DateTimeFormat(formatTag(), { weekday: 'narrow' }).format(
+			new Date(2024, 0, 7 + ((firstDay + row) % 7))
+		)
 	);
 	const maxUsd = $derived(Math.max(0, ...heatmap.days.map((d) => d.usd?.total ?? 0)));
 
@@ -40,6 +45,7 @@
 	const money = (amount: number) => formatUsd(amount, formatTag());
 	/** The tooltip's short form, like $12.3K. */
 	const moneyShort = (amount: number) => formatUsdShort(amount, formatTag());
+	const countShort = (count: number) => formatCountShort(count, formatTag());
 	const dateLabel = (date: string) => formatDay(date, formatTag());
 	const labelOf = (day: HeatmapDay) =>
 		day.usd
@@ -96,7 +102,7 @@
 								{/if}
 								{#if day.tokens !== null}
 									<p class="tabular-nums">
-										{m.heatmap_tokens({ count: formatCountShort(day.tokens.total) })}
+										{m.heatmap_tokens({ count: countShort(day.tokens.total) })}
 									</p>
 									{@const used = day.tokens.accounts.filter((a) => a.value > 0)}
 									{#if used.length > 0}
@@ -114,7 +120,7 @@
 														<span class="truncate">{account.label}</span>
 													</span>
 													<span class="tabular-nums"
-														>{formatCountShort(account.value)}{#if usd}&nbsp;· {moneyShort(
+														>{countShort(account.value)}{#if usd}&nbsp;· {moneyShort(
 																usd.value
 															)}{/if}</span
 													>

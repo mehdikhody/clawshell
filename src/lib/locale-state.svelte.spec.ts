@@ -20,12 +20,12 @@ describe('switchLocale', () => {
 		expect(m.tab_settings()).toBe('Settings');
 	});
 
-	it('hands Intl a tag that gives Persian digits and Gregorian dates', () => {
+	it('hands Intl a tag that gives Persian digits and Jalali dates', () => {
 		switchLocale('fa');
 		const tag = formatTag();
 		expect(new Intl.NumberFormat(tag).format(15)).toBe('۱۵');
 		expect(new Intl.DateTimeFormat(tag, { year: 'numeric' }).format(new Date(2026, 5, 15))).toBe(
-			'۲۰۲۶'
+			'۱۴۰۵'
 		);
 	});
 });

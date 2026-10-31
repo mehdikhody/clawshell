@@ -13,12 +13,21 @@
 	import { heatmap as loadHeatmap, type Heatmap } from '$lib/heatmap';
 	import * as Item from '$lib/components/ui/item';
 	import { Progress } from '$lib/components/ui/progress';
+	import { getSettings } from '$lib/settings';
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatTag } from '$lib/locale-state.svelte';
 	import { formatInteger, formatPercentValue } from '$lib/locale';
 	import { formatAgo, formatReset } from '$lib/usage';
+	import {
+		defaultThresholds,
+		usageBarClass,
+		usageStage,
+		type UsageThresholds
+	} from '$lib/usage-stage';
 
 	let list = $state<AccountList | null>(null);
+	/** The warning and limit thresholds that colour the bars; the defaults until the saved ones load. */
+	let thresholds = $state<UsageThresholds>(defaultThresholds);
 	let cost = $state<MonthCost | null>(null);
 	let heatmap = $state<Heatmap | null>(null);
 	/** The month is a scan of transcripts, so pushed changes reread it at most this often. */
@@ -34,6 +43,15 @@
 	/** Nothing to draw until some day has a reading, or prices are why the dollars are empty. */
 	const hasHeatmapData = (map: Heatmap) =>
 		map.noEstimate !== null || map.days.some((d) => d.usd !== null);
+
+	async function loadThresholds() {
+		try {
+			const saved = await getSettings();
+			if (saved) thresholds = saved;
+		} catch {
+			// Keep the defaults.
+		}
+	}
 
 	async function load() {
 		try {
@@ -69,6 +87,7 @@
 	});
 
 	onMount(() => {
+		void loadThresholds();
 		const tick = setInterval(() => (now = Date.now()), 1000);
 		const unlisten = onAccountsChanged((next) => {
 			list = next;
@@ -92,8 +111,13 @@
 
 	{#if list}
 		{#if hasSignedIn}
-			{@render pooledBar(m.usage_five_hour(), list.pooled.fiveHour)}
-			{@render pooledBar(m.usage_weekly(), list.pooled.weekly)}
+			<Item.Root variant="outline" size="sm">
+				<Item.Content>
+					{@render pooledWindow(m.usage_five_hour(), list.pooled.fiveHour)}
+					<Item.Separator />
+					{@render pooledWindow(m.usage_weekly(), list.pooled.weekly)}
+				</Item.Content>
+			</Item.Root>
 		{:else}
 			<div class="flex flex-col items-center gap-1 py-10 text-center">
 				<p class="text-sm font-medium">{m.usage_empty()}</p>
@@ -107,43 +131,45 @@
 	{/if}
 </section>
 
-{#snippet pooledBar(label: string, pooled: PooledWindow)}
-	<Item.Root variant="outline" size="sm">
-		<Item.Content>
-			<div class="flex items-baseline justify-between">
-				<Item.Title>{label}</Item.Title>
-				{#if pooled.remainingPercent !== null}
-					<span class="text-lg font-semibold tabular-nums">
-						{formatPercentValue(100 - pooled.remainingPercent, formatTag())}
+{#snippet pooledWindow(label: string, pooled: PooledWindow)}
+	<div class="flex flex-col gap-1">
+		<div class="flex items-baseline justify-between">
+			<Item.Title>{label}</Item.Title>
+			{#if pooled.remainingPercent !== null}
+				<span class="text-lg font-semibold tabular-nums">
+					{formatPercentValue(100 - pooled.remainingPercent, formatTag())}
+				</span>
+			{/if}
+		</div>
+		{#if pooled.remainingPercent === null}
+			<p class="text-xs text-muted-foreground">{m.usage_none()}</p>
+		{:else}
+			<!-- Fills with use, like Claude's own usage meters. -->
+			<Progress
+				value={Math.round(100 - pooled.remainingPercent)}
+				aria-label={label}
+				class={usageBarClass[usageStage(100 - pooled.remainingPercent, thresholds)]}
+			/>
+			<div class="flex items-center justify-between text-xs text-muted-foreground">
+				<span
+					>{m.usage_available({
+						available: formatInteger(pooled.available, formatTag()),
+						total: formatInteger(pooled.total, formatTag())
+					})}</span
+				>
+				{#if pooled.soonestReset}
+					<span>
+						{m.usage_soonest_reset({
+							time: formatReset(pooled.soonestReset, new Date(now), formatTag())
+						})}
 					</span>
 				{/if}
 			</div>
-			{#if pooled.remainingPercent === null}
-				<p class="text-xs text-muted-foreground">{m.usage_none()}</p>
-			{:else}
-				<!-- Fills with use, like Claude's own usage meters. -->
-				<Progress value={Math.round(100 - pooled.remainingPercent)} aria-label={label} />
-				<div class="flex items-center justify-between text-xs text-muted-foreground">
-					<span
-						>{m.usage_available({
-							available: formatInteger(pooled.available, formatTag()),
-							total: formatInteger(pooled.total, formatTag())
-						})}</span
-					>
-					{#if pooled.soonestReset}
-						<span>
-							{m.usage_soonest_reset({
-								time: formatReset(pooled.soonestReset, new Date(now), formatTag())
-							})}
-						</span>
-					{/if}
-				</div>
-				{#if pooled.staleSinceMs !== null}
-					<p class="text-[11px] text-muted-foreground">
-						{m.usage_pooled_stale({ ago: formatAgo(pooled.staleSinceMs, now, formatTag()) })}
-					</p>
-				{/if}
+			{#if pooled.staleSinceMs !== null}
+				<p class="text-[11px] text-muted-foreground">
+					{m.usage_pooled_stale({ ago: formatAgo(pooled.staleSinceMs, now, formatTag()) })}
+				</p>
 			{/if}
-		</Item.Content>
-	</Item.Root>
+		{/if}
+	</div>
 {/snippet}

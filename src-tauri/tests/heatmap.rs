@@ -140,11 +140,14 @@ fn sums_each_days_code_estimate_and_tells_idle_days_from_unknown_ones() {
 }
 
 #[test]
-fn breaks_a_day_down_by_account_biggest_first() {
+fn breaks_a_day_down_by_account_in_the_saved_order() {
     let h = Harness::new();
     spender(&h, ID_A, SESSION_A, &[("2026-06-12T09:00:00.000Z", 1)]);
     spender(&h, ID_B, SESSION_B, &[("2026-06-12T09:00:00.000Z", 5)]);
     prices_ok(&h);
+    h.core()
+        .reorder_accounts(&[ID_A.to_string(), ID_B.to_string()])
+        .unwrap();
 
     let map = h.core().heatmap();
 
@@ -155,7 +158,7 @@ fn breaks_a_day_down_by_account_biggest_first() {
         .iter()
         .map(|a| (a.id.as_str(), a.value))
         .collect();
-    assert_eq!(rows, vec![(ID_B, 5.0), (ID_A, 1.0)]);
+    assert_eq!(rows, vec![(ID_A, 1.0), (ID_B, 5.0)]);
 }
 
 #[test]
@@ -232,11 +235,14 @@ fn sums_each_days_tokens_across_accounts_even_without_prices() {
 }
 
 #[test]
-fn breaks_a_days_tokens_down_by_account_biggest_first() {
+fn breaks_a_days_tokens_down_by_account_in_the_saved_order() {
     let h = Harness::new();
     spender(&h, ID_A, SESSION_A, &[("2026-06-12T09:00:00.000Z", 1)]);
     spender(&h, ID_B, SESSION_B, &[("2026-06-12T10:00:00.000Z", 2)]);
     h.http.fail(PRICES_URL);
+    h.core()
+        .reorder_accounts(&[ID_A.to_string(), ID_B.to_string()])
+        .unwrap();
 
     let map = h.core().heatmap();
 
@@ -252,7 +258,7 @@ fn breaks_a_days_tokens_down_by_account_biggest_first() {
     };
     assert_eq!(
         rows("2026-06-12"),
-        vec![(ID_B.into(), 2_000_000.0), (ID_A.into(), 1_000_000.0)]
+        vec![(ID_A.into(), 1_000_000.0), (ID_B.into(), 2_000_000.0)]
     );
     // A quiet day still lists every account, at zero.
     assert_eq!(

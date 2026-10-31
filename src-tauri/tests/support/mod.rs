@@ -3,7 +3,7 @@
 
 use clawshell_lib::core::desktop_token::AccessToken;
 use clawshell_lib::core::ports::*;
-use clawshell_lib::core::{Core, Ports};
+use clawshell_lib::core::{Account, Core, Ports};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::io;
@@ -552,6 +552,12 @@ impl Notifier for FakeOs {
 impl OsAdapters for FakeOs {}
 
 /// Everything a core test needs: the fixture machine plus handles on each fake.
+/// Adds an account under the name and colour the Add dialog starts with.
+pub fn add_default(core: &Core) -> Account {
+    let defaults = core.new_account_defaults().unwrap();
+    core.add_account(&defaults.label, &defaults.colour).unwrap()
+}
+
 pub struct Harness {
     pub fixture: Fixture,
     pub http: Arc<FakeHttp>,

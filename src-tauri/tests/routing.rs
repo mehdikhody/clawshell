@@ -6,7 +6,7 @@ use clawshell_lib::core::ports::ClaudeInstall;
 use clawshell_lib::core::routing::Target;
 use clawshell_lib::core::{RouteError, RoutingError};
 use std::path::PathBuf;
-use support::{CLAUDE_HANDLER, CLAWSHELL_HANDLER, Harness};
+use support::{CLAUDE_HANDLER, CLAWSHELL_HANDLER, Harness, add_default};
 
 const ID_A: &str = "3f2b8c1e-5a4d-4e7b-9c10-2d6f8a9b0c11";
 const ID_B: &str = "a0b1c2d3-e4f5-4a6b-8c7d-9e0f1a2b3c4d";
@@ -310,11 +310,12 @@ fn routing_is_not_offered_when_it_is_already_on() {
 // Routing a link
 
 #[test]
-fn a_link_goes_to_the_account_just_added_while_it_is_signed_out() {
+fn a_link_goes_to_the_account_just_opened_while_it_is_signed_out() {
     let h = Harness::new();
     let core = h.core();
     core.set_sign_in_routing(true).unwrap();
-    let added = core.add_account().unwrap();
+    let added = add_default(&core);
+    core.launch_account(&added.id).unwrap();
     // Another account is open and signed in.
     h.fixture.add_profile(ID_B);
     h.fixture.sign_in(ID_B);

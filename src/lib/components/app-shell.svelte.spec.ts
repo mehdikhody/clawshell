@@ -165,6 +165,23 @@ describe('AppShell sign-in routing offer', () => {
 	});
 });
 
+describe('AppShell tray Add account', () => {
+	it('switches to the Accounts tab and opens the Add dialog when the tray asks', async () => {
+		({ restore } = mockTauri({
+			...core,
+			new_account_defaults: () => ({ label: 'Account 2', colour: '#2563eb' })
+		}));
+		render(AppShell);
+		await page.getByRole('tab', { name: 'Usage' }).click();
+		await expect.element(page.getByRole('tab', { name: 'Usage' })).toHaveAttribute('aria-selected', 'true');
+
+		await emit('add-account-requested');
+
+		await expect.element(page.getByRole('tab', { name: 'Accounts' })).toHaveAttribute('aria-selected', 'true');
+		await expect.element(page.getByRole('dialog', { name: 'Add account' })).toBeVisible();
+	});
+});
+
 describe('AppShell in Persian', () => {
 	it('opens in the language the core saved, right-to-left', async () => {
 		({ restore } = mockTauri({ ...core, get_settings: () => ({ ...saved, language: 'fa' }) }));

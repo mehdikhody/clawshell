@@ -19,6 +19,7 @@
 				"resizable": false,
 				"maximizable": false,
 				"decorations": false,
+				"dragDropEnabled": false,
 				"transparent": true,
 				"shadow": false,
 				"center": true,

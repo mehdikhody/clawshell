@@ -4,9 +4,9 @@
 use crate::core::ports::ClaudeLocator;
 use crate::core::{
     Account, AccountError, AccountList, AddError, ColourError, Core, DeleteError, Heatmap,
-    LaunchError, LaunchOptions, LaunchOptionsError, LaunchOutcome, MonthCost, OpenFolderError,
-    RefreshOutcome, RenameError, RoutingChange, RoutingError, Settings, SettingsError,
-    ShortcutError,
+    LaunchError, LaunchOptions, LaunchOptionsError, LaunchOutcome, MonthCost, NewAccount,
+    OpenFolderError, RefreshOutcome, RenameError, RoutingChange, RoutingError, Settings,
+    SettingsError, ShortcutError,
 };
 use crate::taskbar::{badge_image, claude_base};
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -18,6 +18,8 @@ use tauri::{AppHandle, Emitter, State};
 pub const ACCOUNTS_CHANGED: &str = "accounts-changed";
 /// Sent once, after the first successful Add: the UI offers sign-in routing.
 pub const ROUTING_OFFER: &str = "routing-offer";
+/// Sent when the tray asks for a new account: the UI opens the Add dialog.
+pub const ADD_ACCOUNT_REQUESTED: &str = "add-account-requested";
 const WATCH_INTERVAL: Duration = Duration::from_secs(2);
 /// How often the scheduler looks for accounts whose usage poll is due. The
 /// core decides which are; most ticks do nothing.
@@ -93,8 +95,11 @@ impl From<AddError> for CommandError {
             AddError::ClaudeNotFound => {
                 CommandError::new("claude-not-found", "Claude Desktop was not found")
             }
+            AddError::EmptyLabel => CommandError::new("empty-label", "The name is empty"),
+            AddError::InvalidColour => {
+                CommandError::new("invalid-colour", "The colour must look like #rrggbb")
+            }
             AddError::Io(e) => CommandError::new("io", e.to_string()),
-            AddError::Launch(e) => CommandError::new("launch-failed", e.to_string()),
         }
     }
 }
@@ -201,6 +206,19 @@ pub fn rename_account(
     Ok(core.rename_account(&id, &label)?)
 }
 
+/// Saves the account order the list was dropped into, top to bottom.
+#[tauri::command]
+pub fn reorder_accounts(
+    core: State<'_, Arc<Core>>,
+    feed: State<'_, AccountFeed>,
+    ids: Vec<String>,
+) -> Result<(), CommandError> {
+    core.reorder_accounts(&ids)
+        .map_err(|e| CommandError::new("io", e.to_string()))?;
+    feed.publish();
+    Ok(())
+}
+
 #[tauri::command]
 pub fn set_account_colour(
     core: State<'_, Arc<Core>>,
@@ -258,16 +276,30 @@ pub fn account_icon(
     Ok(format!("data:image/x-icon;base64,{}", BASE64.encode(bytes)))
 }
 
+/// The name and colour the Add dialog starts with.
 #[tauri::command]
-pub fn add_account(app: AppHandle, core: State<'_, Arc<Core>>) -> Result<Account, CommandError> {
-    let account = core.add_account()?;
+pub fn new_account_defaults(core: State<'_, Arc<Core>>) -> Result<NewAccount, CommandError> {
+    core.new_account_defaults()
+        .map_err(|e| CommandError::new("io", e.to_string()))
+}
+
+/// Creates the account the Add dialog describes. The first one also asks the
+/// UI to offer sign-in routing.
+#[tauri::command]
+pub fn add_account(
+    app: AppHandle,
+    core: State<'_, Arc<Core>>,
+    label: String,
+    colour: String,
+) -> Result<Account, CommandError> {
+    let account = core.add_account(&label, &colour)?;
     offer_routing_if_due(&app, &core);
     Ok(account)
 }
 
 /// After an Add: on the very first one, asks the UI to offer sign-in routing.
-/// Returns whether it did, so the caller can bring the window forward.
-pub fn offer_routing_if_due(app: &AppHandle, core: &Core) -> bool {
+/// Returns whether it did.
+fn offer_routing_if_due(app: &AppHandle, core: &Core) -> bool {
     let due = core.take_routing_offer();
     if due {
         let _ = app.emit(ROUTING_OFFER, ());
