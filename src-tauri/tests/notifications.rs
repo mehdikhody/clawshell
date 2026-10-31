@@ -343,6 +343,74 @@ fn the_text_follows_the_saved_language() {
     assert!(notes[0].1.contains("۵ ساعته"), "{notes:?}");
 }
 
+#[test]
+fn every_event_and_window_reads_in_arabic_russian_and_chinese() {
+    // A 5-hour limit and a weekly warning, then both windows resetting.
+    let expected: [(Language, [(&str, &str); 4]); 3] = [
+        (
+            Language::Ar,
+            [
+                (
+                    "الحساب Account 2 بلغ حدّه",
+                    "بلغ استخدام نافذة ٥ ساعات 100٪. انتقل إلى حساب آخر.",
+                ),
+                (
+                    "الحساب Account 2 يقترب من حدّه",
+                    "بلغ استخدام نافذة أسبوعية 90٪.",
+                ),
+                (
+                    "أُعيد ضبط نافذة ٥ ساعات للحساب Account 2",
+                    "عاد الاستخدام إلى 1٪.",
+                ),
+                (
+                    "أُعيد ضبط نافذة أسبوعية للحساب Account 2",
+                    "عاد الاستخدام إلى 10٪.",
+                ),
+            ],
+        ),
+        (
+            Language::Ru,
+            [
+                (
+                    "Лимит Account 2 исчерпан",
+                    "Расход за 5-часовое окно: 100%. Переключитесь на другой аккаунт.",
+                ),
+                ("Account 2: лимит близко", "Расход за недельное окно: 90%."),
+                ("Сброшено 5-часовое окно: Account 2", "Теперь расход: 1%."),
+                ("Сброшено недельное окно: Account 2", "Теперь расход: 10%."),
+            ],
+        ),
+        (
+            Language::Zh,
+            [
+                (
+                    "Account 2 已达用量上限",
+                    "5 小时用量已达 100%。请切换到其他账户。",
+                ),
+                ("Account 2 即将达到用量上限", "每周用量已达 90%。"),
+                ("Account 2：5 小时窗口已重置", "用量已回到 1%。"),
+                ("Account 2：每周窗口已重置", "用量已回到 10%。"),
+            ],
+        ),
+    ];
+    for (language, texts) in expected {
+        let h = Harness::new();
+        signed_in(&h);
+        script(&h, (100.0, FIVE_RESET_1), (90.0, WEEK_RESET_1));
+        script(&h, (1.0, FIVE_RESET_2), (10.0, WEEK_RESET_2));
+        let core = h.core();
+        change(&core, |s| s.language = language).unwrap();
+        core.refresh_usage(false);
+        poll(&h, &core);
+
+        let texts: Vec<(String, String)> = texts
+            .iter()
+            .map(|(title, body)| (title.to_string(), body.to_string()))
+            .collect();
+        assert_eq!(sent(&h), texts, "{language:?}");
+    }
+}
+
 // Settings: switches and thresholds
 
 fn change(core: &Core, edit: impl FnOnce(&mut Settings)) -> Result<Settings, SettingsError> {

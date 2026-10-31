@@ -492,6 +492,12 @@ impl Notifier for WindowsOs {
         (self.toast)(title, body);
     }
 }
+impl UiLanguage for WindowsOs {
+    fn ui_language_id(&self) -> u16 {
+        // SAFETY: takes no arguments and only reads the user's setting.
+        unsafe { windows::Win32::Globalization::GetUserDefaultUILanguage() }
+    }
+}
 impl OsAdapters for WindowsOs {}
 
 /// The only place an OAuth bearer token may be sent.

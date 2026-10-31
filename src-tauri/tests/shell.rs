@@ -148,3 +148,29 @@ fn tray_labels_switch_to_persian_with_the_language_setting() {
     assert_eq!(labels.add_account, "افزودن حساب");
     assert_eq!(labels.quit, "خروج");
 }
+
+#[test]
+fn tray_labels_switch_to_arabic_russian_and_chinese_with_the_language_setting() {
+    for (language, open, add_account, quit) in [
+        (Language::Ar, "فتح clawshell", "إضافة حساب", "خروج"),
+        (
+            Language::Ru,
+            "Открыть clawshell",
+            "Добавить аккаунт",
+            "Выход",
+        ),
+        (Language::Zh, "打开 clawshell", "添加账户", "退出"),
+    ] {
+        let h = Harness::new();
+        let core = h.core();
+        let mut settings = core.settings();
+        settings.language = language;
+        core.update_settings(settings).unwrap();
+
+        let labels = h.core().tray_labels();
+
+        assert_eq!(labels.open, open, "{language:?}");
+        assert_eq!(labels.add_account, add_account, "{language:?}");
+        assert_eq!(labels.quit, quit, "{language:?}");
+    }
+}

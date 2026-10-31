@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Arabic, Russian and Simplified Chinese join English and Persian in the window. The language picker shows each language in its own name, Arabic is laid out right to left, and Arabic and Chinese get their own fonts. Tray menu and notification text stay in English for these three for now.
+- Arabic, Russian and Simplified Chinese join English and Persian in the window. The language picker shows each language in its own name, Arabic is laid out right to left, and Arabic and Chinese get their own fonts. The tray menu and desktop notifications are translated too.
+- On first run, clawshell starts in your Windows display language when it is Persian, Arabic, Russian or Chinese, and in English otherwise. A language you have already chosen is never changed.
 - Placeholders shaped like the real content on the Usage tab (heatmap, This month card, pooled usage) and the Accounts tab (account rows) while they first load, instead of blank space and a "Loading…" line. They stay still under reduced motion, and refreshes never bring them back.
 - **Quit Claude** in a running account's context menu. It ends all of that account's Claude processes at once, including a Claude hidden in its own tray, and works for the default account too.
 - **Copy sessions…** in every account's context menu. It lists the account's Code sessions from every organisation, newest first, with title, folder, last activity and an Archived tag, and lets you tick several. Copying them to another account comes in a later update.

@@ -153,14 +153,18 @@ fn observe(notes: &mut Option<WindowNotes>, reading: &WindowUsage, rules: &Rules
 }
 
 impl Language {
-    /// Arabic, Russian and Chinese notifications are not translated yet, so
-    /// they read as English.
     fn window_name(self, window: WindowKind) -> &'static str {
         match (self, window) {
             (Language::Fa, WindowKind::FiveHour) => "۵ ساعته",
             (Language::Fa, WindowKind::Weekly) => "هفتگی",
-            (_, WindowKind::FiveHour) => "5-hour",
-            (_, WindowKind::Weekly) => "weekly",
+            (Language::Ar, WindowKind::FiveHour) => "٥ ساعات",
+            (Language::Ar, WindowKind::Weekly) => "أسبوعية",
+            (Language::Ru, WindowKind::FiveHour) => "5-часовое",
+            (Language::Ru, WindowKind::Weekly) => "недельное",
+            (Language::Zh, WindowKind::FiveHour) => "5 小时",
+            (Language::Zh, WindowKind::Weekly) => "每周",
+            (Language::En, WindowKind::FiveHour) => "5-hour",
+            (Language::En, WindowKind::Weekly) => "weekly",
         }
     }
 }
@@ -188,15 +192,51 @@ fn text(
             format!("پنجرهٔ {name} {label} بازنشانی شد"),
             format!("مصرف آن اکنون به {percent}٪ رسیده است."),
         ),
-        (_, Event::Warning) => (
+        (Language::Ar, Event::Warning) => (
+            format!("الحساب {label} يقترب من حدّه"),
+            format!("بلغ استخدام نافذة {name} {percent}٪."),
+        ),
+        (Language::Ar, Event::Limited) => (
+            format!("الحساب {label} بلغ حدّه"),
+            format!("بلغ استخدام نافذة {name} {percent}٪. انتقل إلى حساب آخر."),
+        ),
+        (Language::Ar, Event::Reset) => (
+            format!("أُعيد ضبط نافذة {name} للحساب {label}"),
+            format!("عاد الاستخدام إلى {percent}٪."),
+        ),
+        (Language::Ru, Event::Warning) => (
+            format!("{label}: лимит близко"),
+            format!("Расход за {name} окно: {percent}%."),
+        ),
+        (Language::Ru, Event::Limited) => (
+            format!("Лимит {label} исчерпан"),
+            format!("Расход за {name} окно: {percent}%. Переключитесь на другой аккаунт."),
+        ),
+        (Language::Ru, Event::Reset) => (
+            format!("Сброшено {name} окно: {label}"),
+            format!("Теперь расход: {percent}%."),
+        ),
+        (Language::Zh, Event::Warning) => (
+            format!("{label} 即将达到用量上限"),
+            format!("{name}用量已达 {percent}%。"),
+        ),
+        (Language::Zh, Event::Limited) => (
+            format!("{label} 已达用量上限"),
+            format!("{name}用量已达 {percent}%。请切换到其他账户。"),
+        ),
+        (Language::Zh, Event::Reset) => (
+            format!("{label}：{name}窗口已重置"),
+            format!("用量已回到 {percent}%。"),
+        ),
+        (Language::En, Event::Warning) => (
             format!("{label} is nearing its limit"),
             format!("Its {name} usage is at {percent}%."),
         ),
-        (_, Event::Limited) => (
+        (Language::En, Event::Limited) => (
             format!("{label} hit its limit"),
             format!("Its {name} usage is at {percent}%. Switch to another account."),
         ),
-        (_, Event::Reset) => (
+        (Language::En, Event::Reset) => (
             format!("{label}'s {name} window has reset"),
             format!("It is back to {percent}% used."),
         ),

@@ -24,6 +24,20 @@ pub enum Language {
     Zh,
 }
 
+impl Language {
+    /// The language for a Windows UI language (a LANGID). Any Chinese is
+    /// `zh`; a language clawshell lacks is English.
+    fn from_ui_language(langid: u16) -> Self {
+        match langid & 0x3FF {
+            0x29 => Language::Fa,
+            0x01 => Language::Ar,
+            0x19 => Language::Ru,
+            0x04 => Language::Zh,
+            _ => Language::En,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -123,8 +137,17 @@ pub enum SettingsError {
 }
 
 impl Core {
+    /// With no settings file yet (a first run), the language is the one
+    /// Windows shows. Nothing is written until the settings are first saved.
     pub fn settings(&self) -> Settings {
-        Settings::load(&self.ports.roots.local_app_data)
+        let local = &self.ports.roots.local_app_data;
+        if file(local).exists() {
+            return Settings::load(local);
+        }
+        Settings {
+            language: Language::from_ui_language(self.ports.os.ui_language_id()),
+            ..Settings::default()
+        }
     }
 
     /// Replaces the settings. Nothing is saved unless every part is accepted.

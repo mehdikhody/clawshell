@@ -79,6 +79,67 @@ fn the_language_is_saved_as_its_lowercase_code() {
 }
 
 #[test]
+fn a_first_run_takes_the_language_of_windows() {
+    // LANGIDs: the primary language in the low ten bits, the region above.
+    for (langid, language) in [
+        (0x0409, Language::En),
+        (0x0429, Language::Fa),
+        (0x0401, Language::Ar),
+        (0x0C01, Language::Ar),
+        (0x0419, Language::Ru),
+        (0x0804, Language::Zh),
+        (0x0404, Language::Zh),
+        (0x0C04, Language::Zh),
+        (0x040C, Language::En),
+        (0, Language::En),
+    ] {
+        let h = Harness::new();
+        *h.os.ui_language.lock().unwrap() = langid;
+
+        assert_eq!(h.core().settings().language, language, "{langid:#06x}");
+    }
+}
+
+#[test]
+fn a_saved_language_is_never_replaced_by_the_language_of_windows() {
+    let h = Harness::new();
+    let core = h.core();
+    let mut settings = core.settings();
+    settings.language = Language::En;
+    core.update_settings(settings).unwrap();
+
+    *h.os.ui_language.lock().unwrap() = 0x0429;
+
+    assert_eq!(h.core().settings().language, Language::En);
+}
+
+#[test]
+fn a_settings_file_without_a_language_is_not_given_the_language_of_windows() {
+    let h = Harness::new();
+    *h.os.ui_language.lock().unwrap() = 0x0429;
+    let dir = h.fixture.local_app_data().join("clawshell");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("settings.json"), r#"{ "closeToTray": false }"#).unwrap();
+
+    assert_eq!(h.core().settings().language, Language::En);
+}
+
+#[test]
+fn reading_the_language_of_windows_creates_no_settings_file() {
+    let h = Harness::new();
+    *h.os.ui_language.lock().unwrap() = 0x0429;
+
+    h.core().settings();
+
+    assert!(
+        !h.fixture
+            .local_app_data()
+            .join("clawshell/settings.json")
+            .exists()
+    );
+}
+
+#[test]
 fn a_settings_file_from_before_languages_opens_in_english() {
     let h = Harness::new();
     let dir = h.fixture.local_app_data().join("clawshell");

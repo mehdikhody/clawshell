@@ -390,6 +390,8 @@ pub struct FakeOs {
     pub ended: Mutex<Vec<u32>>,
     /// Makes ending processes fail, as a protected process would.
     pub end_fails: Mutex<bool>,
+    /// The Windows UI language (a LANGID); 0 is an unrecognised one.
+    pub ui_language: Mutex<u16>,
 }
 
 /// What the fake registry holds once clawshell has taken over `claude://`.
@@ -429,6 +431,7 @@ impl Default for FakeOs {
             forwarded: Mutex::default(),
             ended: Mutex::default(),
             end_fails: Mutex::new(false),
+            ui_language: Mutex::new(0),
         }
     }
 }
@@ -616,6 +619,11 @@ impl ProcessKiller for FakeOs {
         }
         self.ended.lock().unwrap().extend_from_slice(pids);
         Ok(())
+    }
+}
+impl UiLanguage for FakeOs {
+    fn ui_language_id(&self) -> u16 {
+        *self.ui_language.lock().unwrap()
     }
 }
 impl OsAdapters for FakeOs {}

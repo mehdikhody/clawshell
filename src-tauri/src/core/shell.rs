@@ -37,11 +37,25 @@ pub struct TrayLabels {
 impl Language {
     fn tray_labels(self) -> TrayLabels {
         match self {
-            // Arabic, Russian and Chinese tray words are not translated yet.
-            Language::En | Language::Ar | Language::Ru | Language::Zh => TrayLabels {
+            Language::En => TrayLabels {
                 open: "Open clawshell",
                 add_account: "Add account",
                 quit: "Quit",
+            },
+            Language::Ar => TrayLabels {
+                open: "فتح clawshell",
+                add_account: "إضافة حساب",
+                quit: "خروج",
+            },
+            Language::Ru => TrayLabels {
+                open: "Открыть clawshell",
+                add_account: "Добавить аккаунт",
+                quit: "Выход",
+            },
+            Language::Zh => TrayLabels {
+                open: "打开 clawshell",
+                add_account: "添加账户",
+                quit: "退出",
             },
             Language::Fa => TrayLabels {
                 open: "باز کردن clawshell",

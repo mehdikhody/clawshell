@@ -264,6 +264,12 @@ pub trait Notifier: Send + Sync {
     fn notify(&self, title: &str, body: &str);
 }
 
+pub trait UiLanguage: Send + Sync {
+    /// The Windows UI language as a LANGID: the primary language in the low
+    /// ten bits, the region above. 0 when Windows does not say.
+    fn ui_language_id(&self) -> u16;
+}
+
 /// All OS adapters behind one injectable handle.
 pub trait OsAdapters:
     ClaudeLocator
@@ -276,5 +282,6 @@ pub trait OsAdapters:
     + ProcessKiller
     + Autostart
     + Notifier
+    + UiLanguage
 {
 }
