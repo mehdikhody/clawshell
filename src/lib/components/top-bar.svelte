@@ -6,6 +6,9 @@
 	import { badgeVariants } from '$lib/components/ui/badge';
 	import { m } from '$lib/paraglide/messages.js';
 	import { hasUpdate } from '$lib/update.svelte';
+	import UpdateDialog from './update-dialog.svelte';
+
+	let updateOpen = $state(false);
 </script>
 
 <header
@@ -14,9 +17,17 @@
 >
 	<div data-tauri-drag-region class="flex items-center gap-2">
 		<img src="/app-icon.png" alt="" data-tauri-drag-region class="size-5" />
-		<span data-tauri-drag-region class="text-sm font-bold tracking-tight capitalize">{m.app_name()}</span>
+		<span data-tauri-drag-region class="text-sm font-bold tracking-tight capitalize"
+			>{m.app_name()}</span
+		>
 		{#if hasUpdate()}
-			<button type="button" class={[badgeVariants(), 'cursor-pointer']}>{m.update_available()}</button>
+			<button
+				type="button"
+				class={[badgeVariants(), 'cursor-pointer']}
+				onclick={() => (updateOpen = true)}
+			>
+				{m.update_available()}
+			</button>
 		{/if}
 	</div>
 	<div class="flex items-center gap-0.5">
@@ -38,4 +49,5 @@
 			<IconX />
 		</Button>
 	</div>
+	<UpdateDialog bind:open={updateOpen} />
 </header>

@@ -91,9 +91,7 @@ describe('AppShell update badge', () => {
 		render(AppShell);
 		await expect.element(page.getByRole('tab', { name: 'Usage' })).toBeVisible();
 
-		await vi.waitFor(() =>
-			expect(tauri.calls.map((c) => c.cmd)).toContain('plugin:updater|check')
-		);
+		await vi.waitFor(() => expect(tauri.calls.map((c) => c.cmd)).toContain('plugin:updater|check'));
 		await expect.element(page.getByRole('button', { name: badgeName })).not.toBeInTheDocument();
 	});
 
@@ -108,9 +106,7 @@ describe('AppShell update badge', () => {
 		render(AppShell);
 		await expect.element(page.getByRole('tab', { name: 'Usage' })).toBeVisible();
 
-		await vi.waitFor(() =>
-			expect(tauri.calls.map((c) => c.cmd)).toContain('plugin:updater|check')
-		);
+		await vi.waitFor(() => expect(tauri.calls.map((c) => c.cmd)).toContain('plugin:updater|check'));
 		await expect.element(page.getByRole('button', { name: badgeName })).not.toBeInTheDocument();
 	});
 

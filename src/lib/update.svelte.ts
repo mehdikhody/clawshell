@@ -1,3 +1,4 @@
+import { relaunch } from '@tauri-apps/plugin-process';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 
 /** How often the latest release is checked while the app runs. */
@@ -44,4 +45,41 @@ export function startUpdateChecks(): () => void {
 	void checkForUpdate();
 	const timer = setInterval(() => void checkForUpdate(), UPDATE_CHECK_MS);
 	return () => clearInterval(timer);
+}
+
+function messageOf(error: unknown): string {
+	if (error instanceof Error) return error.message;
+	return typeof error === 'string' ? error : String(error);
+}
+
+/**
+ * Downloads and installs the available update, then restarts clawshell.
+ * Works from `available`, or from `failed` as a retry; any other state is left alone.
+ * A failure at any step lands in `failed` and the current version keeps running.
+ */
+export async function installUpdate(): Promise<void> {
+	const { current } = updateState;
+	if (current.status !== 'available' && current.status !== 'failed') return;
+	const { update } = current;
+
+	let downloaded = 0;
+	let total: number | null = null;
+	updateState.current = { status: 'downloading', update, downloaded, total };
+	try {
+		await update.downloadAndInstall((event) => {
+			if (event.event === 'Started') {
+				total = event.data.contentLength ?? null;
+				updateState.current = { status: 'downloading', update, downloaded, total };
+			} else if (event.event === 'Progress') {
+				downloaded += event.data.chunkLength;
+				updateState.current = { status: 'downloading', update, downloaded, total };
+			} else {
+				updateState.current = { status: 'installing', update };
+			}
+		});
+		updateState.current = { status: 'installing', update };
+		await relaunch();
+	} catch (error) {
+		updateState.current = { status: 'failed', update, message: messageOf(error) };
+	}
 }
