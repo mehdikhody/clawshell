@@ -78,7 +78,7 @@ impl Core {
     pub fn list_accounts(&self) -> io::Result<AccountList> {
         let accounts = self.known_accounts()?;
         Ok(AccountList {
-            claude_found: self.ports.os.locate().is_some(),
+            claude_found: self.claude_install().is_some(),
             refresh_allowed_at: self.refresh_allowed_at(&accounts),
             pooled: pool_remaining(&accounts),
             accounts,
@@ -186,7 +186,7 @@ impl Core {
     /// it, which lands on the sign-in screen. If Claude fails to start the
     /// account is kept so it can be launched again.
     pub fn add_account(&self) -> Result<Account, AddError> {
-        let install = self.ports.os.locate().ok_or(AddError::ClaudeNotFound)?;
+        let install = self.claude_install().ok_or(AddError::ClaudeNotFound)?;
         let local = &self.ports.roots.local_app_data;
 
         let scan = self.scan_profiles()?;
@@ -297,7 +297,7 @@ impl Core {
         // Also reached when the running copy has no window to focus (hidden
         // in its tray): Claude is single-instance per folder, so starting it
         // again hands over to the running copy, which shows its window.
-        let install = self.ports.os.locate().ok_or(LaunchError::ClaudeNotFound)?;
+        let install = self.claude_install().ok_or(LaunchError::ClaudeNotFound)?;
         self.ports
             .os
             .launch(&install.exe, &profile.path)

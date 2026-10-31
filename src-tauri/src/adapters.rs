@@ -126,12 +126,13 @@ impl ClaudeLocator for WindowsLocator {
 /// Everything the app does to Windows. Tickets after this one fill in the
 /// taskbar identity, shortcuts, link routing, autostart and notifications.
 pub struct WindowsOs {
-    locator: Arc<WindowsLocator>,
+    /// Detection plus the saved Claude.exe override.
+    locator: Arc<dyn ClaudeLocator>,
     lister: Arc<dyn ProcessLister>,
 }
 
 impl WindowsOs {
-    pub fn new(locator: Arc<WindowsLocator>, lister: Arc<dyn ProcessLister>) -> Self {
+    pub fn new(locator: Arc<dyn ClaudeLocator>, lister: Arc<dyn ProcessLister>) -> Self {
         WindowsOs { locator, lister }
     }
 }
@@ -242,9 +243,69 @@ impl LinkHandlerRegistry for WindowsOs {
     }
 }
 impl Autostart for WindowsOs {
-    fn set_enabled(&self, _enabled: bool) -> io::Result<()> {
-        Ok(())
+    fn set_enabled(&self, enabled: bool) -> io::Result<()> {
+        set_run_key(enabled, &std::env::current_exe()?)
     }
+}
+
+/// Marks a launch made by Windows at sign-in, so "start hidden" can apply.
+pub const AUTOSTART_ARG: &str = "--autostart";
+const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
+const RUN_VALUE: &str = "clawshell";
+
+/// Adds or removes clawshell's value under the per-user Run key. Removing a
+/// value that is not there counts as done.
+fn set_run_key(enabled: bool, exe: &Path) -> io::Result<()> {
+    use windows::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, WIN32_ERROR};
+    use windows::Win32::System::Registry::*;
+    use windows::core::HSTRING;
+
+    let check = |status: WIN32_ERROR| -> io::Result<()> {
+        if status == ERROR_SUCCESS {
+            Ok(())
+        } else {
+            Err(io::Error::from_raw_os_error(status.0 as i32))
+        }
+    };
+
+    let mut key = HKEY::default();
+    // SAFETY: `key` is a valid out-pointer; it is closed below.
+    check(unsafe {
+        RegCreateKeyExW(
+            HKEY_CURRENT_USER,
+            &HSTRING::from(RUN_KEY),
+            None,
+            None,
+            REG_OPTION_NON_VOLATILE,
+            KEY_SET_VALUE,
+            None,
+            &mut key,
+            None,
+        )
+    })?;
+
+    let name = HSTRING::from(RUN_VALUE);
+    let result = if enabled {
+        let command = format!("\"{}\" {AUTOSTART_ARG}", exe.display());
+        let bytes: Vec<u8> = command
+            .encode_utf16()
+            .chain(Some(0))
+            .flat_map(u16::to_le_bytes)
+            .collect();
+        // SAFETY: `key` is open; `bytes` holds a NUL-terminated UTF-16 string.
+        check(unsafe { RegSetValueExW(key, &name, None, REG_SZ, Some(&bytes)) })
+    } else {
+        // SAFETY: `key` is open.
+        let status = unsafe { RegDeleteValueW(key, &name) };
+        if status == ERROR_FILE_NOT_FOUND {
+            Ok(())
+        } else {
+            check(status)
+        }
+    };
+    // SAFETY: `key` came from RegCreateKeyExW above and is closed once.
+    let _ = unsafe { RegCloseKey(key) };
+    result
 }
 impl Notifier for WindowsOs {
     fn notify(&self, _title: &str, _body: &str) {}

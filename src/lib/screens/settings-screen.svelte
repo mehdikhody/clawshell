@@ -1,1 +1,111 @@
-<section class="h-full"></section>
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { errorCode } from '$lib/accounts';
+	import * as Alert from '$lib/components/ui/alert';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import * as Item from '$lib/components/ui/item';
+	import { Label } from '$lib/components/ui/label';
+	import { Switch } from '$lib/components/ui/switch';
+	import { m } from '$lib/paraglide/messages.js';
+	import { getSettings, updateSettings, type Settings } from '$lib/settings';
+
+	/** What the core has saved. It changes only when the core accepts an update. */
+	let settings = $state<Settings | null>(null);
+	/** The Claude.exe field's text, which may be ahead of what is saved. */
+	let draftPath = $state('');
+	let failure = $state<string | null>(null);
+
+	const failureText: Record<string, () => string> = {
+		'autostart-failed': () => m.error_settings_autostart(),
+		'claude-path-missing': () => m.error_claude_path_missing(),
+		'claude-path-not-a-file': () => m.error_claude_path_not_a_file(),
+		'claude-path-not-claude': () => m.error_claude_path_not_claude()
+	};
+
+	onMount(async () => {
+		try {
+			settings = await getSettings();
+			draftPath = settings.claudePath ?? '';
+		} catch {
+			failure = m.error_settings_save_failed();
+		}
+	});
+
+	/** Sends the whole object; the screen follows the core's answer, never its own guess. */
+	async function save(change: Partial<Settings>) {
+		if (!settings) return;
+		failure = null;
+		try {
+			settings = await updateSettings({ ...settings, ...change });
+			draftPath = settings.claudePath ?? '';
+		} catch (error) {
+			failure = failureText[errorCode(error) ?? '']?.() ?? m.error_settings_save_failed();
+		}
+	}
+
+	function savePath(event: SubmitEvent) {
+		event.preventDefault();
+		const path = draftPath.trim();
+		return save({ claudePath: path === '' ? null : path });
+	}
+
+	const switches = [
+		{
+			key: 'launchAtBoot',
+			title: () => m.settings_launch_at_boot(),
+			hint: () => m.settings_launch_at_boot_hint()
+		},
+		{
+			key: 'startHidden',
+			title: () => m.settings_start_hidden(),
+			hint: () => m.settings_start_hidden_hint()
+		},
+		{
+			key: 'closeToTray',
+			title: () => m.settings_close_to_tray(),
+			hint: () => m.settings_close_to_tray_hint()
+		}
+	] as const;
+</script>
+
+<section class="flex flex-col gap-3 p-4">
+	{#if failure}
+		<Alert.Root variant="destructive">
+			<Alert.Title>{failure}</Alert.Title>
+		</Alert.Root>
+	{/if}
+
+	{#if settings}
+		{#each switches as row (row.key)}
+			<Item.Root variant="outline">
+				<Item.Content>
+					<Item.Title><Label for="setting-{row.key}">{row.title()}</Label></Item.Title>
+					<Item.Description>{row.hint()}</Item.Description>
+				</Item.Content>
+				<Item.Actions>
+					<Switch
+						id="setting-{row.key}"
+						bind:checked={() => settings![row.key], (checked) => void save({ [row.key]: checked })}
+					/>
+				</Item.Actions>
+			</Item.Root>
+		{/each}
+
+		<form class="flex flex-col gap-2" onsubmit={savePath}>
+			<Label for="setting-claude-path">{m.settings_claude_path()}</Label>
+			<div class="flex gap-2">
+				<Input
+					id="setting-claude-path"
+					bind:value={draftPath}
+					placeholder={m.settings_claude_path_placeholder()}
+					spellcheck={false}
+					autocomplete="off"
+					dir="ltr"
+				/>
+				<Button type="submit" variant="secondary">{m.settings_claude_path_save()}</Button>
+			</div>
+			<p class="text-xs text-muted-foreground">{m.settings_claude_path_hint()}</p>
+		</form>
+	{/if}
+</section>

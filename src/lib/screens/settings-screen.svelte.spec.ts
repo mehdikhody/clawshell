@@ -1,0 +1,120 @@
+import { page } from 'vitest/browser';
+import { afterEach, describe, expect, it } from 'vitest';
+import { render } from 'vitest-browser-svelte';
+import '../../routes/layout.css';
+import { mockTauri, type IpcHandlers } from '$lib/test/tauri-ipc';
+import type { Settings } from '$lib/settings';
+
+import SettingsScreen from './settings-screen.svelte';
+
+let restore: () => void;
+afterEach(() => restore?.());
+
+const defaults: Settings = {
+	launchAtBoot: false,
+	startHidden: false,
+	closeToTray: true,
+	claudePath: null
+};
+
+function mount(stored: Settings = defaults, overrides: IpcHandlers = {}) {
+	const tauri = mockTauri({
+		get_settings: () => stored,
+		update_settings: (args) => (args as { settings: Settings }).settings,
+		...overrides
+	});
+	restore = tauri.restore;
+	render(SettingsScreen);
+	return tauri;
+}
+
+const updates = (calls: { cmd: string; args: unknown }[]) =>
+	calls
+		.filter((c) => c.cmd === 'update_settings')
+		.map((c) => (c.args as { settings: Settings }).settings);
+
+describe('SettingsScreen', () => {
+	it('shows each switch in the state the core saved', async () => {
+		mount({ ...defaults, launchAtBoot: true, startHidden: true, closeToTray: false });
+
+		await expect.element(page.getByRole('switch', { name: 'Launch at boot' })).toBeChecked();
+		await expect.element(page.getByRole('switch', { name: 'Start hidden' })).toBeChecked();
+		await expect.element(page.getByRole('switch', { name: 'Close to tray' })).not.toBeChecked();
+	});
+
+	it('saves the whole settings when a switch is flipped', async () => {
+		const tauri = mount();
+
+		await page.getByRole('switch', { name: 'Launch at boot' }).click();
+
+		await expect.element(page.getByRole('switch', { name: 'Launch at boot' })).toBeChecked();
+		expect(updates(tauri.calls)).toEqual([{ ...defaults, launchAtBoot: true }]);
+
+		await page.getByRole('switch', { name: 'Close to tray' }).click();
+		expect(updates(tauri.calls).at(-1)).toEqual({
+			...defaults,
+			launchAtBoot: true,
+			closeToTray: false
+		});
+	});
+
+	it('puts a switch back and says so when the core refuses the change', async () => {
+		mount(defaults, {
+			update_settings: () => {
+				throw { code: 'autostart-failed', message: 'registry is locked' };
+			}
+		});
+
+		await page.getByRole('switch', { name: 'Launch at boot' }).click();
+
+		await expect.element(page.getByRole('switch', { name: 'Launch at boot' })).not.toBeChecked();
+		await expect.element(page.getByRole('alert')).toHaveTextContent(/starts with Windows/i);
+	});
+
+	it('shows the saved Claude.exe path', async () => {
+		mount({ ...defaults, claudePath: 'C:\Apps\Claude.exe' });
+
+		await expect
+			.element(page.getByRole('textbox', { name: 'Claude.exe path' }))
+			.toHaveValue('C:\Apps\Claude.exe');
+	});
+
+	it('saves a typed Claude.exe path', async () => {
+		const tauri = mount();
+
+		await page.getByRole('textbox', { name: 'Claude.exe path' }).fill('D:\Claude\Claude.exe');
+		await page.getByRole('button', { name: 'Save path' }).click();
+
+		expect(updates(tauri.calls)).toEqual([{ ...defaults, claudePath: 'D:\Claude\Claude.exe' }]);
+	});
+
+	it('rejects an invalid path with a clear message and keeps the old one', async () => {
+		const tauri = mount(
+			{ ...defaults, claudePath: 'C:\Apps\Claude.exe' },
+			{
+				update_settings: () => {
+					throw { code: 'claude-path-not-claude', message: 'That file is not Claude.exe' };
+				}
+			}
+		);
+
+		const field = page.getByRole('textbox', { name: 'Claude.exe path' });
+		await field.fill('C:\Windows\notepad.exe');
+		await page.getByRole('button', { name: 'Save path' }).click();
+
+		await expect.element(page.getByRole('alert')).toHaveTextContent(/isn't Claude\.exe/i);
+		expect(updates(tauri.calls)).toHaveLength(1);
+		// The next switch change still carries the path the core has saved.
+		await page.getByRole('switch', { name: 'Close to tray' }).click();
+		expect(updates(tauri.calls).at(-1)?.claudePath).toBe('C:\Apps\Claude.exe');
+	});
+
+	it('clears the override when the field is emptied and saved', async () => {
+		const tauri = mount({ ...defaults, claudePath: 'C:\Apps\Claude.exe' });
+
+		await page.getByRole('textbox', { name: 'Claude.exe path' }).fill('');
+		await page.getByRole('button', { name: 'Save path' }).click();
+
+		expect(updates(tauri.calls)).toEqual([{ ...defaults, claudePath: null }]);
+	});
+});
