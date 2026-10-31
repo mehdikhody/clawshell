@@ -43,6 +43,33 @@ describe('cellsFor', () => {
 		const cells = cellsFor([day('2026-06-14'), day('2026-06-20')]);
 		expect(cells.at(-1)?.date).toBe('2026-06-20');
 	});
+
+	it('starts the week on Saturday, padding the first week before a Sunday', () => {
+		// 2026-06-13 is a Saturday, 2026-06-14 a Sunday, 2026-06-16 a Tuesday.
+		const cells = cellsFor([day('2026-06-14'), day('2026-06-15'), day('2026-06-16')], 6);
+		expect(cells.map((c) => c?.date ?? null)).toEqual([
+			null,
+			'2026-06-14',
+			'2026-06-15',
+			'2026-06-16',
+			null,
+			null,
+			null
+		]);
+	});
+
+	it('starts on Saturday with no lead slot when the first day is a Saturday', () => {
+		const cells = cellsFor([day('2026-06-13'), day('2026-06-14'), day('2026-06-15')], 6);
+		expect(cells.map((c) => c?.date ?? null)).toEqual([
+			'2026-06-13',
+			'2026-06-14',
+			'2026-06-15',
+			null,
+			null,
+			null,
+			null
+		]);
+	});
 });
 
 describe('parseDay', () => {
@@ -57,7 +84,8 @@ describe('formatDay', () => {
 		expect(formatDay('2026-06-15', 'en-US')).toBe('Jun 15');
 	});
 
-	it('writes a Gregorian date in Persian digits', () => {
-		expect(formatDay('2026-06-15', intlLocale('fa'))).toBe('۱۵ ژوئن');
+	it('writes a Jalali date in Persian digits', () => {
+		// 15 June 2026 is 25 Khordad 1405.
+		expect(formatDay('2026-06-15', intlLocale('fa'))).toBe('۲۵ خرداد');
 	});
 });

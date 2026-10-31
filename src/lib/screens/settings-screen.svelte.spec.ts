@@ -184,6 +184,17 @@ describe('SettingsScreen', () => {
 		await expect.element(field).toHaveAttribute('dir', 'ltr');
 	});
 
+	it('shows the thresholds in Persian digits, with the slider running right-to-left', async () => {
+		switchLocale('fa');
+		mount({ ...defaults, language: 'fa', warningThreshold: 80, limitThreshold: 100 });
+
+		await expect.element(page.getByText('۸۰٪', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('۱۰۰٪', { exact: true })).toBeVisible();
+		const thumb = (await page.getByRole('slider').first().element()) as HTMLElement;
+		expect(thumb.style.left).toBe('');
+		expect(parseFloat(thumb.style.right)).toBeGreaterThan(70);
+	});
+
 	it('shows each notification switch in the state the core saved', async () => {
 		mount({ ...defaults, notifyWarning: false, notifyReset: false });
 

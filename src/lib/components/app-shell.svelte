@@ -11,6 +11,8 @@
 	import SettingsScreen from '$lib/screens/settings-screen.svelte';
 	import UsageScreen from '$lib/screens/usage-screen.svelte';
 	import { getSettings } from '$lib/settings';
+	import { onAddAccountRequested } from '$lib/accounts';
+	import { addRequest } from '$lib/add-account-request.svelte';
 	import { startAutoRefresh } from '$lib/auto-refresh.svelte';
 	import RoutingOffer from './routing-offer.svelte';
 	import TopBar from './top-bar.svelte';
@@ -28,6 +30,15 @@
 			.filter((el): el is HTMLElement => el !== null)
 			.map(scrollFade);
 		return () => cleanups.forEach((cleanup) => cleanup());
+	});
+
+	onMount(() => {
+		// The tray's Add account opens the dialog on the Accounts tab.
+		const unlisten = onAddAccountRequested(() => {
+			tab = 'accounts';
+			addRequest.pending = true;
+		});
+		return () => void unlisten.then((stop) => stop()).catch(() => {});
 	});
 
 	onMount(async () => {

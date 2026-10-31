@@ -5,6 +5,7 @@ import { emit } from '@tauri-apps/api/event';
 import '../../routes/layout.css';
 import { mockTauri, type IpcHandlers } from '$lib/test/tauri-ipc';
 import { emptyPooled, type AccountList } from '$lib/accounts';
+import { addRequest } from '$lib/add-account-request.svelte';
 
 import { switchLocale } from '$lib/locale-state.svelte';
 import AccountsScreen from './accounts-screen.svelte';
@@ -43,6 +44,7 @@ const threeAccounts: AccountList = {
 function mount(overrides: IpcHandlers = {}, list: AccountList = threeAccounts) {
 	const tauri = mockTauri({
 		list_accounts: () => list,
+		new_account_defaults: () => ({ label: 'Account 5', colour: BLUE }),
 		account_icon: (args) => {
 			const { badge, colour } = args as { badge: string; colour: string };
 			return `data:test,${badge}${colour}`;
@@ -209,7 +211,7 @@ describe('AccountsScreen', () => {
 		]);
 	});
 
-	it('adds an account and shows it in the list', async () => {
+	it('opens the Add dialog with the default name and colour, then creates the account', async () => {
 		let added = false;
 		const tauri = mount({
 			add_account: () => {
@@ -226,9 +228,89 @@ describe('AccountsScreen', () => {
 		await expect.element(page.getByRole('listitem').nth(2)).toBeVisible();
 
 		await page.getByRole('button', { name: 'Add account' }).click();
+		await expect.element(page.getByRole('dialog', { name: 'Add account' })).toBeVisible();
+		await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Account 5');
+		await page.getByRole('button', { name: 'Create' }).click();
 
-		expect(tauri.calls.filter((c) => c.cmd === 'add_account')).toHaveLength(1);
+		expect(tauri.calls.filter((c) => c.cmd === 'add_account')).toEqual([
+			{ cmd: 'add_account', args: { label: 'Account 5', colour: BLUE } }
+		]);
 		await expect.element(page.getByRole('listitem').nth(3)).toHaveTextContent('Account 5');
+		await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+	});
+
+	it('creates the account under the name typed and the colour picked', async () => {
+		const tauri = mount();
+		await expect.element(page.getByRole('listitem').nth(2)).toBeVisible();
+
+		await page.getByRole('button', { name: 'Add account' }).click();
+		await page.getByRole('textbox', { name: 'Name' }).fill('Work');
+		await page.getByRole('button', { name: '#16a34a' }).click();
+		await page.getByRole('button', { name: 'Create' }).click();
+
+		expect(tauri.calls.filter((c) => c.cmd === 'add_account')).toEqual([
+			{ cmd: 'add_account', args: { label: 'Work', colour: '#16a34a' } }
+		]);
+	});
+
+	it('previews the badge letter and colour as the name and colour change', async () => {
+		mount();
+		await expect.element(page.getByRole('listitem').nth(2)).toBeVisible();
+
+		await page.getByRole('button', { name: 'Add account' }).click();
+		const dialog = page.getByRole('dialog', { name: 'Add account' });
+		await page.getByRole('textbox', { name: 'Name' }).fill('home');
+		await page.getByRole('button', { name: '#dc2626' }).click();
+
+		await expect
+			.poll(() =>
+				dialog.element().querySelector('[data-slot="account-badge"]')?.getAttribute('src')
+			)
+			.toBe('data:test,H#dc2626');
+	});
+
+	it('cannot create an account with a blank name', async () => {
+		const tauri = mount();
+		await expect.element(page.getByRole('listitem').nth(2)).toBeVisible();
+
+		await page.getByRole('button', { name: 'Add account' }).click();
+		await page.getByRole('textbox', { name: 'Name' }).fill('   ');
+
+		await expect.element(page.getByRole('button', { name: 'Create' })).toBeDisabled();
+		expect(tauri.calls.some((c) => c.cmd === 'add_account')).toBe(false);
+	});
+
+	it('creates the account when Enter is pressed in the name', async () => {
+		const tauri = mount();
+		await expect.element(page.getByRole('listitem').nth(2)).toBeVisible();
+
+		await page.getByRole('button', { name: 'Add account' }).click();
+		await page.getByRole('textbox', { name: 'Name' }).fill('Home');
+		await userEvent.keyboard('{Enter}');
+
+		expect(tauri.calls.filter((c) => c.cmd === 'add_account')).toEqual([
+			{ cmd: 'add_account', args: { label: 'Home', colour: BLUE } }
+		]);
+	});
+
+	it('cancelling the Add dialog creates nothing', async () => {
+		const tauri = mount();
+		await expect.element(page.getByRole('listitem').nth(2)).toBeVisible();
+
+		await page.getByRole('button', { name: 'Add account' }).click();
+		await page.getByRole('textbox', { name: 'Name' }).fill('Other');
+		await page.getByRole('button', { name: 'Cancel' }).click();
+
+		expect(tauri.calls.some((c) => c.cmd === 'add_account')).toBe(false);
+		await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+	});
+
+	it('opens the Add dialog when the tray asks for a new account', async () => {
+		addRequest.pending = true;
+		mount();
+
+		await expect.element(page.getByRole('dialog', { name: 'Add account' })).toBeVisible();
+		expect(addRequest.pending).toBe(false);
 	});
 
 	it('explains that Claude cannot be found and blocks Add', async () => {
@@ -251,6 +333,7 @@ describe('AccountsScreen', () => {
 		await expect.element(page.getByRole('listitem').nth(0)).toBeVisible();
 
 		await page.getByRole('button', { name: 'Add account' }).click();
+		await page.getByRole('button', { name: 'Create' }).click();
 
 		await expect.element(page.getByRole('alert')).toHaveTextContent('Claude Desktop not found');
 	});
@@ -734,7 +817,7 @@ describe('AccountsScreen in Persian', () => {
 		await expect.element(row).toHaveTextContent('آماده');
 		await expect.element(row).toHaveTextContent('۴۲٪');
 		await expect.element(row).toHaveTextContent('۱۷٪');
-		await expect.element(row).toHaveTextContent('۱ ژانویه، ۱۵:۰۰');
+		await expect.element(row).toHaveTextContent('۱۲ دی، ۱۵:۰۰');
 		await expect.element(row).toHaveTextContent('۵ دقیقه پیش');
 		expect(row.element().textContent).not.toMatch(/[0-9]/);
 	});
@@ -750,5 +833,18 @@ describe('AccountsScreen in Persian', () => {
 		expect(name.element().getBoundingClientRect().left).toBeGreaterThan(
 			badge.element().getBoundingClientRect().left
 		);
+	});
+
+	it('lays the account menu out right to left, with item icons on the right', async () => {
+		switchLocale('fa');
+		mount({}, withUsage);
+
+		await page.getByText('Work', { exact: true }).click({ button: 'right' });
+
+		const menu = page.getByRole('menu').element();
+		expect(getComputedStyle(menu).direction).toBe('rtl');
+		const item = page.getByRole('menuitem').nth(0).element() as HTMLElement;
+		const icon = item.querySelector('svg')!.getBoundingClientRect();
+		expect(icon.left).toBeGreaterThan(item.getBoundingClientRect().left + item.offsetWidth / 2);
 	});
 });

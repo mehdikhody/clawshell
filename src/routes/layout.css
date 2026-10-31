@@ -24,6 +24,7 @@
 	--accent: oklch(0.7 0.135 40);
 	--accent-foreground: oklch(0.165 0.004 60);
 	--destructive: oklch(0.68 0.19 25);
+	--usage-warning: oklch(0.67 0.18 33);
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
 	--ring: oklch(0.7 0.135 40);
@@ -63,6 +64,7 @@
 	--color-input: var(--input);
 	--color-border: var(--border);
 	--color-destructive: var(--destructive);
+	--color-usage-warning: var(--usage-warning);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-accent: var(--accent);
 	--color-muted-foreground: var(--muted-foreground);
@@ -104,6 +106,12 @@
 	:root:lang(fa) {
 		font-family: 'Vazirmatn Variable', sans-serif;
 	}
+}
+
+/* The drop line of the account list's drag and drop, in the app's accent rather than the library's blue. */
+:root .drop-before::before,
+:root .drop-after::after {
+	background-color: var(--primary);
 }
 
 /* Flips chevrons in right-to-left layouts. */

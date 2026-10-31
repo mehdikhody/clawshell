@@ -8,12 +8,15 @@ export const isLocale = (value: unknown): value is Locale =>
 
 export const directionOf = (locale: Locale): 'ltr' | 'rtl' => (locale === 'fa' ? 'rtl' : 'ltr');
 
+/** The day a week starts on, counted as `Date.getDay` counts: Saturday (6) in Persian, Sunday (0) otherwise. */
+export const weekStartOf = (locale: Locale): number => (locale === 'fa' ? 6 : 0);
+
 /**
- * The tag to hand to `Intl`. Persian keeps Gregorian dates, because the spec asks
- * only for Persian digits, and names the digits so no engine default can change them.
+ * The tag to hand to `Intl`. Persian uses the Jalali (Persian) calendar and Persian
+ * digits; the digits and calendar are named so no engine default can change them.
  */
 export const intlLocale = (locale: Locale): string =>
-	locale === 'fa' ? 'fa-u-ca-gregory-nu-arabext' : 'en';
+	locale === 'fa' ? 'fa-u-ca-persian-nu-arabext' : 'en';
 
 /** A whole number with grouping, in the digits of the locale. */
 export const formatInteger = (value: number, intl: string): string =>

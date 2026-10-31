@@ -1,7 +1,7 @@
 mod support;
 
 use clawshell_lib::core::{Language, Settings, SettingsError};
-use support::Harness;
+use support::{Harness, add_default};
 
 const ID: &str = "3f2b8c1e-5a4d-4e7b-9c10-2d6f8a9b0c11";
 
@@ -273,13 +273,14 @@ fn a_detected_install_is_used_before_the_override() {
 }
 
 #[test]
-fn adding_an_account_uses_the_override_too() {
+fn launching_an_account_uses_the_override_too() {
     let h = Harness::new();
     *h.os.install.lock().unwrap() = None;
     let exe = fake_claude(&h.fixture.local_app_data(), "Claude.exe");
     with_path(&h, &exe).unwrap();
 
-    h.core().add_account().unwrap();
+    let added = add_default(&h.core());
+    h.core().launch_account(&added.id).unwrap();
 
     assert_eq!(h.os.launched.lock().unwrap()[0].0, exe);
 }

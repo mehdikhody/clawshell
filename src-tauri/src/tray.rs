@@ -1,13 +1,14 @@
 //! The tray icon and its menu. What the menu offers is decided by the core
 //! (`Core::tray_entries`); this only draws it and routes clicks back.
 
+use crate::commands::ADD_ACCOUNT_REQUESTED;
 use crate::core::link::link_argument;
 use crate::core::shortcuts::account_to_open;
 use crate::core::{Core, TrayEntry};
 use std::sync::Arc;
 use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 const TRAY_ID: &str = "main";
 const OPEN: &str = "open";
@@ -151,18 +152,9 @@ fn on_menu_click(app: &AppHandle, id: &str) {
         OPEN => show_main_window(app),
         QUIT => app.exit(0),
         ADD => {
-            let app = app.clone();
-            std::thread::spawn(move || {
-                let core = app.state::<Arc<Core>>().inner().clone();
-                // The window explains a missing Claude Desktop.
-                // The first Add also asks the window to offer sign-in routing.
-                let added = core.add_account().is_ok();
-                let offered = added && crate::commands::offer_routing_if_due(&app, &core);
-                if !added || offered {
-                    show_main_window(&app);
-                }
-                refresh(&app, &core);
-            });
+            // The window holds the Add dialog, which creates the account.
+            show_main_window(app);
+            let _ = app.emit(ADD_ACCOUNT_REQUESTED, ());
         }
         _ => {
             let Some(account) = id.strip_prefix(ACCOUNT_PREFIX) else {

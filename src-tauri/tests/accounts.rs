@@ -2,7 +2,7 @@ mod support;
 
 use clawshell_lib::core::AccountError;
 use clawshell_lib::core::Status;
-use support::Harness;
+use support::{Harness, add_default};
 
 const ID_A: &str = "3f2b8c1e-5a4d-4e7b-9c10-2d6f8a9b0c11";
 const ID_B: &str = "a0b1c2d3-e4f5-4a6b-8c7d-9e0f1a2b3c4d";
@@ -170,10 +170,10 @@ fn folder_names(h: &Harness) -> Vec<String> {
 }
 
 #[test]
-fn add_creates_a_clawshell_uuid_folder_and_launches_claude_on_it() {
+fn add_creates_a_clawshell_uuid_folder_without_starting_claude() {
     let h = Harness::new();
 
-    let account = h.core().add_account().unwrap();
+    let account = add_default(&h.core());
 
     let folder = h
         .fixture
@@ -181,20 +181,74 @@ fn add_creates_a_clawshell_uuid_folder_and_launches_claude_on_it() {
         .join(format!("clawshell-{}", account.id));
     assert!(folder.is_dir());
     assert!(uuid::Uuid::parse_str(&account.id).is_ok());
-    let launched = h.os.launched.lock().unwrap().clone();
-    assert_eq!(
-        launched,
-        vec![(std::path::PathBuf::from("C:/Claude/app/Claude.exe"), folder)]
-    );
+    assert!(h.os.launched.lock().unwrap().is_empty());
 }
 
 #[test]
 fn a_new_account_lands_on_sign_in() {
     let h = Harness::new();
 
-    let account = h.core().add_account().unwrap();
+    let account = add_default(&h.core());
 
     assert_eq!(account.status, Status::SignedOut);
+}
+
+#[test]
+fn add_uses_the_name_and_colour_it_is_given() {
+    let h = Harness::new();
+
+    let account = h.core().add_account("  Work  ", "#DC2626").unwrap();
+
+    assert_eq!(account.label, "Work");
+    assert_eq!(account.badge, 'W');
+    assert_eq!(account.colour, "#dc2626");
+    let listed = h.core().list_accounts().unwrap().accounts;
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].label, "Work");
+    assert_eq!(listed[0].colour, "#dc2626");
+}
+
+#[test]
+fn the_dialog_starts_from_the_default_name_and_colour() {
+    let h = Harness::new();
+
+    let defaults = h.core().new_account_defaults().unwrap();
+
+    assert_eq!(defaults.label, "Account 2");
+    assert_eq!(defaults.colour, "#2563eb");
+    assert!(h.core().list_accounts().unwrap().accounts.is_empty());
+}
+
+#[test]
+fn add_refuses_a_blank_name_and_creates_nothing() {
+    let h = Harness::new();
+
+    let err = h.core().add_account("   ", "#2563eb").unwrap_err();
+
+    assert!(matches!(err, AddError::EmptyLabel));
+    assert!(folder_names(&h).is_empty());
+}
+
+#[test]
+fn add_refuses_a_colour_that_is_not_hex_and_creates_nothing() {
+    let h = Harness::new();
+
+    let err = h.core().add_account("Work", "blue").unwrap_err();
+
+    assert!(matches!(err, AddError::InvalidColour));
+    assert!(folder_names(&h).is_empty());
+}
+
+#[test]
+fn two_accounts_may_share_a_name() {
+    let h = Harness::new();
+    let core = h.core();
+
+    let a = core.add_account("Work", "#2563eb").unwrap();
+    let b = core.add_account("Work", "#dc2626").unwrap();
+
+    assert_ne!(a.id, b.id);
+    assert_eq!(core.list_accounts().unwrap().accounts.len(), 2);
 }
 
 #[test]
@@ -202,8 +256,8 @@ fn every_added_account_gets_its_own_folder() {
     let h = Harness::new();
     let core = h.core();
 
-    let a = core.add_account().unwrap();
-    let b = core.add_account().unwrap();
+    let a = add_default(&core);
+    let b = add_default(&core);
 
     assert_ne!(a.id, b.id);
     let ids: Vec<_> = core
@@ -221,7 +275,7 @@ fn new_accounts_are_labelled_account_2_then_3_with_no_duplicates() {
     let h = Harness::new();
     let core = h.core();
 
-    let labels: Vec<_> = (0..3).map(|_| core.add_account().unwrap().label).collect();
+    let labels: Vec<_> = (0..3).map(|_| add_default(&core).label).collect();
 
     assert_eq!(labels, vec!["Account 2", "Account 3", "Account 4"]);
 }
@@ -229,7 +283,7 @@ fn new_accounts_are_labelled_account_2_then_3_with_no_duplicates() {
 #[test]
 fn labels_persist_across_restarts_and_keep_numbering_unique() {
     let h = Harness::new();
-    h.core().add_account().unwrap();
+    add_default(&h.core());
 
     // A fresh Core over the same machine, as after an app restart.
     let again = h.core();
@@ -241,7 +295,7 @@ fn labels_persist_across_restarts_and_keep_numbering_unique() {
         .map(|a| a.label)
         .collect();
     assert_eq!(labels, vec!["Account 2"]);
-    assert_eq!(again.add_account().unwrap().label, "Account 3");
+    assert_eq!(add_default(&again).label, "Account 3");
 }
 
 #[test]
@@ -250,7 +304,7 @@ fn an_unrecorded_clawshell_folder_is_adopted_without_clashing_labels() {
     h.fixture.add_profile(ID_A);
     let core = h.core();
 
-    let added = core.add_account().unwrap();
+    let added = add_default(&core);
 
     let labels: Vec<_> = core
         .list_accounts()
@@ -270,7 +324,7 @@ fn add_without_claude_installed_fails_cleanly_and_creates_nothing() {
     let h = Harness::new();
     *h.os.install.lock().unwrap() = None;
 
-    let err = h.core().add_account().unwrap_err();
+    let err = h.core().add_account("Work", "#2563eb").unwrap_err();
 
     assert!(matches!(err, AddError::ClaudeNotFound));
     assert!(folder_names(&h).is_empty());
@@ -283,7 +337,7 @@ fn add_never_touches_other_claude_folders() {
     h.fixture.add_folder("ClaudeProfile-Account 2");
     h.fixture.add_folder("Claude-Data");
 
-    h.core().add_account().unwrap();
+    add_default(&h.core());
 
     let names = folder_names(&h);
     assert!(names.contains(&"ClaudeProfile-Account 2".to_string()));
@@ -494,10 +548,10 @@ fn a_renamed_account_frees_its_default_label_for_the_next_one() {
     // no two accounts end up sharing a default label.
     let h = Harness::new();
     let core = h.core();
-    let first = core.add_account().unwrap();
+    let first = add_default(&core);
     core.rename_account(&first.id, "Work").unwrap();
 
-    let second = core.add_account().unwrap();
+    let second = add_default(&core);
 
     assert_eq!(second.label, "Account 2");
 }
@@ -706,4 +760,102 @@ fn a_tampered_record_with_a_path_like_id_is_never_listed_or_deleted() {
         DeleteError::Account(AccountError::Unknown)
     ));
     assert!(h.fixture.local_app_data().join("Claude-Data").is_dir());
+}
+
+// ---- saved order -------------------------------------------------------------
+
+const ID_C: &str = "c0c0c0c0-0000-4000-8000-000000000003";
+
+fn ids_in_list(h: &Harness) -> Vec<String> {
+    h.core()
+        .list_accounts()
+        .unwrap()
+        .accounts
+        .into_iter()
+        .map(|a| a.id)
+        .collect()
+}
+
+#[test]
+fn accounts_are_listed_in_the_order_they_were_dropped_and_it_survives_a_restart() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.fixture.add_profile(ID_C);
+    assert_eq!(ids_in_list(&h), vec![ID_A, ID_B, ID_C]);
+
+    h.core()
+        .reorder_accounts(&[ID_C.to_string(), ID_A.to_string(), ID_B.to_string()])
+        .unwrap();
+
+    assert_eq!(ids_in_list(&h), vec![ID_C, ID_A, ID_B]);
+}
+
+#[test]
+fn a_reorder_ignores_unknown_ids_and_keeps_unnamed_accounts_last() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.fixture.add_profile(ID_C);
+
+    h.core()
+        .reorder_accounts(&[
+            ID_C.to_string(),
+            "not-an-account".to_string(),
+            ID_A.to_string(),
+        ])
+        .unwrap();
+
+    assert_eq!(ids_in_list(&h), vec![ID_C, ID_A, ID_B]);
+}
+
+#[test]
+fn a_missing_account_keeps_its_saved_place_until_it_is_removed() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.core()
+        .reorder_accounts(&[ID_B.to_string(), ID_A.to_string()])
+        .unwrap();
+    std::fs::remove_dir_all(h.fixture.profile_path(ID_B)).unwrap();
+
+    let accounts = h.core().list_accounts().unwrap().accounts;
+
+    assert_eq!(
+        accounts.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
+        vec![ID_B, ID_A]
+    );
+    assert_eq!(accounts[0].status, Status::Missing);
+}
+
+#[test]
+fn a_new_account_goes_to_the_end_of_the_saved_order() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.core()
+        .reorder_accounts(&[ID_B.to_string(), ID_A.to_string()])
+        .unwrap();
+
+    let added = add_default(&h.core());
+
+    assert_eq!(ids_in_list(&h), vec![ID_B, ID_A, added.id.as_str()]);
+}
+
+#[test]
+fn a_records_file_without_a_saved_order_keeps_the_id_order_it_was_listed_in() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    let dir = h.fixture.local_app_data().join("clawshell");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("accounts.json"),
+        format!(
+            r#"{{"accounts":[{{"id":"{ID_B}","label":"Second"}},{{"id":"{ID_A}","label":"First"}}]}}"#
+        ),
+    )
+    .unwrap();
+
+    assert_eq!(ids_in_list(&h), vec![ID_A, ID_B]);
 }

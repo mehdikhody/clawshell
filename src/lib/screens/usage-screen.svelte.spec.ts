@@ -10,6 +10,7 @@ import { accountCost, monthCost } from '$lib/test/cost';
 import { heatmapOf, values } from '$lib/test/heatmap';
 import { emptyPooled, type AccountList, type PooledRemaining } from '$lib/accounts';
 import { switchLocale } from '$lib/locale-state.svelte';
+import { intlLocale } from '$lib/locale';
 import UsageScreen from './usage-screen.svelte';
 
 let restore: () => void;
@@ -191,7 +192,7 @@ describe('UsageScreen this month', () => {
 		mount(listWith(emptyPooled), { month_cost: () => month });
 
 		await expect.element(page.getByText('$16.50', { exact: true })).toBeVisible();
-		await expect.element(page.getByText('$4.00 est.')).toBeVisible();
+		await expect.element(page.getByText('$4.00', { exact: true })).toBeVisible();
 		await expect.element(page.getByText('Code tab')).toBeVisible();
 		await expect.element(page.getByText('Extra usage')).toBeVisible();
 		await expect.element(page.getByText('$12.50', { exact: true }).first()).toBeVisible();
@@ -314,6 +315,19 @@ describe('UsageScreen heatmap', () => {
 		}
 	});
 
+	it('starts each week on Sunday, with no blank slot before the first day', async () => {
+		withMap();
+		await expect.element(grid()).toBeVisible();
+
+		// The grid's children: seven weekday labels, then the cells. Sunday comes first.
+		const children = [...grid().element().children];
+		const weekday = (day: number) =>
+			new Intl.DateTimeFormat('en', { weekday: 'narrow' }).format(new Date(2024, 0, day));
+		expect(children[0].textContent).toBe(weekday(7));
+		expect(children[6].textContent).toBe(weekday(13));
+		expect(children[7].getAttribute('data-testid')).not.toBe('heatmap-future');
+	});
+
 	it('labels each day with its Code estimate, and has no measure switch', async () => {
 		withMap();
 
@@ -330,7 +344,7 @@ describe('UsageScreen heatmap', () => {
 		const tip = tooltip();
 		await expect.element(tip).toBeVisible();
 		await expect.element(tip).toHaveTextContent('Jun 10');
-		await expect.element(tip).toHaveTextContent('$8.00 est.');
+		await expect.element(tip).toHaveTextContent('$8.00');
 		await expect.element(tip).toHaveTextContent('1.2M tokens');
 		await expect.element(tip).toHaveTextContent(/Work\s*1M · \$6\.00/);
 		await expect.element(tip).toHaveTextContent(/Spare\s*234\.6K · \$2\.00/);
@@ -369,11 +383,11 @@ describe('UsageScreen heatmap', () => {
 			})
 		);
 
-		await expect.element(cell(/Jun 10/)).toHaveAccessibleName(/\$12,345\.00 est\./);
+		await expect.element(cell(/Jun 10/)).toHaveAccessibleName(/\$12,345\.00/);
 		await cell(/Jun 10/).hover();
 
 		const tip = tooltip();
-		await expect.element(tip).toHaveTextContent('$12.3K est.');
+		await expect.element(tip).toHaveTextContent('$12.3K');
 		await expect.element(tip).toHaveTextContent('5B tokens');
 		await expect.element(tip).toHaveTextContent(/Work\s*4\.9B · \$12K/);
 		await expect.element(tip).toHaveTextContent(/Spare\s*100M · \$345\.00/);
@@ -385,7 +399,7 @@ describe('UsageScreen heatmap', () => {
 		await expect.element(cell(/Jun 10/)).toBeVisible();
 		(cell(/Jun 10/).element() as HTMLElement).focus();
 
-		await expect.element(tooltip()).toHaveTextContent('$8.00 est.');
+		await expect.element(tooltip()).toHaveTextContent('$8.00');
 	});
 
 	it('opens the tooltip on a click, for taps', async () => {
@@ -496,6 +510,25 @@ describe('UsageScreen in Persian', () => {
 		const tip = page.getByTestId('heatmap-tooltip');
 		await expect.element(tip).toBeVisible();
 		expect(getComputedStyle(tip.element()).direction).toBe('rtl');
+	});
+
+	it('starts each heatmap week on Saturday, with a blank slot before the first day', async () => {
+		switchLocale('fa');
+		mount(listWith(emptyPooled), {
+			heatmap: () => heatmapOf({ '2026-04-19': { usd: values([['Work', 1]]) } })
+		});
+		const grid = page.getByRole('group', { name: '۹ هفته گذشته' });
+		await expect.element(grid).toBeVisible();
+
+		const children = [...grid.element().children];
+		const saturday = new Intl.DateTimeFormat(intlLocale('fa'), { weekday: 'narrow' }).format(
+			new Date(2024, 0, 6)
+		);
+		expect(children[0].textContent).toBe(saturday);
+		// The first day, 19 April 2026 (۳۰ فروردین), is a Sunday: one row down from Saturday, so
+		// the blank slot comes before it in the first column.
+		expect(children[7].getAttribute('data-testid')).toBe('heatmap-future');
+		expect(children[8].getAttribute('aria-label')).toMatch(/^۳۰ فروردین/);
 	});
 
 	it('fills a bar from the right edge', async () => {

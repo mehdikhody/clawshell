@@ -50,13 +50,16 @@ export function parseDay(date: string): Date {
 }
 
 /**
- * The days laid out in week columns, Sunday on top: future slots (null) fill
- * today's week through Saturday. Fill order is down each column.
+ * The days laid out in week columns, `firstDay` (0 Sunday to 6 Saturday) on top.
+ * Empty slots (null) pad the first week before the first day, and the last week
+ * after the last day, so future days read as blank. Fill order is down each column.
  */
-export function cellsFor(days: HeatmapDay[]): (HeatmapDay | null)[] {
+export function cellsFor(days: HeatmapDay[], firstDay = 0): (HeatmapDay | null)[] {
 	if (days.length === 0) return [];
-	const rest = 6 - parseDay(days[days.length - 1].date).getDay();
-	return [...days, ...Array<null>(rest).fill(null)];
+	const row = (date: string) => (parseDay(date).getDay() - firstDay + 7) % 7;
+	const lead = row(days[0].date);
+	const rest = 6 - row(days[days.length - 1].date);
+	return [...Array<null>(lead).fill(null), ...days, ...Array<null>(rest).fill(null)];
 }
 
 /** A calendar day as a short date, such as "Jun 15". */

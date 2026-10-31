@@ -9,8 +9,8 @@
 	import * as Item from '$lib/components/ui/item';
 	import { Label } from '$lib/components/ui/label';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { isLocale, locales } from '$lib/locale';
-	import { active, switchLocale } from '$lib/locale-state.svelte';
+	import { directionOf, formatPercentValue, isLocale, locales } from '$lib/locale';
+	import { active, formatTag, switchLocale } from '$lib/locale-state.svelte';
 	import { Slider as SliderPrimitive } from 'bits-ui';
 	import { Switch } from '$lib/components/ui/switch';
 	import { m } from '$lib/paraglide/messages.js';
@@ -263,6 +263,7 @@
 							max={100}
 							step={1}
 							aria-label={field.label()}
+							dir={directionOf(active.locale)}
 							value={field.draft()}
 							onValueChange={(value) => field.edit(value)}
 							onValueCommit={(value) => saveThreshold(field.key, value)}
@@ -276,7 +277,9 @@
 								class="block size-4 shrink-0 rounded-full border border-primary bg-background shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden"
 							/>
 						</SliderPrimitive.Root>
-						<span class="w-10 text-end text-sm tabular-nums">{field.draft()}%</span>
+						<span class="w-10 text-end text-sm tabular-nums"
+							>{formatPercentValue(field.draft(), formatTag())}</span
+						>
 					</div>
 				</Item.Content>
 			</Item.Root>

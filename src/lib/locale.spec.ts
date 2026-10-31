@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { directionOf, formatInteger, formatPercentValue, intlLocale, isLocale } from './locale';
+import {
+	directionOf,
+	formatInteger,
+	formatPercentValue,
+	intlLocale,
+	isLocale,
+	weekStartOf
+} from './locale';
 
 describe('isLocale', () => {
 	it('accepts the two supported locales and nothing else', () => {
@@ -20,6 +27,16 @@ describe('directionOf', () => {
 describe('formatInteger', () => {
 	it('keeps Latin digits in English', () => {
 		expect(formatInteger(1234, intlLocale('en'))).toBe('1,234');
+	});
+
+	it('starts the week on Saturday in Persian and on Sunday in English', () => {
+		expect(weekStartOf('fa')).toBe(6);
+		expect(weekStartOf('en')).toBe(0);
+	});
+
+	it('uses the Jalali calendar in Persian', () => {
+		expect(intlLocale('fa')).toContain('-u-ca-persian');
+		expect(intlLocale('en')).not.toContain('-u-ca-');
 	});
 
 	it('uses Persian digits in Persian', () => {

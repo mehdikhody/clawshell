@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { intlLocale } from './locale';
-import { formatUsd } from './cost';
+import { formatCountShort, formatUsd } from './cost';
 
 describe('formatUsd', () => {
 	it('writes dollars with cents', () => {
@@ -10,6 +10,16 @@ describe('formatUsd', () => {
 
 	it('groups thousands', () => {
 		expect(formatUsd(1234.567, 'en-US')).toBe('$1,234.57');
+	});
+});
+
+describe('short counts', () => {
+	it('writes short counts in Latin digits', () => {
+		expect(formatCountShort(24_700_000, 'en')).toBe('24.7M');
+	});
+
+	it('writes short counts in Persian digits', () => {
+		expect(formatCountShort(24_700_000, intlLocale('fa'))).toBe('۲۴٫۷ میلیون');
 	});
 });
 

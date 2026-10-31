@@ -43,7 +43,7 @@ export const formatUsd = (amount: number, locale: string): string =>
 /** Short form from a thousand up, like $10K; smaller amounts keep their cents. */
 export const formatUsdShort = (amount: number, locale: string): string =>
 	amount >= 1000
-		? new Intl.NumberFormat('en', {
+		? new Intl.NumberFormat(locale, {
 				style: 'currency',
 				currency: 'USD',
 				notation: 'compact',
@@ -52,5 +52,5 @@ export const formatUsdShort = (amount: number, locale: string): string =>
 		: formatUsd(amount, locale);
 
 /** Short count from a thousand up, like 7.5B. */
-export const formatCountShort = (count: number): string =>
-	new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(count);
+export const formatCountShort = (count: number, locale: string): string =>
+	new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }).format(count);

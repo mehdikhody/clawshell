@@ -147,13 +147,6 @@ impl Core {
                 row.share = row.total_usd.map(|t| t / total);
             }
         }
-        rows.sort_by(|a, b| {
-            let dollars = |r: &AccountCost| r.total_usd.unwrap_or(r.extra_usd);
-            dollars(b)
-                .total_cmp(&dollars(a))
-                .then_with(|| a.label.cmp(&b.label))
-        });
-
         MonthCost {
             estimate_usd,
             no_estimate,

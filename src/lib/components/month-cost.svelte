@@ -10,6 +10,7 @@
 	let { cost }: { cost: MonthCost } = $props();
 
 	const usd = (amount: number) => formatUsdShort(amount, formatTag());
+	const count = (tokens: number) => formatCountShort(tokens, formatTag());
 
 	/** An account's dollars; none when it has no estimate and no extra usage either. */
 	const dollarsOf = (a: AccountCost) => a.totalUsd ?? (a.extraUsd > 0 ? a.extraUsd : null);
@@ -39,7 +40,7 @@
 			</div>
 			<div class="flex justify-between">
 				<dt>{m.cost_tokens()}</dt>
-				<dd class="tabular-nums">{formatCountShort(cost.tokens)}</dd>
+				<dd class="tabular-nums">{count(cost.tokens)}</dd>
 			</div>
 		</dl>
 
@@ -69,7 +70,7 @@
 									<span class="truncate font-medium">{account.label}</span>
 								</span>
 								<span class="tabular-nums">
-									<span class="text-muted-foreground">{formatCountShort(account.tokens)} · </span>
+									<span class="text-muted-foreground">{count(account.tokens)} · </span>
 									{dollars === null ? '—' : usd(dollars)}
 									{#if account.share !== null}
 										<span class="text-muted-foreground"
