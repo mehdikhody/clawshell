@@ -5,7 +5,7 @@
 <h1 align="center">clawshell</h1>
 
 <p align="center">
-  Run several Claude Desktop accounts side by side on Windows, and see how much of each one's limits you have left.
+  Run several Claude Desktop accounts side by side on Windows, and see how much of each one's limits you have used.
 </p>
 
 <p align="center">
@@ -21,7 +21,10 @@
 
 ---
 
-clawshell is a small tray app for people with more than one Claude subscription. Each account runs in its own Claude Desktop window at the same time, so you never sign out to switch. A compact dashboard shows each account's remaining 5-hour and weekly capacity and what your Code-tab sessions cost.
+clawshell is a small tray app for people with more than one Claude subscription. Each account runs in its own Claude Desktop window at the same time, so you never sign out to switch. A compact dashboard shows how much of each account's 5-hour and weekly limits you have used, and what your Code-tab sessions cost.
+
+> [!TIP]
+> **New in this release:** automatic updates, drag-and-drop account order, a reset alert for every window, a 9-week heatmap with a per-account breakdown, and a warning when Windows sends sign-in links to another app. See [What's new](docs/updates/v0.2.0.md).
 
 > [!IMPORTANT]
 > clawshell is an unofficial project and is not affiliated with Anthropic. See the [disclaimer](#disclaimer) before you use it.
@@ -32,6 +35,7 @@ clawshell is a small tray app for people with more than one Claude subscription.
 - [Screenshots](#screenshots)
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Updating](#updating)
 - [Usage](#usage)
 - [How it works](#how-it-works)
 - [Privacy](#privacy)
@@ -44,21 +48,35 @@ clawshell is a small tray app for people with more than one Claude subscription.
 ## Features
 
 - **Concurrent accounts.** Every account gets an isolated Claude Desktop profile, so several can be open and signed in at once.
-- **Limit tracking.** See the 5-hour and weekly usage of every account, how many accounts can still work, and when the next one resets.
+- **Limit tracking.** See how much of each account's 5-hour and weekly limits is used, how many accounts can still work, and when the next one resets.
 - **Cost overview.** A monthly dollar total per account, combining real extra-usage spend with an estimate for Code-tab sessions priced from token counts.
-- **60-day heatmap.** Daily cost or daily load at a glance.
-- **Limit notifications.** Alerts when an account crosses thresholds you choose.
+- **9-week heatmap.** Daily cost at a glance. Hover a day to see its dollars and tokens, split by account.
+- **Limit and reset notifications.** Alerts when an account crosses thresholds you choose, and whenever a 5-hour or weekly window resets.
+- **Your order.** Drag accounts to reorder them. The order carries over to the tray menu, the cost card and the heatmap.
+- **Automatic updates.** clawshell checks GitHub releases, shows what's new, and installs the update in place.
 - **Windows integration.** Tray icon, a separate taskbar button per account with a coloured badge, desktop shortcuts, and launch at boot.
-- **Sign-in routing.** Browser sign-ins return to the account that started them.
+- **Sign-in routing.** Browser sign-ins return to the account that started them, with a warning if Windows sends them elsewhere.
 - **Per-account configuration.** Names, badge colours, environment variables and launch flags.
-- **English and Persian.** Full right-to-left layout for Persian.
+- **English and Persian.** Full right-to-left layout for Persian, tooltips and menus included.
 
 ## Screenshots
 
-|                                                                          Usage                                                                          |                                                                 Accounts                                                                  |                                                               Settings                                                               |
-| :-----------------------------------------------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------------------------: |
-| <img src="docs/screenshots/usage.png" alt="Usage tab with a 60-day cost heatmap, pooled 5-hour and weekly capacity, and the monthly total" width="260"> | <img src="docs/screenshots/accounts.png" alt="Accounts tab listing each account with its status and 5-hour and weekly usage" width="260"> | <img src="docs/screenshots/settings.png" alt="Settings tab with launch, tray, sign-in routing and notification options" width="260"> |
-|                                                     Monthly cost, pooled capacity and daily history                                                     |                                                     Every account's status and limits                                                     |                                                  Startup, tray, routing and alerts                                                   |
+|                                                                        Usage                                                                         |                                                                 Accounts                                                                  |                                                        Settings                                                        |
+| :--------------------------------------------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------: |
+| <img src="docs/screenshots/usage.png" alt="Usage tab with a 9-week cost heatmap, pooled 5-hour and weekly usage, and the monthly total" width="260"> | <img src="docs/screenshots/accounts.png" alt="Accounts tab listing each account with its status and 5-hour and weekly usage" width="260"> | <img src="docs/screenshots/settings.png" alt="Settings tab with launch, tray and sign-in routing options" width="260"> |
+|                                                     Daily history, pooled usage and monthly cost                                                     |                                                     Every account's status and limits                                                     |                                           Startup, tray and sign-in routing                                            |
+
+### New in this release
+
+|                                                                  Update dialog                                                                   |                                                                    Heatmap breakdown                                                                    |                                                                   Reset alerts                                                                   |
+| :----------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------------------------------------: |
+| <img src="docs/screenshots/update.png" alt="Update dialog showing the new version, its release notes, and Update and Later buttons" width="260"> | <img src="docs/screenshots/heatmap-tooltip.png" alt="Heatmap tooltip with a day's dollars and tokens, split by account with badge colours" width="260"> | <img src="docs/screenshots/notifications.png" alt="Notification settings with warning, limit and reset alerts and their thresholds" width="260"> |
+|                                                       Release notes, one click to install                                                        |                                                         A day's dollars and tokens per account                                                          |                                                         Warning, limit and reset alerts                                                          |
+
+|                                                                            Sign-in warning                                                                            |                                                   Persian                                                   |
+| :-------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------: |
+| <img src="docs/screenshots/sign-in-warning.png" alt="Settings warning that Windows sends sign-in links to another app, with an Open Default Apps button" width="260"> | <img src="docs/screenshots/persian.png" alt="Usage tab in Persian with a right-to-left layout" width="260"> |
+|                                                            Tells you when Windows sends sign-ins elsewhere                                                            |                                          Right-to-left throughout                                           |
 
 <sub>Screenshots use sample data.</sub>
 
@@ -76,35 +94,51 @@ clawshell is a small tray app for people with more than one Claude subscription.
 2. Run it and follow the prompts.
 3. Start clawshell. It finds `Claude.exe` automatically. If detection fails, set the path under **Settings**.
 
+## Updating
+
+clawshell checks the latest GitHub release when it starts and every 6 hours after that. When a newer version exists, an **Update available** badge appears next to the title. Click it to read the release notes, then choose **Update** to download and install it. clawshell restarts on the new version when the install finishes. If the download fails, your current version keeps running and the dialog offers **Retry**.
+
+Only stable releases are offered. Every update is signed, and clawshell refuses one whose signature doesn't match.
+
+> [!NOTE]
+> v0.1.0 shipped without the updater. If you're on v0.1.0, install the latest release by hand once. From then on, clawshell updates itself.
+
 ## Usage
 
 The window is phone-sized (400×780) with three tabs along the bottom. clawshell lives in the system tray.
 
 ### Usage tab
 
-Shows this month's dollar total across all accounts, split per account. Two bars show the average 5-hour and weekly capacity left across your signed-in accounts, how many accounts can still work, and when the next one resets. A heatmap of the last 60 days shows daily cost or daily load.
+- **Last 9 weeks.** A heatmap of daily cost, nine full weeks from Sunday (Saturday in Persian). Days still to come this week are drawn as faint slots, and dashed cells mean no data. Hover or tap a day to see its dollars and tokens, then each account's share with its badge colour.
+- **5-hour and weekly.** The average share of each limit used across your signed-in accounts, how many accounts can still work, and when the next one resets. The bars change colour at your warning and limit thresholds.
+- **This month.** The dollar total across all accounts, split into Code-tab estimate and extra usage, with token counts and each account's share.
 
 ### Accounts tab
 
-Lists each account with its name, email, 5-hour and weekly usage, and one of four statuses: **Running**, **Idle**, **Signed out** or **Limited**.
+Lists each account with its badge, name, email, 5-hour and weekly usage, and one of four statuses: **Running**, **Idle**, **Signed out** or **Limited**.
 
-| Action               | How                                                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Open an account      | Double-click it. If its window is already open, clawshell brings it forward.                                  |
-| Add an account       | Click **Add**. clawshell creates a profile and opens Claude at the sign-in screen.                            |
-| Configure an account | Rename it, change its badge colour, set environment variables and launch flags, or create a desktop shortcut. |
-| Remove an account    | Delete it from the account's menu.                                                                            |
+| Action               | How                                                                                                                          |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Open an account      | Double-click it. If its window is already open, clawshell brings it forward.                                                 |
+| Add an account       | Click **Add account**, or choose **Add account** from the tray menu. clawshell creates a profile and opens Claude's sign-in. |
+| Reorder accounts     | Drag a row up or down. The tray menu, cost card and heatmap follow the same order.                                           |
+| Configure an account | Right-click it to rename it, change its badge colour, set launch options, add shortcuts or open its folder.                  |
+| Remove an account    | Right-click it and choose **Delete**.                                                                                        |
 
 ### Settings tab
 
-| Setting         | Description                                                  |
-| --------------- | ------------------------------------------------------------ |
-| Launch at boot  | Start with Windows, either shown or hidden in the tray.      |
-| Close to tray   | Keep running in the tray when the window is closed.          |
-| Language        | English or Persian (right-to-left).                          |
-| Sign-in routing | Send browser sign-ins back to the account that started them. |
-| Notifications   | Alert when an account reaches the usage thresholds you set.  |
-| Claude path     | A manual path to `Claude.exe` if automatic detection fails.  |
+| Setting                  | Description                                                                                   |
+| ------------------------ | --------------------------------------------------------------------------------------------- |
+| Launch at boot           | Start clawshell when Windows starts.                                                          |
+| Start hidden             | When Windows starts it, stay in the tray instead of showing the window.                       |
+| Close to tray            | Keep running in the tray when the window is closed. Off, it quits.                            |
+| Sign-in routing          | Send browser sign-ins back to the account that started them.                                  |
+| Warning and limit alerts | Notify when an account reaches the warning or limit threshold you set.                        |
+| Reset alert              | Notify whenever an account's 5-hour or weekly window resets, whether or not it hit the limit. |
+| Language                 | English or Persian (right-to-left). Also changes the tray menu.                               |
+| Claude.exe path          | A manual path to `Claude.exe` if automatic detection fails.                                   |
+
+If sign-in routing is on but Windows sends `claude://` links to another app, which happens with the Microsoft Store build of Claude, Settings shows a warning with an **Open Default Apps** button. Set the `claude` link type to clawshell there and the warning clears by itself.
 
 ## How it works
 
@@ -120,11 +154,15 @@ Usage numbers come from two undocumented Anthropic OAuth endpoints, one for the 
 
 Cost comes from the transcripts Claude Code writes for Code-tab sessions. clawshell matches them to accounts by session id and prices the tokens with [LiteLLM's public price list](https://github.com/BerriAI/litellm). Regular claude.ai chats leave no token data on disk, so they aren't counted. clawshell keeps no history of its own, and Claude Code deletes transcripts after about 30 days by default, so older days in the heatmap may show no data.
 
+### Updates
+
+clawshell uses the [Tauri updater](https://v2.tauri.app/plugin/updater/). It reads `latest.json` from the latest GitHub release, verifies the installer against the public key built into the app, and runs it in passive mode.
+
 ## Privacy
 
 - Tokens are read from local Claude Desktop profiles, held in memory, and never written elsewhere.
 - Tokens are sent only to Anthropic's own endpoints.
-- clawshell has no telemetry and no server of its own. The only other network request fetches LiteLLM's public price list.
+- clawshell has no telemetry and no server of its own. Besides Anthropic, it makes two kinds of request: one fetches LiteLLM's public price list, and the update check reads the latest release from GitHub.
 
 ## Development
 
@@ -161,7 +199,7 @@ Release builds also create signed updater artifacts, and `tauri build` fails at 
 
 | Layer        | Technology                                                                                     |
 | ------------ | ---------------------------------------------------------------------------------------------- |
-| Shell        | [Tauri v2](https://tauri.app/) (Rust)                                                          |
+| Shell        | [Tauri v2](https://tauri.app/) (Rust), with the updater and process plugins                    |
 | Frontend     | [SvelteKit](https://svelte.dev/docs/kit) with [Svelte 5](https://svelte.dev/)                  |
 | Styling      | [Tailwind CSS 4](https://tailwindcss.com/) and [shadcn-svelte](https://www.shadcn-svelte.com/) |
 | Localisation | [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) (English and Persian)    |
@@ -171,33 +209,38 @@ Release builds also create signed updater artifacts, and `tauri build` fails at 
 
 ```text
 src/                SvelteKit frontend
-  lib/              Usage, cost, heatmap and locale logic, with tests
+  lib/              Usage, cost, heatmap, update and locale logic, with tests
+  lib/components/   App shell, header, update badge and dialog, heatmap
   lib/screens/      The Usage, Accounts and Settings screens
 messages/           Translation strings (en.json, fa.json)
 src-tauri/          Rust backend: profiles, tray, taskbar, shortcuts, commands
-.scratch/           Spec and tickets for v1
+.scratch/           Specs and tickets (clawshell-v1, auto-update)
+docs/screenshots/   README screenshots
+docs/updates/       Release notes for each version
 docs/agents/        Notes for coding agents on issues and labels
 ```
 
 ### Project docs
 
-- `.scratch/clawshell-v1/spec.md` holds the full spec: user stories, implementation decisions and testing seams. Its Further Notes record the ticket 01 check, which confirmed that a token read from a Claude Desktop profile is accepted by both OAuth endpoints.
-- `.scratch/clawshell-v1/issues/` holds the 15 v1 tickets, all resolved.
+- `.scratch/clawshell-v1/spec.md` holds the v1 spec: user stories, implementation decisions and testing seams. Its 15 tickets in `.scratch/clawshell-v1/issues/` are all resolved.
+- `.scratch/auto-update/spec.md` holds the auto-update spec and its tickets.
+- `docs/updates/` holds the notes for each release.
 
 ## Releasing
 
 Releases are built by the [release workflow](.github/workflows/release.yml) on GitHub Actions.
 
-1. Bump `version` in `src-tauri/tauri.conf.json`.
-2. Commit the change.
-3. Push a matching tag, for example `v0.1.0`:
+1. Bump `version` in `src-tauri/tauri.conf.json` and `package.json`.
+2. Add the release notes to `docs/updates/`.
+3. Commit the changes.
+4. Push a matching tag, for example `v0.2.0`:
 
    ```powershell
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v0.2.0
+   git push origin v0.2.0
    ```
 
-The workflow fails if the tag and the version differ. Otherwise it runs the tests, builds the Windows installers, signs them for the updater and publishes them to a GitHub release together with `latest.json`. Installed copies of clawshell read that file from the latest stable release to find updates, so drafts and prereleases never reach users.
+The workflow fails if the tag and the version differ. Otherwise it runs the tests, builds the Windows installers, signs them for the updater and publishes them to a GitHub release together with `latest.json`. The release body is what the in-app update dialog shows under **What's new**, so paste the notes there. Installed copies of clawshell read `latest.json` from the latest stable release to find updates, so drafts and prereleases never reach users.
 
 ### Signing key setup
 
@@ -217,10 +260,7 @@ Updates are verified against a key pair. Set it up once before the first updater
 3. Put the contents of `~/.tauri/clawshell.key.pub` in `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`, then commit it.
 4. Back up the private key and its password somewhere outside the repository, such as a password manager. If you lose the key, installed copies cannot verify a new key and every user has to reinstall by hand.
 
-Never commit the private key. Release builds fail at the end of bundling if `TAURI_SIGNING_PRIVATE_KEY` is missing or does not match the public key in the config.
-
-> [!NOTE]
-> v0.1.0 shipped without an updater, so its users have to install the first updater-enabled release by hand. From then on, clawshell updates itself.
+Never commit the private key. Release builds fail early if `TAURI_SIGNING_PRIVATE_KEY` is missing or the updater public key isn't set.
 
 ## Credits
 
