@@ -1,5 +1,7 @@
 # List Claude's own profile as the default account
 
+_Amended by ADR 0002: the default account can now receive session copies._
+
 clawshell first left the original Claude Desktop sign-in alone and unlisted (spec story 37), so it never touched data it didn't create. We now list that profile as a fixed first account, `default`, labelled "Claude", because most users keep a subscription there and want its limits and cost beside the others. It stays hands-off where it matters: the profile folder is only read (its token is never refreshed), it can never be deleted, it gets no badge, shortcuts or taskbar identity of its own, and clawshell starts it without `--user-data-dir`, exactly as Claude's own Start-menu entry does. It can be renamed and given launch options, which are stored in clawshell's records under the reserved id `default`.
 
 ## Consequences
