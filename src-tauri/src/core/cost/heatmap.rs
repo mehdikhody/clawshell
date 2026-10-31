@@ -1,23 +1,23 @@
-//! The 60-day heatmap: one cell per local day, in dollars, with the day's
+//! The 9-week heatmap: one cell per local day, in dollars, with the day's
 //! tokens alongside. Dollars are each day's Code-tab estimate (extra usage has
 //! no daily breakdown, so it is left out). Percent is each day's peak weekly
 //! utilisation, averaged over the accounts that have a reading that day.
 //! A day nobody has data for is `None`, which is not the same as zero.
 
-use super::{DAY_MS, NoEstimate, Prices, Record, civil_date, epoch_ms, price_of, session_owners};
+use super::{DAY_MS, NoEstimate, Record, civil_date, epoch_ms, price_of, session_owners};
 use crate::core::Core;
 use crate::core::accounts::Status;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-/// Cells in the heatmap: the last 60 local days, today included.
-const WINDOW_DAYS: i64 = 60;
+/// Week columns in the heatmap, this week included. Weeks start on Sunday.
+const WINDOW_WEEKS: i64 = 9;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Heatmap {
-    /// Oldest first, today last.
+    /// Oldest first, starting on a Sunday, today last.
     pub days: Vec<HeatmapDay>,
     /// Why every dollar cell is empty, when prices are the reason.
     pub no_estimate: Option<NoEstimate>,
@@ -30,9 +30,9 @@ pub struct HeatmapDay {
     pub date: String,
     /// Code-tab dollars; `None` when nothing is known about the day.
     pub usd: Option<DayValues>,
-    /// Every token the day's messages used, across accounts; `None` when
-    /// nothing is known about the day. Needs no prices.
-    pub tokens: Option<u64>,
+    /// Every token the day's messages used, and each account's part; `None`
+    /// when nothing is known about the day. Needs no prices.
+    pub tokens: Option<DayValues>,
     /// Peak weekly percent; `None` when no account has a reading that day.
     pub percent: Option<DayValues>,
 }
@@ -66,7 +66,8 @@ struct Name {
 }
 
 impl Core {
-    /// The last 60 local days (today last), with dollars, tokens and percent.
+    /// The local days from the Sunday 8 weeks before this week's to today,
+    /// with dollars, tokens and percent.
     pub fn heatmap(&self) -> Heatmap {
         let accounts: Vec<_> = self
             .known_accounts()
@@ -76,7 +77,7 @@ impl Core {
             .collect();
         let now = self.ports.clock.now();
         let today = self.local_day(now);
-        let first = today - (WINDOW_DAYS - 1);
+        let first = sunday_of(today) - (WINDOW_WEEKS - 1) * 7;
         let in_window = |at: SystemTime| (first..=today).contains(&self.local_day(at));
 
         let owners = session_owners(&accounts);
@@ -88,16 +89,23 @@ impl Core {
         } else {
             match self.prices() {
                 Some(prices) => (
-                    Some(daily_dollars(&records, &prices, |ms| {
-                        self.local_day(time_of(ms))
-                    })),
+                    Some(daily(
+                        &records,
+                        |ms| self.local_day(time_of(ms)),
+                        |record| price_of(&prices, record),
+                    )),
                     None,
                 ),
                 None => (None, Some(NoEstimate::PricesUnavailable)),
             }
         };
-        let tokens =
-            (!records.is_empty()).then(|| daily_tokens(&records, |ms| self.local_day(time_of(ms))));
+        let tokens = (!records.is_empty()).then(|| {
+            daily(
+                &records,
+                |ms| self.local_day(time_of(ms)),
+                |record| Some(record.usage.total() as f64),
+            )
+        });
         let percent = daily_peaks(&self.weekly_readings(&accounts), first..=today, |ms| {
             self.local_day(time_of(ms))
         });
@@ -120,7 +128,7 @@ impl Core {
                 tokens: tokens
                     .as_ref()
                     .filter(|t| day >= t.first_day)
-                    .map(|t| t.by_day.get(&day).copied().unwrap_or(0)),
+                    .map(|t| summed(day, &names, &t.by_day)),
                 percent: averaged(day, &names, &percent),
             })
             .collect();
@@ -142,53 +150,43 @@ fn time_of(ms: i64) -> SystemTime {
     UNIX_EPOCH + Duration::from_millis(u64::try_from(ms).unwrap_or(0))
 }
 
+/// The Sunday on or before `day`; day 0, 1970-01-01, was a Thursday.
+fn sunday_of(day: i64) -> i64 {
+    day - (day + 4).rem_euclid(7)
+}
+
 fn date_of(day: i64) -> String {
     let (year, month, day) = civil_date(day);
     format!("{year:04}-{month:02}-{day:02}")
 }
 
-/// Dollars per day and account, plus the first day anything was recorded:
-/// from then on a quiet day is a real zero, before it nothing is known.
-struct Dollars {
+/// Dollars or tokens per day and account, plus the first day anything was
+/// recorded: from then on a quiet day is a real zero, before it nothing is known.
+struct Daily {
     first_day: i64,
     by_day: ByDay,
 }
 
-fn daily_dollars(
+/// Sums `value_of` each record by local day and account; a record it has no
+/// value for (an unpriced model) still counts towards `first_day`.
+fn daily(
     records: &[(String, Record)],
-    prices: &Prices,
     day_of: impl Fn(i64) -> i64,
-) -> Dollars {
+    value_of: impl Fn(&Record) -> Option<f64>,
+) -> Daily {
     let mut by_day = ByDay::new();
     let mut first_day = i64::MAX;
     for (account, record) in records {
         let day = day_of(record.at_ms);
         first_day = first_day.min(day);
-        if let Some(dollars) = price_of(prices, record) {
-            *by_day.entry((day, account.clone())).or_default() += dollars;
+        if let Some(value) = value_of(record) {
+            *by_day.entry((day, account.clone())).or_default() += value;
         }
     }
-    Dollars { first_day, by_day }
+    Daily { first_day, by_day }
 }
 
-/// Tokens per day, and the first day anything was recorded, as for dollars.
-struct Tokens {
-    first_day: i64,
-    by_day: HashMap<i64, u64>,
-}
-
-fn daily_tokens(records: &[(String, Record)], day_of: impl Fn(i64) -> i64) -> Tokens {
-    let mut by_day: HashMap<i64, u64> = HashMap::new();
-    let mut first_day = i64::MAX;
-    for (_, record) in records {
-        let day = day_of(record.at_ms);
-        first_day = first_day.min(day);
-        *by_day.entry(day).or_default() += record.usage.total();
-    }
-    Tokens { first_day, by_day }
-}
-
-/// Every account's dollars for `day` (zero when it has none), summed.
+/// Every account's dollars or tokens for `day` (zero when it has none), summed.
 fn summed(day: i64, names: &[Name], by_day: &ByDay) -> DayValues {
     let accounts = ranked(names.iter().map(|name| {
         let value = by_day.get(&(day, name.id.clone())).copied().unwrap_or(0.0);

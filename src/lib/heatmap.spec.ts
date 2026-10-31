@@ -25,20 +25,23 @@ describe('intensity', () => {
 });
 
 describe('cellsFor', () => {
-	it('pads the first week so each day sits under its weekday (Sunday first)', () => {
-		// 2026-06-10 is a Wednesday.
-		const cells = cellsFor([day('2026-06-10'), day('2026-06-11')]);
+	it("fills the rest of today's week with future slots (Saturday last)", () => {
+		// 2026-06-14 is a Sunday, so today (the 16th) is a Tuesday.
+		const cells = cellsFor([day('2026-06-14'), day('2026-06-15'), day('2026-06-16')]);
 		expect(cells.map((c) => c?.date ?? null)).toEqual([
+			'2026-06-14',
+			'2026-06-15',
+			'2026-06-16',
 			null,
 			null,
 			null,
-			'2026-06-10',
-			'2026-06-11'
+			null
 		]);
 	});
 
-	it('does not pad a window that starts on a Sunday', () => {
-		expect(cellsFor([day('2026-06-14')])[0]?.date).toBe('2026-06-14');
+	it('adds no future slots when today is a Saturday', () => {
+		const cells = cellsFor([day('2026-06-14'), day('2026-06-20')]);
+		expect(cells.at(-1)?.date).toBe('2026-06-20');
 	});
 });
 

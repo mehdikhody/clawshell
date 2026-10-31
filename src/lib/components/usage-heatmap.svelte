@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatUsd } from '$lib/cost';
+	import { formatCountShort, formatUsd, formatUsdShort } from '$lib/cost';
 	import {
 		cellsFor,
 		formatDay,
@@ -11,7 +11,6 @@
 	import * as Item from '$lib/components/ui/item';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { m } from '$lib/paraglide/messages.js';
-	import { formatInteger } from '$lib/locale';
 	import { formatTag } from '$lib/locale-state.svelte';
 
 	let { heatmap }: { heatmap: Heatmap } = $props();
@@ -39,6 +38,8 @@
 	const classOf = (level: Level | null) => (level === null ? noDataClass : levelClass[level]);
 
 	const money = (amount: number) => formatUsd(amount, formatTag());
+	/** The tooltip's short form, like $12.3K. */
+	const moneyShort = (amount: number) => formatUsdShort(amount, formatTag());
 	const dateLabel = (date: string) => formatDay(date, formatTag());
 	const labelOf = (day: HeatmapDay) =>
 		day.usd
@@ -69,7 +70,7 @@
 						class="flex items-center justify-center text-[10px] text-muted-foreground">{label}</span
 					>
 				{/each}
-				{#each cells as day, i (day?.date ?? `pad-${i}`)}
+				{#each cells as day, i (day?.date ?? `future-${i}`)}
 					{#if day}
 						<Tooltip.Root
 							open={openDate === day.date}
@@ -90,30 +91,37 @@
 								<p class="font-medium">{dateLabel(day.date)}</p>
 								{#if day.usd}
 									<p class="tabular-nums">
-										{m.cost_estimated({ amount: money(day.usd.total) })}
+										{m.cost_estimated({ amount: moneyShort(day.usd.total) })}
 									</p>
 								{/if}
 								{#if day.tokens !== null}
 									<p class="tabular-nums">
-										{m.heatmap_tokens({ count: formatInteger(day.tokens, formatTag()) })}
+										{m.heatmap_tokens({ count: formatCountShort(day.tokens.total) })}
 									</p>
-								{/if}
-								{#if day.usd}
-									<ul class="flex flex-col gap-0.5">
-										{#each day.usd.accounts as account (account.id)}
-											<li class="flex justify-between gap-4">
-												<span class="flex min-w-0 items-center gap-1.5">
-													<span
-														class="size-2 shrink-0 rounded-full"
-														style:background-color={account.colour}
-														aria-hidden="true"
-													></span>
-													<span class="truncate">{account.label}</span>
-												</span>
-												<span class="tabular-nums">{money(account.value)}</span>
-											</li>
-										{/each}
-									</ul>
+									{@const used = day.tokens.accounts.filter((a) => a.value > 0)}
+									{#if used.length > 0}
+										<hr class="my-0.5 border-current/20" />
+										<ul class="flex flex-col gap-0.5">
+											{#each used as account (account.id)}
+												{@const usd = day.usd?.accounts.find((a) => a.id === account.id)}
+												<li class="flex justify-between gap-4">
+													<span class="flex min-w-0 items-center gap-1.5">
+														<span
+															class="size-2 shrink-0 rounded-full"
+															style:background-color={account.colour}
+															aria-hidden="true"
+														></span>
+														<span class="truncate">{account.label}</span>
+													</span>
+													<span class="tabular-nums"
+														>{formatCountShort(account.value)}{#if usd}&nbsp;· {moneyShort(
+																usd.value
+															)}{/if}</span
+													>
+												</li>
+											{/each}
+										</ul>
+									{/if}
 								{/if}
 								{#if day.usd === null && day.tokens === null}
 									<p>{m.heatmap_no_data()}</p>
@@ -121,7 +129,11 @@
 							</Tooltip.Content>
 						</Tooltip.Root>
 					{:else}
-						<div aria-hidden="true"></div>
+						<div
+							aria-hidden="true"
+							data-testid="heatmap-future"
+							class="size-7 rounded-sm bg-muted/30"
+						></div>
 					{/if}
 				{/each}
 			</div>

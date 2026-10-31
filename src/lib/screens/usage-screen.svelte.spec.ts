@@ -268,25 +268,50 @@ describe('UsageScreen heatmap', () => {
 		'2026-06-10': {
 			usd: values([
 				['Work', 6],
-				['Spare', 2]
+				['Spare', 2],
+				['Idle', 0]
 			]),
-			tokens: 1_234_567
+			tokens: values([
+				['Work', 1_000_000],
+				['Spare', 234_567],
+				['Idle', 0]
+			])
 		},
-		'2026-06-11': { usd: values([['Work', 0]]), tokens: 0 },
+		'2026-06-11': { usd: values([['Work', 0]]), tokens: values([['Work', 0]]) },
 		'2026-06-12': { usd: values([['Work', 1]]) }
 	});
 
 	const withMap = (map = MAP) => mount(listWith(emptyPooled), { heatmap: () => map });
-	const grid = () => page.getByRole('group', { name: 'Last 60 days' });
+	const grid = () => page.getByRole('group', { name: 'Last 9 weeks' });
 	const tooltip = () => page.getByTestId('heatmap-tooltip');
 	const cell = (name: RegExp) => grid().getByRole('button', { name });
 
-	it('asks the core for the heatmap on load and draws 60 days', async () => {
+	it('asks the core for the heatmap on load and draws each day of the 9 weeks', async () => {
 		const tauri = withMap();
 
 		await expect.element(grid()).toBeVisible();
-		expect(grid().getByRole('button').elements()).toHaveLength(60);
+		await expect.element(page.getByText('Last 9 weeks', { exact: true })).toBeVisible();
+		expect(grid().getByRole('button').elements()).toHaveLength(58);
 		expect(tauri.calls.filter((c) => c.cmd === 'heatmap')).toHaveLength(1);
+	});
+
+	it('draws the rest of this week as faint slots that are not days', async () => {
+		withMap();
+		await expect.element(grid()).toBeVisible();
+
+		// Today is Monday 2026-06-15: Tuesday to Saturday are still to come.
+		const slots = grid().getByTestId('heatmap-future').elements() as HTMLElement[];
+		expect(slots).toHaveLength(5);
+		for (const slot of slots) {
+			expect(slot.getAttribute('aria-hidden')).toBe('true');
+			expect(slot.tabIndex).toBe(-1);
+			expect(getComputedStyle(slot).borderStyle).not.toBe('dashed');
+			expect(slot.getBoundingClientRect().width).toBe(
+				cell(/Jun 15/)
+					.element()
+					.getBoundingClientRect().width
+			);
+		}
 	});
 
 	it('labels each day with its Code estimate, and has no measure switch', async () => {
@@ -306,9 +331,52 @@ describe('UsageScreen heatmap', () => {
 		await expect.element(tip).toBeVisible();
 		await expect.element(tip).toHaveTextContent('Jun 10');
 		await expect.element(tip).toHaveTextContent('$8.00 est.');
-		await expect.element(tip).toHaveTextContent('1,234,567 tokens');
-		await expect.element(tip).toHaveTextContent(/Work\s*\$6\.00/);
-		await expect.element(tip).toHaveTextContent(/Spare\s*\$2\.00/);
+		await expect.element(tip).toHaveTextContent('1.2M tokens');
+		await expect.element(tip).toHaveTextContent(/Work\s*1M · \$6\.00/);
+		await expect.element(tip).toHaveTextContent(/Spare\s*234\.6K · \$2\.00/);
+	});
+
+	it('divides the totals from the accounts in the tooltip', async () => {
+		withMap();
+
+		await cell(/Jun 10/).hover();
+
+		await expect.element(tooltip().getByRole('separator')).toBeVisible();
+	});
+
+	it('leaves an account that used no tokens that day out of the tooltip', async () => {
+		withMap();
+
+		await cell(/Jun 10/).hover();
+
+		await expect.element(tooltip()).toHaveTextContent(/Spare/);
+		await expect.element(tooltip()).not.toHaveTextContent(/Idle/);
+	});
+
+	it('shortens big dollar and token numbers in the tooltip, but not in the label', async () => {
+		withMap(
+			heatmapOf({
+				'2026-06-10': {
+					usd: values([
+						['Work', 12_000],
+						['Spare', 345]
+					]),
+					tokens: values([
+						['Work', 4_900_000_000],
+						['Spare', 100_000_000]
+					])
+				}
+			})
+		);
+
+		await expect.element(cell(/Jun 10/)).toHaveAccessibleName(/\$12,345\.00 est\./);
+		await cell(/Jun 10/).hover();
+
+		const tip = tooltip();
+		await expect.element(tip).toHaveTextContent('$12.3K est.');
+		await expect.element(tip).toHaveTextContent('5B tokens');
+		await expect.element(tip).toHaveTextContent(/Work\s*4\.9B · \$12K/);
+		await expect.element(tip).toHaveTextContent(/Spare\s*100M · \$345\.00/);
 	});
 
 	it('shows a tooltip on keyboard focus, so a tap works too', async () => {
@@ -325,7 +393,7 @@ describe('UsageScreen heatmap', () => {
 
 		await cell(/Jun 10/).click();
 
-		await expect.element(tooltip()).toHaveTextContent(/Spare\s*\$2\.00/);
+		await expect.element(tooltip()).toHaveTextContent(/Spare\s*234\.6K · \$2\.00/);
 	});
 
 	it('draws a day with no data differently from a day at zero', async () => {
@@ -355,7 +423,7 @@ describe('UsageScreen heatmap', () => {
 	it('says why the dollars are empty when prices could not be fetched, and still shows tokens', async () => {
 		withMap(
 			heatmapOf(
-				{ '2026-06-10': { tokens: 1_000 } },
+				{ '2026-06-10': { tokens: values([['Work', 1_000]]) } },
 				{
 					noEstimate: 'prices-unavailable'
 				}
@@ -364,7 +432,8 @@ describe('UsageScreen heatmap', () => {
 
 		await expect.element(page.getByText(/no dollar estimate/i)).toBeVisible();
 		await cell(/Jun 10/).hover();
-		await expect.element(tooltip()).toHaveTextContent('1,000 tokens');
+		await expect.element(tooltip()).toHaveTextContent('1K tokens');
+		await expect.element(tooltip()).toHaveTextContent(/Work\s*1K$/);
 	});
 
 	it('shows no heatmap when there is nothing to show', async () => {

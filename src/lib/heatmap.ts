@@ -12,18 +12,18 @@ export type HeatmapDay = {
 	date: string;
 	/** Dollars; null when nothing is known about the day: not the same as zero. */
 	usd: DayValues | null;
-	/** Tokens used that day across accounts; null when nothing is known about the day. */
-	tokens: number | null;
+	/** Tokens used that day and each account's part; null when nothing is known about the day. */
+	tokens: DayValues | null;
 };
 
 export type Heatmap = {
-	/** The last 60 local days, oldest first, today last. */
+	/** The last 9 weeks of local days, oldest first from a Sunday, today last. */
 	days: HeatmapDay[];
 	/** Why every dollar cell is empty, when prices are the reason. */
 	noEstimate: NoEstimate | null;
 };
 
-/** The last 60 days; may fetch model prices, so it can take a moment. */
+/** The last 9 weeks; may fetch model prices, so it can take a moment. */
 export const heatmap = () => invoke<Heatmap>('heatmap');
 
 /** 0 is a real zero; 1 to 4 are increasingly busy. */
@@ -50,13 +50,13 @@ export function parseDay(date: string): Date {
 }
 
 /**
- * The days laid out in week columns, Sunday on top: blanks (null) pad the first
- * week so every day sits under its weekday. Fill order is down each column.
+ * The days laid out in week columns, Sunday on top: future slots (null) fill
+ * today's week through Saturday. Fill order is down each column.
  */
 export function cellsFor(days: HeatmapDay[]): (HeatmapDay | null)[] {
 	if (days.length === 0) return [];
-	const lead = parseDay(days[0].date).getDay();
-	return [...Array<null>(lead).fill(null), ...days];
+	const rest = 6 - parseDay(days[days.length - 1].date).getDay();
+	return [...days, ...Array<null>(rest).fill(null)];
 }
 
 /** A calendar day as a short date, such as "Jun 15". */

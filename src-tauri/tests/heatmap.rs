@@ -1,8 +1,9 @@
-//! The 60-day heatmap, through the core: given these transcripts, usage
+//! The 9-week heatmap, through the core: given these transcripts, usage
 //! history and polls at this time, what does each day show?
 //!
 //! Transcripts, ids and prices in these fixtures are synthetic. The harness
-//! clock reads 2026-06-15 12:00 UTC, so the window is 2026-04-17 to 2026-06-15.
+//! clock reads 2026-06-15 12:00 UTC, a Monday, so the window is Sunday
+//! 2026-04-19 to 2026-06-15.
 
 mod support;
 
@@ -74,13 +75,38 @@ fn assert_close(actual: f64, expected: f64) {
 }
 
 #[test]
-fn covers_sixty_local_days_ending_today_oldest_first() {
+fn covers_nine_weeks_from_a_sunday_to_today_oldest_first() {
     let h = Harness::new();
     let map = h.core().heatmap();
 
-    assert_eq!(map.days.len(), 60);
-    assert_eq!(map.days.first().unwrap().date, "2026-04-17");
+    // 8 full weeks, then this week's Sunday and Monday.
+    assert_eq!(map.days.len(), 58);
+    assert_eq!(map.days.first().unwrap().date, "2026-04-19");
     assert_eq!(map.days.last().unwrap().date, "2026-06-15");
+}
+
+#[test]
+fn on_a_sunday_this_week_is_just_today() {
+    let h = Harness::new();
+    h.clock.advance(Duration::from_secs(6 * 86_400)); // Sunday 2026-06-21
+
+    let map = h.core().heatmap();
+
+    assert_eq!(map.days.len(), 57);
+    assert_eq!(map.days.first().unwrap().date, "2026-04-26");
+    assert_eq!(map.days.last().unwrap().date, "2026-06-21");
+}
+
+#[test]
+fn on_a_saturday_every_week_is_full() {
+    let h = Harness::new();
+    h.clock.advance(Duration::from_secs(5 * 86_400)); // Saturday 2026-06-20
+
+    let map = h.core().heatmap();
+
+    assert_eq!(map.days.len(), 63);
+    assert_eq!(map.days.first().unwrap().date, "2026-04-19");
+    assert_eq!(map.days.last().unwrap().date, "2026-06-20");
 }
 
 #[test]
@@ -149,13 +175,13 @@ fn buckets_messages_by_the_local_day() {
 #[test]
 fn ends_on_the_local_today_not_the_utc_one() {
     let h = Harness::new();
-    // 12:00 UTC is still the 14th at UTC-13.
+    // 12:00 UTC is still Sunday the 14th at UTC-13.
     h.clock.set_utc_offset_hours(-13);
 
     let map = h.core().heatmap();
 
     assert_eq!(map.days.last().unwrap().date, "2026-06-14");
-    assert_eq!(map.days.first().unwrap().date, "2026-04-16");
+    assert_eq!(map.days.first().unwrap().date, "2026-04-19");
 }
 
 #[test]
@@ -166,8 +192,8 @@ fn leaves_out_messages_older_than_the_window() {
         ID_A,
         SESSION_A,
         &[
-            ("2026-04-16T23:00:00.000Z", 7),
-            ("2026-04-17T00:30:00.000Z", 1),
+            ("2026-04-18T23:00:00.000Z", 7),
+            ("2026-04-19T00:30:00.000Z", 1),
         ],
     );
     prices_ok(&h);
@@ -175,7 +201,7 @@ fn leaves_out_messages_older_than_the_window() {
     let map = h.core().heatmap();
 
     let oldest = map.days.first().unwrap();
-    assert_eq!(oldest.date, "2026-04-17");
+    assert_eq!(oldest.date, "2026-04-19");
     assert_close(oldest.usd.as_ref().unwrap().total, 1.0);
 }
 
@@ -196,12 +222,43 @@ fn sums_each_days_tokens_across_accounts_even_without_prices() {
 
     let map = h.core().heatmap();
 
+    let total = |date| day(&map, date).tokens.as_ref().map(|t| t.total);
     // A million input tokens per dollar in the fixture: 1M + 2M on the 12th.
-    assert_eq!(day(&map, "2026-06-11").tokens, None);
-    assert_eq!(day(&map, "2026-06-12").tokens, Some(3_000_000));
-    assert_eq!(day(&map, "2026-06-13").tokens, Some(4_000_000));
-    assert_eq!(day(&map, "2026-06-14").tokens, Some(0));
+    assert_eq!(total("2026-06-11"), None);
+    assert_eq!(total("2026-06-12"), Some(3_000_000.0));
+    assert_eq!(total("2026-06-13"), Some(4_000_000.0));
+    assert_eq!(total("2026-06-14"), Some(0.0));
     assert!(map.days.iter().all(|d| d.usd.is_none()));
+}
+
+#[test]
+fn breaks_a_days_tokens_down_by_account_biggest_first() {
+    let h = Harness::new();
+    spender(&h, ID_A, SESSION_A, &[("2026-06-12T09:00:00.000Z", 1)]);
+    spender(&h, ID_B, SESSION_B, &[("2026-06-12T10:00:00.000Z", 2)]);
+    h.http.fail(PRICES_URL);
+
+    let map = h.core().heatmap();
+
+    let rows = |date| -> Vec<(String, f64)> {
+        day(&map, date)
+            .tokens
+            .as_ref()
+            .unwrap()
+            .accounts
+            .iter()
+            .map(|a| (a.id.clone(), a.value))
+            .collect()
+    };
+    assert_eq!(
+        rows("2026-06-12"),
+        vec![(ID_B.into(), 2_000_000.0), (ID_A.into(), 1_000_000.0)]
+    );
+    // A quiet day still lists every account, at zero.
+    assert_eq!(
+        rows("2026-06-13"),
+        vec![(ID_A.into(), 0.0), (ID_B.into(), 0.0)]
+    );
 }
 
 #[test]
