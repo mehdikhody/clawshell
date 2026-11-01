@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The item appears only when the account is running, for the default account too
-- [ ] Choosing it ends exactly the Claude processes of that account's profile, hidden ones included
-- [ ] No confirm dialog; the account status and tray refresh right after
-- [ ] A failure shows "Couldn't quit Claude" in the existing alert
-- [ ] Core tests: only that profile's PIDs are ended; the default account works
-- [ ] Component test: the item shows only for running accounts and calls `quit_account`
-- [ ] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`
+- [x] The item appears only when the account is running, for the default account too
+- [x] Choosing it ends exactly the Claude processes of that account's profile, hidden ones included
+- [x] No confirm dialog; the account status and tray refresh right after
+- [x] A failure shows "Couldn't quit Claude" in the existing alert
+- [x] Core tests: only that profile's PIDs are ended; the default account works
+- [x] Component test: the item shows only for running accounts and calls `quit_account`
+- [x] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`

@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The context menu item "Copy sessions…" is on every account and opens the dialog
-- [ ] The dialog lists the account's sessions from all organisations, skipping `deleted_*` folders, newest activity first
-- [ ] Each row shows title, folder, relative last activity, and an Archived badge when archived
-- [ ] Rows can be ticked and unticked; the dialog has a clear empty state
-- [ ] An unreadable layout shows a clear error, not a partial list
-- [ ] Core tests cover every-org reading, `deleted_*` skipping, ordering and the layout error; a component test checks the rows and ticking
-- [ ] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`
+- [x] The context menu item "Copy sessions…" is on every account and opens the dialog
+- [x] The dialog lists the account's sessions from all organisations, skipping `deleted_*` folders, newest activity first
+- [x] Each row shows title, folder, relative last activity, and an Archived badge when archived
+- [x] Rows can be ticked and unticked; the dialog has a clear empty state
+- [x] An unreadable layout shows a clear error, not a partial list
+- [x] Core tests cover every-org reading, `deleted_*` skipping, ordering and the layout error; a component test checks the rows and ticking
+- [x] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`

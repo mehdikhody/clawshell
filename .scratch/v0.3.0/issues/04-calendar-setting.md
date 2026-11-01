@@ -4,12 +4,12 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The Calendar dropdown sits under Language with the five options, Automatic by default, and is stored in settings
-- [ ] Automatic resolves per language; a pinned value survives language changes
-- [ ] Every number on screen uses the resolved digits; dates use the resolved calendar
-- [ ] The heatmap's weeks start on the day given by the spec's week-start rule
-- [ ] Frontend unit tests cover `resolveCalendar`, `digitsOf`, `weekStartOf` and `intlLocale` for every language and calendar pair; Persian with Automatic gives today's tag
-- [ ] The core resolver matches the frontend and has tests
-- [ ] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`
+- [x] The Calendar dropdown sits under Language with the five options, Automatic by default, and is stored in settings
+- [x] Automatic resolves per language; a pinned value survives language changes
+- [x] Every number on screen uses the resolved digits; dates use the resolved calendar
+- [x] The heatmap's weeks start on the day given by the spec's week-start rule
+- [x] Frontend unit tests cover `resolveCalendar`, `digitsOf`, `weekStartOf` and `intlLocale` for every language and calendar pair; Persian with Automatic gives today's tag
+- [x] The core resolver matches the frontend and has tests
+- [x] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`

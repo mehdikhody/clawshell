@@ -4,9 +4,9 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The account UUID and organisation UUID are stored beside the email when the profile is read
-- [ ] Each account reports whether it can receive copies, with the reason when it can't
-- [ ] Core tests cover signed-out, IDs unknown, folder missing, and eligible
-- [ ] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md` only if this ticket changes what the user sees; otherwise note in the commit that it doesn't
+- [x] The account UUID and organisation UUID are stored beside the email when the profile is read
+- [x] Each account reports whether it can receive copies, with the reason when it can't
+- [x] Core tests cover signed-out, IDs unknown, folder missing, and eligible
+- [x] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md` only if this ticket changes what the user sees; otherwise note in the commit that it doesn't

@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Each lazily loaded Usage section shows its skeleton until its first answer, then its content
-- [ ] The Accounts tab shows two account-shaped placeholder rows while the list is not loaded
-- [ ] A section with no data disappears after its placeholder
-- [ ] Refreshes never bring placeholders back
-- [ ] Placeholders don't animate when reduced motion is preferred
-- [ ] Component tests (`mockTauri`) cover: placeholders before the first answer, removal on empty data, no return on refresh
-- [ ] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`
+- [x] Each lazily loaded Usage section shows its skeleton until its first answer, then its content
+- [x] The Accounts tab shows two account-shaped placeholder rows while the list is not loaded
+- [x] A section with no data disappears after its placeholder
+- [x] Refreshes never bring placeholders back
+- [x] Placeholders don't animate when reduced motion is preferred
+- [x] Component tests (`mockTauri`) cover: placeholders before the first answer, removal on empty data, no return on refresh
+- [x] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`

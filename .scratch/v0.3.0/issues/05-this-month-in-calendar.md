@@ -4,12 +4,12 @@
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] "This month" covers the calendar month containing today, in the resolved calendar; `icu_calendar` supplies the boundaries
-- [ ] Extra usage is labelled "billing month" on a non-Gregorian calendar
-- [ ] Heatmap tooltip dates use the resolved calendar
-- [ ] Notification numbers use the resolved digits
-- [ ] Core tests cover month boundaries for each calendar, including a Chinese leap month and a Hijri month edge; notification digit tests
-- [ ] A component test shows the extra-usage label under Jalali
-- [ ] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`
+- [x] "This month" covers the calendar month containing today, in the resolved calendar; `icu_calendar` supplies the boundaries
+- [x] Extra usage is labelled "billing month" on a non-Gregorian calendar
+- [x] Heatmap tooltip dates use the resolved calendar
+- [x] Notification numbers use the resolved digits
+- [x] Core tests cover month boundaries for each calendar, including a Chinese leap month and a Hijri month edge; notification digit tests
+- [x] A component test shows the extra-usage label under Jalali
+- [x] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`

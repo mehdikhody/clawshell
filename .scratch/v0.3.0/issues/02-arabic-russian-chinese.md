@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The picker lists the five languages, each in its own name
-- [ ] Every message key from English exists in the ar, ru and zh message files, with translations drafted by the implementer
-- [ ] Arabic renders right to left; `directionOf` returns `rtl` for `ar`
-- [ ] Arabic and Chinese use their fonts; Russian uses Roboto
-- [ ] The chosen language persists and applies straight away
-- [ ] Unit tests cover the locale list and `directionOf`; a component test shows Arabic rendering right to left
-- [ ] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`
+- [x] The picker lists the five languages, each in its own name
+- [x] Every message key from English exists in the ar, ru and zh message files, with translations drafted by the implementer
+- [x] Arabic renders right to left; `directionOf` returns `rtl` for `ar`
+- [x] Arabic and Chinese use their fonts; Russian uses Roboto
+- [x] The chosen language persists and applies straight away
+- [x] Unit tests cover the locale list and `directionOf`; a component test shows Arabic rendering right to left
+- [x] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`

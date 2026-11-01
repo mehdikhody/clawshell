@@ -4,12 +4,12 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The dialog shows while the disclaimer is unaccepted, with no close button; Esc, clicking outside and closing the window don't dismiss it, and closing counts as Exit
-- [ ] Exit quits clawshell; Accept saves `DISCLAIMER_VERSION`, starts the background work once, and replays held arguments in order
-- [ ] No settings file means unaccepted; an accepted current version means accepted; a later version bump shows the dialog again
-- [ ] Before acceptance the window is shown even with start-hidden set, and no tray or background work runs
-- [ ] The text is translated into all five languages; Persian and Arabic render right to left
-- [ ] Core tests cover acceptance states, start-once behaviour and argument replay; component tests cover show/absence, Esc and outside click, and the Accept and Exit calls
-- [ ] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`
+- [x] The dialog shows while the disclaimer is unaccepted, with no close button; Esc, clicking outside and closing the window don't dismiss it, and closing counts as Exit
+- [x] Exit quits clawshell; Accept saves `DISCLAIMER_VERSION`, starts the background work once, and replays held arguments in order
+- [x] No settings file means unaccepted; an accepted current version means accepted; a later version bump shows the dialog again
+- [x] Before acceptance the window is shown even with start-hidden set, and no tray or background work runs
+- [x] The text is translated into all five languages; Persian and Arabic render right to left
+- [x] Core tests cover acceptance states, start-once behaviour and argument replay; component tests cover show/absence, Esc and outside click, and the Accept and Exit calls
+- [x] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`

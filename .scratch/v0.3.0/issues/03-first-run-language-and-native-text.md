@@ -4,10 +4,10 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] With no settings file, the language comes from the Windows UI language; unsupported languages fall back to English
-- [ ] An existing settings file is never changed by this
-- [ ] Tray labels and notification text are translated into ar, ru and zh
-- [ ] Core tests cover the UI-language mapping, the English fallback, and notification text per language
-- [ ] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`
+- [x] With no settings file, the language comes from the Windows UI language; unsupported languages fall back to English
+- [x] An existing settings file is never changed by this
+- [x] Tray labels and notification text are translated into ar, ru and zh
+- [x] Core tests cover the UI-language mapping, the English fallback, and notification text per language
+- [x] A user-facing entry is added under `## [Unreleased]` in `CHANGELOG.md`
