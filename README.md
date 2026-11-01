@@ -24,7 +24,7 @@
 clawshell is a small tray app for people with more than one Claude subscription. Each account runs in its own Claude Desktop window at the same time, so you never sign out to switch. A compact dashboard shows how much of each account's 5-hour and weekly limits you have used, and what your Code-tab sessions cost.
 
 > [!TIP]
-> **New in this release:** Arabic, Russian and Chinese, a Calendar setting with Jalali, Hijri and Chinese lunar dates, copying Code sessions between accounts, and Quit Claude per account. See [What's new](docs/updates/v0.3.0.md).
+> **New in this release:** one usage bar per account for the weekly and 5-hour windows, a hover tooltip with how long until each resets, and limited accounts that fade out until they come back. See [What's new](docs/updates/v0.4.0.md).
 
 > [!IMPORTANT]
 > clawshell is an unofficial project and is not affiliated with Anthropic. See the [disclaimer](#disclaimer) before you use it.
@@ -68,10 +68,10 @@ clawshell is a small tray app for people with more than one Claude subscription.
 
 ### New in this release
 
-|                                                                         Copy sessions                                                                         |                                                                               Account menu                                                                                |                                                                   Calendar                                                                   |
-| :-----------------------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------: |
-| <img src="docs/screenshots/copy-sessions.png" alt="Copy sessions dialog with three Code sessions ticked, each with its folder and last activity" width="260"> | <img src="docs/screenshots/account-menu.png" alt="An account's context menu with Edit account, Copy sessions, Environment and flags, Quit Claude and Delete" width="260"> | <img src="docs/screenshots/calendar.png" alt="Calendar setting open with Automatic, Gregorian, Jalali, Hijri and Lunar options" width="260"> |
-|                                                             Move Code sessions to another account                                                             |                                                                    Edit, copy sessions and quit Claude                                                                    |                                                      Gregorian, Jalali, Hijri or Lunar                                                       |
+|                                                                              Usage bar                                                                              |                                                                 Limited account                                                                  |
+| :-----------------------------------------------------------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------------------------------------: |
+| <img src="docs/screenshots/usage-tooltip.png" alt="An account's usage bar with its tooltip showing the weekly and 5-hour windows and when each resets" width="260"> | <img src="docs/screenshots/limited-account.png" alt="A limited account greyed out, with the tooltip showing when its windows reset" width="260"> |
+|                                                        Weekly and 5-hour on one bar, with a reset countdown                                                         |                                                         Greyed out until a window resets                                                         |
 
 ### Languages
 
@@ -124,7 +124,10 @@ The window is phone-sized (400×780) with three tabs along the bottom. clawshell
 
 ### Accounts tab
 
-Lists each account with its badge, name, email, 5-hour and weekly usage, and one of four statuses: **Running**, **Idle**, **Signed out** or **Limited**.
+Lists each account with its badge, name, email, usage and one of four statuses: **Running**, **Idle**, **Signed out** or **Limited**.
+
+- **Usage bar.** One bar per account. The orange weekly segment is as wide as the weekly percentage, and the amber 5-hour segment takes its share of the room the week leaves. The labels underneath give each window's percentage and reset time. Hover the bar to see how long until each window resets.
+- **Limited accounts** are greyed out until a window resets, as are accounts whose folder is missing. They still open and keep their menu.
 
 | Action               | How                                                                                                                          |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
