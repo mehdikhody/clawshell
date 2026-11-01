@@ -53,6 +53,15 @@ const tab = (page, index) => page.getByRole('tab').nth(index).click();
 const scrollTo = (locator, block = 'start') =>
 	locator.evaluate((el, block) => el.scrollIntoView({ block }), block);
 
+/** Opens the Accounts tab and rests the pointer on an account's usage bar, so its tooltip shows. */
+async function hoverBar(page, label) {
+	await tab(page, 1);
+	await settle(page);
+	const row = page.getByRole('listitem').filter({ hasText: label });
+	const box = await row.getByRole('progressbar').first().boundingBox();
+	await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2);
+}
+
 /** Each shot: the file it writes, the window config, and how to get there. */
 const shots = {
 	usage: {
@@ -63,6 +72,12 @@ const shots = {
 	},
 	settings: {
 		go: (page) => tab(page, 2)
+	},
+	'usage-tooltip': {
+		go: (page) => hoverBar(page, 'Work')
+	},
+	'limited-account': {
+		go: (page) => hoverBar(page, 'Research')
 	},
 	'copy-sessions': {
 		async go(page) {

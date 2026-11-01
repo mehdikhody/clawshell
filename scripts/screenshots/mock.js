@@ -222,12 +222,10 @@
 	};
 
 	const notes = [
-		'Arabic, Russian and Simplified Chinese',
-		'Calendar setting: Jalali, Hijri and Chinese lunar',
-		'Copy Code sessions between accounts',
-		'Quit Claude from an account’s menu',
-		'Loading placeholders that keep their size',
-		'Live drag and drop for accounts'
+		'One usage bar per account for weekly and 5-hour',
+		'Hover the bar to see when each window resets',
+		'Limited accounts fade out until they come back',
+		'Loading placeholders shaped like account rows'
 	].join('\n');
 
 	const handlers = {
@@ -247,8 +245,8 @@
 			cfg.update
 				? {
 						rid: 1,
-						currentVersion: '0.2.0',
-						version: '0.3.0',
+						currentVersion: '0.3.0',
+						version: '0.4.0',
 						date: iso(now),
 						body: notes,
 						rawJson: {}
