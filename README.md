@@ -256,7 +256,7 @@ Releases are built by the [release workflow](.github/workflows/release.yml) on G
    git push origin v0.2.0
    ```
 
-The workflow fails if the tag and the version differ. Otherwise it runs the tests, builds the Windows installers, signs them for the updater and publishes them to a GitHub release together with `latest.json`. The workflow sets the release body from the notes file, dropping the screenshots and the **For maintainers** section. Installed copies of clawshell read `latest.json` from the latest stable release to find updates, so drafts and prereleases never reach users.
+The workflow fails if the tag and the version differ. Otherwise it runs the tests, builds the Windows installers, signs them for the updater and publishes them to a GitHub release together with `latest.json`. The workflow builds the release body from the notes file, dropping the screenshots and the **For maintainers** section, and the same text goes into `latest.json` as the notes the update dialog shows under **What's new**. Installed copies of clawshell read `latest.json` from the latest stable release to find updates, so drafts and prereleases never reach users.
 
 ### Signing key setup
 

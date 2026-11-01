@@ -40,6 +40,7 @@ jobs:
           fi
 
       - name: Prepare release notes
+        id: notes
         shell: bash
         run: |
           version=$(node -p "require('./src-tauri/tauri.conf.json').version")
@@ -52,6 +53,13 @@ jobs:
           # heading (the release title already says it) and the maintainer-only section.
           awk '/^## For maintainers/{exit} /^<img /{next} {print}' "$notes" \
             | sed '1{/^# /d}' | sed '1{/^$/d}' | sed '/^$/N;/^\n$/D' > "$RUNNER_TEMP/release-notes.md"
+          # tauri-action copies the release body into latest.json, which is where the
+          # update dialog reads What's new, so the notes must reach it as releaseBody.
+          {
+            echo 'body<<CLAWSHELL_NOTES_EOF'
+            cat "$RUNNER_TEMP/release-notes.md"
+            echo 'CLAWSHELL_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
         with:
@@ -78,6 +86,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: clawshell ${{ github.ref_name }}
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: false
           # Upload latest.json (the updater manifest) and the .sig files with the installers.
@@ -85,9 +94,3 @@ jobs:
           uploadUpdaterSignatures: true
           # The manifest points at the NSIS setup.exe rather than the .msi.
           updaterJsonPreferNsis: true
-
-      - name: Set release notes
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-notes.md"
