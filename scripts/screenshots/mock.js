@@ -223,19 +223,13 @@
 
 	// Markdown, as the release workflow writes it into latest.json.
 	const notes = [
-		'Weekly and 5-hour usage share one bar per account.',
-		'',
-		'## New',
-		'',
-		'### Reset countdown on hover',
-		'',
-		'Hover an account’s usage bar to see how long until each window resets.',
+		'The update dialog shows what’s new again, now laid out with headings and lists.',
 		'',
 		'## Changed',
 		'',
-		'- Limited accounts fade out until they come back.',
-		'- The usage bars keep their own colours.',
-		'- Loading placeholders look like account rows.'
+		'- Release notes keep their headings, paragraphs and bullet lists.',
+		'- Limited accounts are listed after the others until they come back.',
+		'- The **Update available** badge is smaller.'
 	].join('\n');
 
 	const handlers = {
@@ -255,8 +249,8 @@
 			cfg.update
 				? {
 						rid: 1,
-						currentVersion: '0.3.0',
-						version: '0.4.0',
+						currentVersion: '0.4.0',
+						version: '0.4.1',
 						date: iso(now),
 						body: notes,
 						rawJson: {}
