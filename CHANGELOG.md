@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Placeholders shaped like the real content on the Usage tab (heatmap, This month card, pooled usage) and the Accounts tab (account rows) while they first load, instead of blank space and a "Loading…" line. They stay still under reduced motion, and refreshes never bring them back.
 - **Quit Claude** in a running account's context menu. It ends all of that account's Claude processes at once, including a Claude hidden in its own tray, and works for the default account too.
 - **Copy sessions…** in every account's context menu. It lists the account's Code sessions from every organisation, newest first, with title, folder, last activity and an Archived tag, and lets you tick several. Copying them to another account comes in a later update.
+- A "Before you start" notice on first use (and again whenever its text changes), in your language: clawshell is unofficial, what it reads and changes, and that you use it at your own risk. Until you accept, only the window runs: no tray, usage polling, account watching, link handling or update checks, and the window is shown even with start hidden on. Exit, or closing the window, quits clawshell; shortcut clicks and sign-in links you open meanwhile are carried out once you accept. Everyone sees it once after updating.
 
 ## [0.2.0] - 2026-11-01
 

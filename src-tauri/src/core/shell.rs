@@ -71,9 +71,11 @@ impl Core {
         self.settings().language.tray_labels()
     }
 
-    /// What the window's close button does, per "close to tray".
+    /// What the window's close button does, per "close to tray". Until the
+    /// disclaimer is accepted it quits: there is no tray to hide to.
     pub fn close_action(&self) -> CloseAction {
-        if self.settings().close_to_tray {
+        let settings = self.settings();
+        if settings.close_to_tray && self.disclaimer_status().accepted {
             CloseAction::HideToTray
         } else {
             CloseAction::Quit
@@ -81,9 +83,10 @@ impl Core {
     }
 
     /// Whether the window opens at launch. A launch made by Windows at
-    /// sign-in (`boot`) stays in the tray when "start hidden" is on.
+    /// sign-in (`boot`) stays in the tray when "start hidden" is on, but not
+    /// before the disclaimer is accepted.
     pub fn shows_window_at_launch(&self, boot: bool) -> bool {
-        !(boot && self.settings().start_hidden)
+        !(boot && self.settings().start_hidden && self.disclaimer_status().accepted)
     }
 
     pub fn tray_entries(&self) -> io::Result<Vec<TrayEntry>> {

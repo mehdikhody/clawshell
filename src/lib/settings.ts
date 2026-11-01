@@ -28,6 +28,8 @@ export type Settings = {
 	limitThreshold: number;
 	/** Browser sign-in links reach the account that asked for them. Change it with `setSignInRouting`. */
 	signInRouting: boolean;
+	/** The disclaimer version the user accepted; null until they accept. The core changes it only on acceptance. */
+	disclaimerAccepted: number | null;
 };
 
 export const getSettings = () => invoke<Settings>('get_settings');

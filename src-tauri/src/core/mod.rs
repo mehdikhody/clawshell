@@ -9,6 +9,7 @@ pub mod copy_target;
 pub mod cost;
 pub mod default_profile;
 pub mod desktop_token;
+mod disclaimer;
 pub mod install;
 pub mod launch_options;
 pub mod link;
@@ -35,6 +36,7 @@ pub use accounts::{
 pub use calendar::CalendarSetting;
 pub use copy_target::CopyBlocker;
 pub use cost::{AccountCost, Heatmap, MonthCost, NoEstimate};
+pub use disclaimer::{Accepted, DISCLAIMER_VERSION, DisclaimerStatus};
 pub use launch_options::{EnvVar, LaunchOptions, LaunchOptionsError};
 pub use pooled::{PooledRemaining, PooledWindow};
 pub use routing::{RouteError, RoutingChange, RoutingError};
@@ -95,6 +97,9 @@ pub struct Core {
     /// Which accounts clawshell started or focused, and when, for picking the
     /// target of a sign-in link.
     launches: Mutex<routing::Launches>,
+    /// Whether the background work started, and the launch arguments held
+    /// until the disclaimer is accepted.
+    deferred: Mutex<disclaimer::Deferred>,
 }
 
 impl Core {
@@ -109,6 +114,7 @@ impl Core {
             taskbar: Mutex::default(),
             routing_gate: Mutex::new(()),
             launches: Mutex::default(),
+            deferred: Mutex::default(),
         }
     }
 

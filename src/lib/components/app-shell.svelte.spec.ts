@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { emit } from '@tauri-apps/api/event';
 import '../../routes/layout.css';
+import { REFRESH_MS } from '$lib/auto-refresh.svelte';
+import { disclaimer } from '$lib/disclaimer.svelte';
 import { active, switchCalendar, switchLocale } from '$lib/locale-state.svelte';
 import type { Settings } from '$lib/settings';
 import { mockTauri } from '$lib/test/tauri-ipc';
@@ -12,9 +14,13 @@ import AppShell from './app-shell.svelte';
 let restore: () => void;
 
 // The Accounts tab asks the core for its list as soon as it mounts.
-const core = { list_accounts: () => ({ claudeFound: true, accounts: [] }) };
+const core = {
+	list_accounts: () => ({ claudeFound: true, accounts: [] }),
+	disclaimer_status: () => ({ accepted: true, version: 1 })
+};
 afterEach(() => {
 	restore?.();
+	disclaimer.accepted = null;
 	switchLocale('en');
 	switchCalendar('automatic');
 	updateState.current = { status: 'idle' };
@@ -32,7 +38,8 @@ const saved: Settings = {
 	notifyReset: true,
 	warningThreshold: 80,
 	limitThreshold: 100,
-	signInRouting: false
+	signInRouting: false,
+	disclaimerAccepted: 1
 };
 const leftOf = (locator: { element(): Element }) => locator.element().getBoundingClientRect().left;
 
@@ -150,6 +157,58 @@ describe('AppShell update badge', () => {
 		await expect
 			.element(page.getByRole('button', { name: 'به‌روزرسانی در دسترس است' }))
 			.toBeVisible();
+	});
+});
+
+describe('AppShell before the disclaimer is accepted', () => {
+	const pending = { ...core, disclaimer_status: () => ({ accepted: false, version: 1 }) };
+	const cmds = (tauri: { calls: { cmd: string }[] }, cmd: string) =>
+		tauri.calls.filter((c) => c.cmd === cmd).length;
+
+	it('still draws the screens, reading through the core', async () => {
+		({ restore } = mockTauri({ ...pending, 'plugin:updater|check': () => null }));
+		render(AppShell);
+
+		await expect.element(page.getByRole('tab', { name: 'Accounts' })).toBeVisible();
+		await vi.waitFor(() => expect(disclaimer.accepted).toBe(false));
+	});
+
+	it('holds back the update check until the disclaimer is accepted', async () => {
+		const tauri = mockTauri({ ...pending, 'plugin:updater|check': () => null });
+		({ restore } = tauri);
+		render(AppShell);
+		await vi.waitFor(() => expect(disclaimer.accepted).toBe(false));
+
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		expect(cmds(tauri, 'plugin:updater|check')).toBe(0);
+
+		disclaimer.accepted = true;
+
+		await vi.waitFor(() => expect(cmds(tauri, 'plugin:updater|check')).toBe(1));
+	});
+
+	it('holds back the auto-refresh timer until the disclaimer is accepted', async () => {
+		vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+		try {
+			const tauri = mockTauri({
+				...pending,
+				'plugin:updater|check': () => null,
+				refresh_usage: () => ({ refreshed: 0 })
+			});
+			({ restore } = tauri);
+			render(AppShell);
+			await vi.waitFor(() => expect(disclaimer.accepted).toBe(false));
+
+			await vi.advanceTimersByTimeAsync(REFRESH_MS * 2);
+			expect(cmds(tauri, 'refresh_usage')).toBe(0);
+
+			disclaimer.accepted = true;
+			await vi.advanceTimersByTimeAsync(REFRESH_MS);
+
+			expect(cmds(tauri, 'refresh_usage')).toBe(1);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });
 

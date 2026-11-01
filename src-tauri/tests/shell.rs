@@ -12,6 +12,7 @@ const ID_B: &str = "a0b1c2d3-e4f5-4a6b-8c7d-9e0f1a2b3c4d";
 #[test]
 fn closing_hides_to_the_tray_by_default() {
     let h = Harness::new();
+    h.core().accept_disclaimer().unwrap();
 
     assert_eq!(h.core().close_action(), CloseAction::HideToTray);
 }
@@ -28,6 +29,20 @@ fn closing_quits_when_close_to_tray_is_off() {
 }
 
 #[test]
+fn closing_quits_while_the_disclaimer_is_pending_whatever_close_to_tray_says() {
+    let h = Harness::new();
+    let core = h.core();
+    let mut settings = core.settings();
+    settings.close_to_tray = true;
+    core.update_settings(settings).unwrap();
+    assert_eq!(h.core().close_action(), CloseAction::Quit);
+
+    core.accept_disclaimer().unwrap();
+
+    assert_eq!(h.core().close_action(), CloseAction::HideToTray);
+}
+
+#[test]
 fn a_normal_launch_shows_the_window() {
     let h = Harness::new();
 
@@ -37,6 +52,7 @@ fn a_normal_launch_shows_the_window() {
 #[test]
 fn a_boot_launch_shows_the_window_unless_start_hidden_is_on() {
     let h = Harness::new();
+    h.core().accept_disclaimer().unwrap();
     assert!(h.core().shows_window_at_launch(true));
 
     let core = h.core();
@@ -46,6 +62,17 @@ fn a_boot_launch_shows_the_window_unless_start_hidden_is_on() {
 
     assert!(!h.core().shows_window_at_launch(true));
     assert!(h.core().shows_window_at_launch(false));
+}
+
+#[test]
+fn a_boot_launch_shows_the_window_with_start_hidden_until_the_disclaimer_is_accepted() {
+    let h = Harness::new();
+    let core = h.core();
+    let mut settings = core.settings();
+    settings.start_hidden = true;
+    core.update_settings(settings).unwrap();
+
+    assert!(h.core().shows_window_at_launch(true));
 }
 
 fn account(id: &str, label: &str, running: bool) -> TrayEntry {

@@ -177,5 +177,9 @@
 	"update_installing": "正在安装并重启…",
 	"update_failed": "更新失败",
 	"update_failed_detail": "当前版本仍在运行。请检查网络连接后重试。",
-	"update_retry": "重试"
+	"update_retry": "重试",
+	"disclaimer_title": "开始之前",
+	"disclaimer_body": "clawshell 是非官方工具，并非由 Anthropic 开发、认可或提供支持。\n\n为了正常工作，它会读取每个账户的 Claude 登录信息，以便从 Anthropic 获取用量和费用，启动和结束 Claude Desktop，并修改 Claude 配置文件夹中的文件，例如复制会话时。Claude 的更新可能导致上述任何功能失效。\n\n使用风险由你自行承担。你有责任在 Anthropic 的条款范围内使用 Claude 和多个账户。",
+	"disclaimer_accept": "接受",
+	"disclaimer_exit": "退出"
 }

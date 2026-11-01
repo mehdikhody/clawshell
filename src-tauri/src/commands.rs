@@ -4,9 +4,9 @@
 use crate::core::ports::ClaudeLocator;
 use crate::core::{
     Account, AccountError, AccountList, AddError, CodeSession, ColourError, Core, DeleteError,
-    Heatmap, LaunchError, LaunchOptions, LaunchOptionsError, LaunchOutcome, MonthCost, NewAccount,
-    OpenFolderError, RefreshOutcome, RenameError, RoutingChange, RoutingError, SessionsError,
-    Settings, SettingsError, ShortcutError,
+    DisclaimerStatus, Heatmap, LaunchError, LaunchOptions, LaunchOptionsError, LaunchOutcome,
+    MonthCost, NewAccount, OpenFolderError, RefreshOutcome, RenameError, RoutingChange,
+    RoutingError, SessionsError, Settings, SettingsError, ShortcutError,
 };
 use crate::taskbar::{badge_image, claude_base, plain_image};
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -495,6 +495,37 @@ impl From<SettingsError> for CommandError {
 #[tauri::command]
 pub fn get_settings(core: State<'_, Arc<Core>>) -> Settings {
     core.settings()
+}
+
+#[tauri::command]
+pub fn disclaimer_status(core: State<'_, Arc<Core>>) -> DisclaimerStatus {
+    core.disclaimer_status()
+}
+
+/// Saves the acceptance, starts the work that waited for it (once) and
+/// replays the launch arguments held meanwhile.
+#[tauri::command]
+pub fn accept_disclaimer(
+    app: AppHandle,
+    core: State<'_, Arc<Core>>,
+    feed: State<'_, AccountFeed>,
+) -> Result<(), CommandError> {
+    let accepted = core
+        .accept_disclaimer()
+        .map_err(|e| CommandError::new("io", e.to_string()))?;
+    if accepted.start_background {
+        crate::start_background(&app, core.inner(), &feed)
+            .map_err(|e| CommandError::new("io", e.to_string()))?;
+    }
+    for args in accepted.held {
+        crate::handle_launch_args(&app, &args);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn decline_disclaimer(app: AppHandle) {
+    app.exit(0);
 }
 
 /// Saves the whole settings object, or refuses it and saves nothing.

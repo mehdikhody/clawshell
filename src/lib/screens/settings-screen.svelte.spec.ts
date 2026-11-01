@@ -28,7 +28,8 @@ const defaults: Settings = {
 	notifyReset: true,
 	warningThreshold: 80,
 	limitThreshold: 100,
-	signInRouting: false
+	signInRouting: false,
+	disclaimerAccepted: 1
 };
 
 function mount(stored: Settings = defaults, overrides: IpcHandlers = {}) {

@@ -14,6 +14,7 @@
 	import { onAddAccountRequested } from '$lib/accounts';
 	import { addRequest } from '$lib/add-account-request.svelte';
 	import { startAutoRefresh } from '$lib/auto-refresh.svelte';
+	import { disclaimer, loadDisclaimer } from '$lib/disclaimer.svelte';
 	import { startUpdateChecks } from '$lib/update.svelte';
 	import RoutingOffer from './routing-offer.svelte';
 	import TopBar from './top-bar.svelte';
@@ -33,13 +34,15 @@
 		return () => cleanups.forEach((cleanup) => cleanup());
 	});
 
-	let stopUpdateChecks: (() => void) | null = null;
-	let unmounted = false;
-
-	// onMount's own callback is async, so the cleanup is registered separately.
-	onMount(() => () => {
-		unmounted = true;
-		stopUpdateChecks?.();
+	// The window's own background work waits for the disclaimer; the screens read without it.
+	$effect(() => {
+		if (disclaimer.accepted !== true) return;
+		const stopAutoRefresh = startAutoRefresh();
+		const stopUpdateChecks = startUpdateChecks();
+		return () => {
+			stopAutoRefresh();
+			stopUpdateChecks();
+		};
 	});
 
 	onMount(() => {
@@ -65,8 +68,8 @@
 		// Always applied: the built page carries unfilled lang and dir placeholders.
 		switchLocale(language);
 		switchCalendar(calendar);
-		startAutoRefresh();
-		if (!unmounted) stopUpdateChecks = startUpdateChecks();
+		// After the language, so the dialog never shows in the wrong one.
+		await loadDisclaimer();
 		ready = true;
 	});
 </script>
@@ -77,16 +80,28 @@
 		<div class="flex h-screen w-screen flex-col overflow-hidden rounded-xl border bg-background">
 			<TopBar />
 			<Tabs.Root bind:value={tab} class="min-h-0 flex-1 gap-0 data-horizontal:flex-col-reverse">
-				<Tabs.List variant="line" class="group-data-horizontal/tabs:h-14 w-full shrink-0 rounded-none border-t p-0">
-					<Tabs.Trigger value="usage" class="h-full flex-col gap-1 text-xs group-data-horizontal/tabs:after:top-0 group-data-horizontal/tabs:after:bottom-auto">
+				<Tabs.List
+					variant="line"
+					class="w-full shrink-0 rounded-none border-t p-0 group-data-horizontal/tabs:h-14"
+				>
+					<Tabs.Trigger
+						value="usage"
+						class="h-full flex-col gap-1 text-xs group-data-horizontal/tabs:after:top-0 group-data-horizontal/tabs:after:bottom-auto"
+					>
 						<IconChartBar />
 						{m.tab_usage()}
 					</Tabs.Trigger>
-					<Tabs.Trigger value="accounts" class="h-full flex-col gap-1 text-xs group-data-horizontal/tabs:after:top-0 group-data-horizontal/tabs:after:bottom-auto">
+					<Tabs.Trigger
+						value="accounts"
+						class="h-full flex-col gap-1 text-xs group-data-horizontal/tabs:after:top-0 group-data-horizontal/tabs:after:bottom-auto"
+					>
 						<IconUsers />
 						{m.tab_accounts()}
 					</Tabs.Trigger>
-					<Tabs.Trigger value="settings" class="h-full flex-col gap-1 text-xs group-data-horizontal/tabs:after:top-0 group-data-horizontal/tabs:after:bottom-auto">
+					<Tabs.Trigger
+						value="settings"
+						class="h-full flex-col gap-1 text-xs group-data-horizontal/tabs:after:top-0 group-data-horizontal/tabs:after:bottom-auto"
+					>
 						<IconSettings />
 						{m.tab_settings()}
 					</Tabs.Trigger>

@@ -70,6 +70,10 @@ pub struct Settings {
     /// for them. Changed only by `Core::set_sign_in_routing`, which also does
     /// the registry work; a general settings save leaves it as it is.
     pub sign_in_routing: bool,
+    /// The disclaimer version the user accepted; none until they accept.
+    /// Changed only by `Core::accept_disclaimer`; a general settings save
+    /// leaves it as it is.
+    pub disclaimer_accepted: Option<u32>,
 }
 
 impl Default for Settings {
@@ -87,6 +91,7 @@ impl Default for Settings {
             warning_threshold: DEFAULT_WARNING_THRESHOLD,
             limit_threshold: DEFAULT_LIMIT_THRESHOLD,
             sign_in_routing: false,
+            disclaimer_accepted: None,
         }
     }
 }
@@ -163,6 +168,8 @@ impl Core {
         // Routing has its own switch; a screen holding older settings must
         // not undo it.
         new.sign_in_routing = old.sign_in_routing;
+        // Likewise the disclaimer: only accepting it changes it.
+        new.disclaimer_accepted = old.disclaimer_accepted;
         // Validate before touching Windows, so a refusal changes nothing.
         if !thresholds_valid(&new) {
             return Err(SettingsError::InvalidThresholds);

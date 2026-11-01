@@ -1,7 +1,7 @@
 import { refreshUsage } from '$lib/accounts';
 
 /** How often usage is refreshed while the window is open. Matches the core's minimum interval. */
-const REFRESH_MS = 180_000;
+export const REFRESH_MS = 180_000;
 
 /** Bumped after each automatic refresh; the screens reload when it changes. */
 export const autoRefresh = $state({ tick: 0 });
