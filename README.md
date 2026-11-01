@@ -57,7 +57,7 @@ clawshell is a small tray app for people with more than one Claude subscription.
 - **Windows integration.** Tray icon, a separate taskbar button per account with a coloured badge, desktop shortcuts, and launch at boot.
 - **Sign-in routing.** Browser sign-ins return to the account that started them, with a warning if Windows sends them elsewhere.
 - **Per-account configuration.** Names, badge colours, environment variables and launch flags.
-- **English and Persian.** Full right-to-left layout for Persian, tooltips and menus included.
+- **English, Persian, Arabic, Russian and Chinese.** Full right-to-left layout for Persian and Arabic, tooltips and menus included, and a Calendar setting with Jalali, Hijri and Chinese lunar options.
 
 ## Screenshots
 
@@ -135,7 +135,8 @@ Lists each account with its badge, name, email, 5-hour and weekly usage, and one
 | Sign-in routing          | Send browser sign-ins back to the account that started them.                                  |
 | Warning and limit alerts | Notify when an account reaches the warning or limit threshold you set.                        |
 | Reset alert              | Notify whenever an account's 5-hour or weekly window resets, whether or not it hit the limit. |
-| Language                 | English or Persian (right-to-left). Also changes the tray menu.                               |
+| Language                 | English, Persian, Arabic, Russian or Chinese (Arabic and Persian right-to-left). Also changes the tray menu. |
+| Calendar                 | Automatic, Gregorian, Jalali, Hijri or Chinese lunar. Decides how dates are written.          |
 | Claude.exe path          | A manual path to `Claude.exe` if automatic detection fails.                                   |
 
 If sign-in routing is on but Windows sends `claude://` links to another app, which happens with the Microsoft Store build of Claude, Settings shows a warning with an **Open Default Apps** button. Set the `claude` link type to clawshell there and the warning clears by itself.
@@ -202,7 +203,7 @@ Release builds also create signed updater artifacts, and `tauri build` fails at 
 | Shell        | [Tauri v2](https://tauri.app/) (Rust), with the updater and process plugins                    |
 | Frontend     | [SvelteKit](https://svelte.dev/docs/kit) with [Svelte 5](https://svelte.dev/)                  |
 | Styling      | [Tailwind CSS 4](https://tailwindcss.com/) and [shadcn-svelte](https://www.shadcn-svelte.com/) |
-| Localisation | [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) (English and Persian)    |
+| Localisation | [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) (English, Persian, Arabic, Russian and Chinese) |
 | Testing      | [Vitest](https://vitest.dev/) with browser tests through Playwright                            |
 
 ### Project layout
