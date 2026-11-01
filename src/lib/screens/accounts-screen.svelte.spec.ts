@@ -638,6 +638,74 @@ describe('AccountsScreen', () => {
 		});
 	});
 
+	describe('reordering', () => {
+		/** The text of each row, top to bottom, as the page shows it now. */
+		const rowTexts = () =>
+			[...document.querySelectorAll('[role="listitem"]')].map((row) => row.textContent ?? '');
+
+		/** A point on a row: its top edge, its middle or its bottom edge. */
+		function spot(row: Element, where: 'top' | 'middle' | 'bottom') {
+			const { left, top, bottom, width } = row.getBoundingClientRect();
+			const clientY =
+				where === 'top' ? top + 2 : where === 'bottom' ? bottom - 2 : (top + bottom) / 2;
+			return { clientX: left + width / 2, clientY };
+		}
+
+		/** Sends a pointer event to the page, as the drag library listens for it. */
+		function pointer(
+			type: string,
+			at: { clientX: number; clientY: number },
+			target: EventTarget = document
+		) {
+			target.dispatchEvent(
+				new PointerEvent(type, {
+					...at,
+					bubbles: true,
+					button: 0,
+					pointerId: 1,
+					pointerType: 'mouse',
+					isPrimary: true
+				})
+			);
+		}
+
+		it('moves the rows as a row is dragged, and saves the order when it is dropped', async () => {
+			const tauri = mount();
+			await expect.element(page.getByRole('listitem').nth(2)).toBeVisible();
+			const [first, , last] = [...document.querySelectorAll('[role="listitem"]')];
+			const over = spot(first, 'top');
+
+			pointer('pointerdown', spot(last, 'middle'), last);
+			pointer('pointermove', over);
+
+			await expect.poll(() => rowTexts()[0]).toContain('Account 4');
+			expect(tauri.calls.filter((call) => call.cmd === 'reorder_accounts')).toEqual([]);
+
+			pointer('pointerup', over);
+
+			await expect
+				.poll(() => tauri.calls.filter((call) => call.cmd === 'reorder_accounts'))
+				.toEqual([{ cmd: 'reorder_accounts', args: { ids: ['id-out', 'id-run', 'id-idle'] } }]);
+		});
+
+		it('puts the rows back when a drag ends outside the list', async () => {
+			const tauri = mount();
+			await expect.element(page.getByRole('listitem').nth(2)).toBeVisible();
+			const [first, , last] = [...document.querySelectorAll('[role="listitem"]')];
+
+			pointer('pointerdown', spot(last, 'middle'), last);
+			pointer('pointermove', spot(first, 'top'));
+			await expect.poll(() => rowTexts()[0]).toContain('Account 4');
+
+			// The pointer leaves the list before it is let go.
+			pointer('pointermove', { clientX: 1, clientY: 1 });
+			pointer('pointerup', { clientX: 1, clientY: 1 });
+
+			await expect.poll(() => rowTexts()[0]).toContain('Account 2');
+			expect(tauri.calls.filter((call) => call.cmd === 'reorder_accounts')).toEqual([]);
+		});
+	});
+
 	describe('the default account', () => {
 		const withDefault: AccountList = {
 			...threeAccounts,

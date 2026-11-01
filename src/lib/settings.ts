@@ -12,7 +12,7 @@ export type Settings = {
 	closeToTray: boolean;
 	/** The language of the window and the tray menu. */
 	language: Locale;
-	/** How dates are written, which digits numbers use and which day weeks start on; Automatic follows the language. */
+	/** How dates are written and which day weeks start on; Automatic follows the language. */
 	calendar: CalendarSetting;
 	/** Where Claude.exe is, used when detection fails; null when not set. */
 	claudePath: string | null;

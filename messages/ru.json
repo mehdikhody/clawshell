@@ -108,7 +108,7 @@
 	"language_ru": "Русский",
 	"language_zh": "简体中文",
 	"settings_calendar": "Календарь",
-	"settings_calendar_hint": "Определяет запись дат, цифры в числах и первый день недели.",
+	"settings_calendar_hint": "Определяет запись дат и первый день недели.",
 	"calendar_automatic": "Автоматически",
 	"calendar_gregory": "Григорианский",
 	"calendar_persian": "Джалали (персидский)",

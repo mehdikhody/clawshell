@@ -45,8 +45,8 @@ describe('switchCalendar', () => {
 		switchCalendar('persian');
 		switchLocale('en');
 		expect(active.calendar).toBe('persian');
-		expect(new Intl.NumberFormat(formatTag()).format(15)).toBe('۱۵');
+		expect(new Intl.NumberFormat(formatTag()).format(15)).toBe('15');
 		switchLocale('ru');
-		expect(formatTag()).toBe('ru-u-ca-persian-nu-arabext');
+		expect(formatTag()).toBe('ru-u-ca-persian-nu-latn');
 	});
 });

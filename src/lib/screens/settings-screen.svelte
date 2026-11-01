@@ -357,7 +357,7 @@
 							</Button>
 						{/snippet}
 					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="end">
+					<DropdownMenu.Content align="end" class="w-max min-w-44">
 						<DropdownMenu.RadioGroup
 							value={settings!.calendar}
 							onValueChange={(next) => {

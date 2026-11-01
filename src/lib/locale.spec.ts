@@ -69,11 +69,10 @@ describe('resolveCalendar', () => {
 });
 
 describe('digitsOf', () => {
-	it('is Persian digits for Jalali, Arabic-Indic for Hijri and 0-9 otherwise', () => {
-		expect(digitsOf('persian')).toBe('arabext');
-		expect(digitsOf('islamic-umalqura')).toBe('arab');
-		expect(digitsOf('gregory')).toBe('latn');
-		expect(digitsOf('chinese')).toBe('latn');
+	it('is Persian digits for Persian, Arabic-Indic for Arabic and 0-9 otherwise', () => {
+		expect(digitsOf('fa')).toBe('arabext');
+		expect(digitsOf('ar')).toBe('arab');
+		for (const locale of ['en', 'ru', 'zh'] as const) expect(digitsOf(locale)).toBe('latn');
 	});
 });
 
@@ -111,23 +110,26 @@ describe('intlLocale', () => {
 
 	it('names the language tag, the resolved calendar and its digits for every pair', () => {
 		const tags = { en: 'en', fa: 'fa', ar: 'ar', ru: 'ru', zh: 'zh-CN' };
+		const digits = { en: 'latn', fa: 'arabext', ar: 'arab', ru: 'latn', zh: 'latn' };
 		const expected = {
 			automatic: {
-				en: 'gregory-nu-latn',
-				fa: 'persian-nu-arabext',
-				ar: 'islamic-umalqura-nu-arab',
-				ru: 'gregory-nu-latn',
-				zh: 'gregory-nu-latn'
+				en: 'gregory',
+				fa: 'persian',
+				ar: 'islamic-umalqura',
+				ru: 'gregory',
+				zh: 'gregory'
 			},
-			gregory: 'gregory-nu-latn',
-			persian: 'persian-nu-arabext',
-			'islamic-umalqura': 'islamic-umalqura-nu-arab',
-			chinese: 'chinese-nu-latn'
+			gregory: 'gregory',
+			persian: 'persian',
+			'islamic-umalqura': 'islamic-umalqura',
+			chinese: 'chinese'
 		};
 		for (const language of locales) {
-			for (const calendar of calendars) {
-				const suffix = calendar === 'automatic' ? expected.automatic[language] : expected[calendar];
-				expect(intlLocale(language, calendar)).toBe(`${tags[language]}-u-ca-${suffix}`);
+			for (const setting of calendars) {
+				const calendar = setting === 'automatic' ? expected.automatic[language] : expected[setting];
+				expect(intlLocale(language, setting)).toBe(
+					`${tags[language]}-u-ca-${calendar}-nu-${digits[language]}`
+				);
 			}
 		}
 	});
@@ -143,19 +145,25 @@ describe('formatInteger', () => {
 		expect(formatInteger(1234, intlLocale('fa'))).toBe('۱٬۲۳۴');
 	});
 
-	it('uses Arabic-Indic digits under the Hijri calendar, even in English', () => {
-		expect(formatInteger(30, intlLocale('en', 'islamic-umalqura'))).toBe('٣٠');
+	it('uses Arabic-Indic digits in Arabic, whatever the calendar', () => {
+		expect(formatInteger(30, intlLocale('ar'))).toBe('٣٠');
+		expect(formatInteger(30, intlLocale('ar', 'gregory'))).toBe('٣٠');
 	});
 
-	it('uses 0-9 in Persian once the user pins Gregorian', () => {
-		expect(formatInteger(30, intlLocale('fa', 'gregory'))).toBe('30');
+	it('keeps 0-9 under the Hijri calendar in English', () => {
+		expect(formatInteger(30, intlLocale('en', 'islamic-umalqura'))).toBe('30');
 	});
 
-	it('writes a Jalali year, in Persian digits, for an English reader who pinned Jalali', () => {
+	it('keeps Persian digits in Persian once the user pins Gregorian', () => {
+		expect(formatInteger(30, intlLocale('fa', 'gregory'))).toBe('۳۰');
+	});
+
+	it('writes a Jalali year in 0-9 for an English reader who pinned Jalali', () => {
 		const year = new Intl.DateTimeFormat(intlLocale('en', 'persian'), { year: 'numeric' }).format(
 			new Date(2026, 5, 15)
 		);
-		expect(year).toContain('۱۴۰۵');
+		expect(year).toContain('1405');
+		expect(year).not.toContain('۱۴۰۵');
 	});
 });
 

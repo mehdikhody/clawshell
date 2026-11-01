@@ -6,7 +6,7 @@
 //! identified by its `resets_at`, and the flags below belong to it: when the
 //! window changes, they start over.
 
-use super::calendar::{Digits, digits_of, localize_digits, resolve_calendar};
+use super::calendar::{Digits, digits_of, localize_digits};
 use super::settings::Settings;
 use super::usage::{UsageSnapshot, UsageSource, WindowUsage};
 use super::{Core, Language};
@@ -256,7 +256,7 @@ impl Core {
         }
         let settings = self.settings();
         let rules = Rules::of(&settings);
-        let digits = digits_of(resolve_calendar(settings.language, settings.calendar));
+        let digits = digits_of(settings.language);
         let mut sends = Vec::new();
         {
             let mut fired = self.fired.lock().unwrap();

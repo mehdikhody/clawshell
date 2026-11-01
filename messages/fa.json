@@ -108,7 +108,7 @@
 	"language_ru": "Русский",
 	"language_zh": "简体中文",
 	"settings_calendar": "تقویم",
-	"settings_calendar_hint": "شیوهٔ نوشتن تاریخ، رقم‌های اعداد و روز شروع هفته را تعیین می‌کند.",
+	"settings_calendar_hint": "شیوهٔ نوشتن تاریخ و روز شروع هفته را تعیین می‌کند.",
 	"calendar_automatic": "خودکار",
 	"calendar_gregory": "میلادی",
 	"calendar_persian": "شمسی",

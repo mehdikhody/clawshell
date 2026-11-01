@@ -760,6 +760,6 @@ describe('UsageScreen in another calendar', () => {
 
 		await day.hover();
 
-		await expect.element(page.getByTestId('heatmap-tooltip')).toHaveTextContent('Khordad ۲۰');
+		await expect.element(page.getByTestId('heatmap-tooltip')).toHaveTextContent('Khordad 20');
 	});
 });

@@ -36,9 +36,9 @@ export const resolveCalendar = (locale: Locale, calendar: CalendarSetting): Cale
 				? 'islamic-umalqura'
 				: 'gregory';
 
-/** Persian digits for Jalali, Arabic-Indic for Hijri, 0-9 for Gregorian and Chinese lunar. */
-export const digitsOf = (calendar: Calendar): Digits =>
-	calendar === 'persian' ? 'arabext' : calendar === 'islamic-umalqura' ? 'arab' : 'latn';
+/** Persian digits for Persian, Arabic-Indic for Arabic and 0-9 otherwise. The calendar never changes them. */
+export const digitsOf = (locale: Locale): Digits =>
+	locale === 'fa' ? 'arabext' : locale === 'ar' ? 'arab' : 'latn';
 
 /**
  * The day a week starts on, counted as `Date.getDay` counts. Jalali and Hijri start on
@@ -57,12 +57,12 @@ export const weekStartOf = (locale: Locale, calendar: CalendarSetting = 'automat
 };
 
 /**
- * The tag to hand to `Intl`: the language, then the resolved calendar and its digits, both
- * named so no engine default can change them. Chinese is Simplified, so its tag is `zh-CN`.
+ * The tag to hand to `Intl`: the language, then the resolved calendar and the language's digits,
+ * both named so no engine default can change them. Chinese is Simplified, so its tag is `zh-CN`.
  */
 export const intlLocale = (locale: Locale, calendar: CalendarSetting = 'automatic'): string => {
 	const resolved = resolveCalendar(locale, calendar);
-	return `${locale === 'zh' ? 'zh-CN' : locale}-u-ca-${resolved}-nu-${digitsOf(resolved)}`;
+	return `${locale === 'zh' ? 'zh-CN' : locale}-u-ca-${resolved}-nu-${digitsOf(locale)}`;
 };
 
 /** A whole number with grouping, in the digits of the locale. */

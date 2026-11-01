@@ -45,11 +45,12 @@ fn a_pinned_calendar_stays_whatever_the_language() {
 }
 
 #[test]
-fn digits_follow_the_calendar() {
-    assert_eq!(digits_of(Calendar::Persian), Digits::Arabext);
-    assert_eq!(digits_of(Calendar::IslamicUmalqura), Digits::Arab);
-    assert_eq!(digits_of(Calendar::Gregory), Digits::Latn);
-    assert_eq!(digits_of(Calendar::Chinese), Digits::Latn);
+fn digits_follow_the_language_whatever_the_calendar() {
+    assert_eq!(digits_of(Language::Fa), Digits::Arabext);
+    assert_eq!(digits_of(Language::Ar), Digits::Arab);
+    assert_eq!(digits_of(Language::En), Digits::Latn);
+    assert_eq!(digits_of(Language::Ru), Digits::Latn);
+    assert_eq!(digits_of(Language::Zh), Digits::Latn);
 }
 
 #[test]

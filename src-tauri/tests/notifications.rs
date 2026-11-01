@@ -361,18 +361,18 @@ fn warning_under(language: Language, calendar: CalendarSetting) -> (String, Stri
 }
 
 #[test]
-fn numbers_are_written_in_the_digits_of_the_calendar_not_the_language() {
-    // Jalali: Persian digits, even in English.
+fn numbers_are_written_in_the_digits_of_the_language_not_the_calendar() {
+    // Jalali in English: 0-9.
     let (_, body) = warning_under(Language::En, CalendarSetting::Persian);
-    assert_eq!(body, "Its ۵-hour usage is at ۸۵%.");
-    // Hijri: Arabic-Indic digits, even in Russian.
+    assert_eq!(body, "Its 5-hour usage is at 85%.");
+    // Hijri in Russian: 0-9.
     let (_, body) = warning_under(Language::Ru, CalendarSetting::IslamicUmalqura);
-    assert_eq!(body, "Расход за ٥-часовое окно: ٨٥%.");
-    // Gregorian: 0-9, even in Persian and Arabic.
+    assert_eq!(body, "Расход за 5-часовое окно: 85%.");
+    // Gregorian in Persian and Arabic: their own digits.
     let (_, body) = warning_under(Language::Fa, CalendarSetting::Gregory);
-    assert_eq!(body, "مصرف 5 ساعته آن به 85٪ رسیده است.");
+    assert_eq!(body, "مصرف ۵ ساعته آن به ۸۵٪ رسیده است.");
     let (_, body) = warning_under(Language::Ar, CalendarSetting::Gregory);
-    assert_eq!(body, "بلغ استخدام نافذة 5 ساعات 85٪.");
+    assert_eq!(body, "بلغ استخدام نافذة ٥ ساعات ٨٥٪.");
     // Chinese lunar: 0-9.
     let (_, body) = warning_under(Language::Zh, CalendarSetting::Chinese);
     assert_eq!(body, "5 小时用量已达 85%。");

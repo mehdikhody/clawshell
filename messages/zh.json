@@ -108,7 +108,7 @@
 	"language_ru": "Русский",
 	"language_zh": "简体中文",
 	"settings_calendar": "历法",
-	"settings_calendar_hint": "决定日期的写法、数字使用的字符以及每周从哪一天开始。",
+	"settings_calendar_hint": "决定日期的写法以及每周从哪一天开始。",
 	"calendar_automatic": "自动",
 	"calendar_gregory": "公历",
 	"calendar_persian": "波斯历",

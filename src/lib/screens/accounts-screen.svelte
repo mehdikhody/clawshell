@@ -74,6 +74,14 @@
 	};
 	const list = $derived(shown.list ?? noAccounts);
 	const loaded = $derived(shown.list !== null);
+	/** The rows in the order they show: the saved order, with the dragged row already moved to its spot. */
+	const rows = $derived.by(() => {
+		if (!dragMove) return list.accounts;
+		const ids = list.accounts.map((account) => account.id);
+		const moved = moveAccount(ids, dragMove.dragged, dragMove.target, dragMove.position) ?? ids;
+		const byId = new Map(list.accounts.map((account) => [account.id, account]));
+		return moved.flatMap((id) => byId.get(id) ?? []);
+	});
 	/** How long a confirmation stays on screen. */
 	const NOTICE_MS = 5000;
 	let adding = $state(false);
@@ -105,6 +113,12 @@
 	let copyingSessions = $state<Account | null>(null);
 	/** The account awaiting delete (or, when its folder is gone, remove) confirmation. */
 	let confirming = $state<Account | null>(null);
+	/** The row being dragged and the spot it is over. The rows show that move while the drag runs. */
+	let dragMove = $state<{ dragged: string; target: string; position: 'before' | 'after' } | null>(
+		null
+	);
+	/** True from a drop until its order is saved, so the drag ending first does not undo the move. */
+	let saving = false;
 
 	const statusLabel: Record<AccountStatus, () => string> = {
 		running: () => m.status_running(),
@@ -226,7 +240,12 @@
 			targetContainer,
 			dropPosition
 		);
-		if (!ids) return;
+		if (ids) await saveOrder(ids);
+	}
+
+	/** Saves an order, and keeps the rows in it until the core confirms it, so they do not flicker back. */
+	async function saveOrder(ids: string[]) {
+		saving = true;
 		failure = null;
 		try {
 			await reorderAccounts(ids);
@@ -234,6 +253,31 @@
 			failure = describe(error, m.error_reorder_failed());
 		} finally {
 			await refresh();
+			saving = false;
+			dragMove = null;
+		}
+	}
+
+	/** Moves the rows to the spot the dragged row is over, so the new order shows before the drop. */
+	function previewDrag(state: DragDropState<Account>) {
+		const { sourceContainer, targetContainer, dropPosition } = state;
+		if (!targetContainer || !dropPosition || sourceContainer === targetContainer) return;
+		dragMove = { dragged: sourceContainer, target: targetContainer, position: dropPosition };
+	}
+
+	/**
+	 * Ends a drag. Released over a row, it keeps the order the rows show, even when the row
+	 * has moved out from under the pointer. Otherwise the rows go back to the saved order.
+	 * A keyboard drag saves on Enter (see reorder), so Escape leaves the order alone.
+	 */
+	function endDrag(state: DragDropState<Account>) {
+		if (saving) return;
+		const ids = rows.map((account) => account.id);
+		const changed = ids.some((id, i) => id !== list.accounts[i]?.id);
+		if (dragMove && changed && state.targetContainer && state.dragInput !== 'keyboard') {
+			void saveOrder(ids);
+		} else {
+			dragMove = null;
 		}
 	}
 
@@ -357,7 +401,7 @@
 
 	{#if list.accounts.length > 0}
 		<Item.Group class="gap-2">
-			{#each list.accounts as account (account.id)}
+			{#each rows as account (account.id)}
 				<ContextMenu.Root>
 					<ContextMenu.Trigger class="contents">
 						<Item.Root
@@ -367,14 +411,16 @@
 							tabindex={0}
 							class="cursor-default flex-wrap select-none"
 							{@attach (node) => {
-								// The default account always stays first.
-								if (account.isDefault) return;
-								const drag = attachDraggable(() => ({ container: account.id, dragData: account }))(
-									node
-								);
+								// The default account always stays first. Reading it once keeps a refresh mid-drag from re-attaching the row.
+								if (untrack(() => account.isDefault)) return;
+								const drag = attachDraggable(() => ({
+									container: account.id,
+									dragData: account,
+									callbacks: { onDragEnd: endDrag }
+								}))(node);
 								const drop = attachDroppable(() => ({
 									container: account.id,
-									callbacks: { onDrop: reorder }
+									callbacks: { onDragOver: previewDrag, onDrop: reorder }
 								}))(node);
 								return () => {
 									if (typeof drag === 'function') drag();

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Arabic, Russian and Simplified Chinese join English and Persian in the window. The language picker shows each language in its own name, Arabic is laid out right to left, and Arabic and Chinese get their own fonts. The tray menu and desktop notifications are translated too.
 - On first run, clawshell starts in your Windows display language when it is Persian, Arabic, Russian or Chinese, and in English otherwise. A language you have already chosen is never changed.
-- **Calendar** setting under Language: Automatic, Gregorian, Jalali, Hijri or Chinese lunar. It decides how dates are written, which digits every number uses (Persian digits for Jalali, Arabic-Indic for Hijri, 0-9 otherwise) and which day the heatmap's weeks start on. Automatic picks Jalali for Persian, Hijri for Arabic and Gregorian otherwise, so Persian looks the same as before, and a calendar you pick stays when you change language.
+- **Calendar** setting under Language: Automatic, Gregorian, Jalali, Hijri or Chinese lunar. It decides how dates are written and which day the heatmap's weeks start on. Numbers keep the digits of the language (Persian digits in Persian, Arabic-Indic in Arabic, 0-9 otherwise), so a calendar never changes them. Automatic picks Jalali for Persian, Hijri for Arabic and Gregorian otherwise, so Persian looks the same as before, and a calendar you pick stays when you change language.
 - **Quit Claude** in a running account's context menu. It ends all of that account's Claude processes at once, including a Claude hidden in its own tray, and works for the default account too.
 - **Copy sessions…** in every account's context menu. It lists the account's Code sessions from every organisation, newest first, with title, folder, last activity and an Archived tag, and lets you tick several. Copying them to another account comes in a later update.
 - A "Before you start" notice on first use (and again whenever its text changes), in your language: clawshell is unofficial, what it reads and changes, and that you use it at your own risk. Until you accept, only the window runs: no tray, usage polling, account watching, link handling or update checks, and the window is shown even with start hidden on. Exit, or closing the window, quits clawshell; shortcut clicks and sign-in links you open meanwhile are carried out once you accept. Everyone sees it once after updating.
@@ -19,7 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - "This month" is now the month of your calendar that contains today (a Jalali, Hijri or Chinese lunar month on those calendars). On a calendar other than Gregorian, the extra-usage line is labelled "billing month" because Anthropic reports it for its own month. Heatmap dates and the numbers in limit notifications follow your calendar too.
+- The Calendar menu is wide enough for its longest name, and the English name for the Chinese lunar calendar is now **Lunar**.
 - Placeholders shaped like the real content on the Usage tab (heatmap, This month card, pooled usage) and the Accounts tab (account rows) replace the blank space and the "Loading…" line while they first load. They stay still under reduced motion, and refreshes, like changing the language or calendar, never bring them back.
+- Dragging an account on the Accounts tab moves the rows live, so you see the new order before you let go. Release the row over the list to save it; release it off the list and the old order stays.
 
 ## [0.2.0] - 2026-11-01
 

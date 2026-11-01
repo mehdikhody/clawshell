@@ -1,6 +1,6 @@
-//! The calendar setting and what it decides: the digits of every number and
-//! the first day of the week. Mirrors the window's `locale.ts`, so both sides
-//! agree on what the user chose.
+//! The calendar setting and what it decides: the first day of the week and the
+//! month boundaries. The digits come from the language, not the calendar.
+//! Mirrors the window's `locale.ts`, so both sides agree on what the user chose.
 
 use super::Language;
 use icu_calendar::Date;
@@ -57,13 +57,13 @@ pub fn resolve_calendar(language: Language, setting: CalendarSetting) -> Calenda
     }
 }
 
-/// Persian digits for Jalali, Arabic-Indic for Hijri, 0-9 for Gregorian and
-/// Chinese lunar.
-pub fn digits_of(calendar: Calendar) -> Digits {
-    match calendar {
-        Calendar::Persian => Digits::Arabext,
-        Calendar::IslamicUmalqura => Digits::Arab,
-        Calendar::Gregory | Calendar::Chinese => Digits::Latn,
+/// Persian digits for Persian, Arabic-Indic for Arabic and 0-9 otherwise. The
+/// calendar never changes the digits.
+pub fn digits_of(language: Language) -> Digits {
+    match language {
+        Language::Fa => Digits::Arabext,
+        Language::Ar => Digits::Arab,
+        Language::En | Language::Ru | Language::Zh => Digits::Latn,
     }
 }
 

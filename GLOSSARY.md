@@ -49,7 +49,7 @@ The language of clawshell's window, tray menu and notifications.
 _Avoid_: Locale (in user-facing text)
 
 **Calendar**:
-The calendar clawshell writes dates in and counts months by. It also decides the digits and, except for Gregorian, the first day of the week.
+The calendar clawshell writes dates in and counts months by. It also decides, except for Gregorian, the first day of the week. The digits follow the language, not the calendar.
 _Avoid_: Date format, region
 
 **Automatic calendar**:

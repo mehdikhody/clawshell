@@ -156,18 +156,18 @@ describe('SettingsScreen', () => {
 		expect(top - below).toBeLessThan(80);
 	});
 
-	it('offers Automatic, Gregorian, Jalali, Hijri and Chinese lunar, with the saved one picked', async () => {
+	it('offers Automatic, Gregorian, Jalali, Hijri and Lunar, with the saved one picked', async () => {
 		mount({ ...defaults, calendar: 'islamic-umalqura' });
 
 		await page.getByRole('button', { name: 'Calendar' }).click();
 		await expect.element(page.getByRole('menuitemradio', { name: 'Hijri' })).toBeChecked();
-		for (const name of ['Automatic', 'Gregorian', 'Jalali', 'Chinese lunar']) {
+		for (const name of ['Automatic', 'Gregorian', 'Jalali', 'Lunar']) {
 			await expect.element(page.getByRole('menuitemradio', { name })).not.toBeChecked();
 		}
 		expect(page.getByRole('menuitemradio').elements()).toHaveLength(5);
 	});
 
-	it('saves the chosen calendar and writes numbers in its digits at once', async () => {
+	it('saves the chosen calendar and changes its dates at once, keeping 0-9 in English', async () => {
 		const tauri = mount();
 
 		await page.getByRole('button', { name: 'Calendar' }).click();
@@ -175,8 +175,8 @@ describe('SettingsScreen', () => {
 
 		expect(updates(tauri.calls)).toEqual([{ ...defaults, calendar: 'persian' }]);
 		expect(active.calendar).toBe('persian');
-		expect(formatTag()).toBe('en-u-ca-persian-nu-arabext');
-		await expect.element(page.getByText('۸۰٪', { exact: true })).toBeVisible();
+		expect(formatTag()).toBe('en-u-ca-persian-nu-latn');
+		await expect.element(page.getByText('80%', { exact: true })).toBeVisible();
 	});
 
 	it('keeps a pinned calendar when the language changes', async () => {
