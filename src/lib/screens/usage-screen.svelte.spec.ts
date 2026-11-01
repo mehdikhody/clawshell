@@ -724,3 +724,42 @@ describe('UsageScreen skeletons', () => {
 		expect(bar.classList.contains('motion-reduce:animate-none')).toBe(true);
 	});
 });
+
+describe('UsageScreen in another calendar', () => {
+	afterEach(() => switchCalendar('automatic'));
+
+	const withMonth = () => {
+		const work = accountCost('Work', { estimateUsd: 1, extraUsd: 12.5, totalUsd: 13.5, share: 1 });
+		mount(listWith(emptyPooled), {
+			month_cost: () =>
+				monthCost({ estimateUsd: 1, extraUsd: 12.5, totalUsd: 13.5, accounts: [work] })
+		});
+	};
+
+	it('labels extra usage as the billing month under Jalali', async () => {
+		switchCalendar('persian');
+		withMonth();
+
+		await expect.element(page.getByText('Extra usage (billing month)')).toBeVisible();
+	});
+
+	it('labels extra usage as plain extra usage under Gregorian', async () => {
+		withMonth();
+
+		await expect.element(page.getByText('Extra usage', { exact: true })).toBeVisible();
+		expect(page.getByText('billing month').elements()).toHaveLength(0);
+	});
+
+	it('writes the heatmap tooltip date in the calendar on screen', async () => {
+		switchCalendar('persian');
+		mount(listWith(emptyPooled), {
+			// 10 June 2026 is 20 Khordad 1405.
+			heatmap: () => heatmapOf({ '2026-06-10': { usd: values([['Work', 1]]) } })
+		});
+		const day = page.getByRole('group', { name: 'Last 9 weeks' }).getByRole('button').nth(52);
+
+		await day.hover();
+
+		await expect.element(page.getByTestId('heatmap-tooltip')).toHaveTextContent('Khordad ۲۰');
+	});
+});

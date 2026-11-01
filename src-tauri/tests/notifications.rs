@@ -6,7 +6,7 @@
 mod support;
 
 use clawshell_lib::core::usage::{PROFILE_URL, USAGE_URL};
-use clawshell_lib::core::{Core, Language, Settings, SettingsError};
+use clawshell_lib::core::{CalendarSetting, Core, Language, Settings, SettingsError};
 use std::time::Duration;
 use support::Harness;
 
@@ -343,6 +343,41 @@ fn the_text_follows_the_saved_language() {
     assert!(notes[0].1.contains("۵ ساعته"), "{notes:?}");
 }
 
+/// The one notification a reading of 85% earns, under this language and calendar.
+fn warning_under(language: Language, calendar: CalendarSetting) -> (String, String) {
+    let h = Harness::new();
+    signed_in(&h);
+    script(&h, (85.0, FIVE_RESET_1), (10.0, WEEK_RESET_1));
+    let core = h.core();
+    change(&core, |s| {
+        s.language = language;
+        s.calendar = calendar;
+    })
+    .unwrap();
+    core.refresh_usage(false);
+    let mut notes = sent(&h);
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    notes.remove(0)
+}
+
+#[test]
+fn numbers_are_written_in_the_digits_of_the_calendar_not_the_language() {
+    // Jalali: Persian digits, even in English.
+    let (_, body) = warning_under(Language::En, CalendarSetting::Persian);
+    assert_eq!(body, "Its ۵-hour usage is at ۸۵%.");
+    // Hijri: Arabic-Indic digits, even in Russian.
+    let (_, body) = warning_under(Language::Ru, CalendarSetting::IslamicUmalqura);
+    assert_eq!(body, "Расход за ٥-часовое окно: ٨٥%.");
+    // Gregorian: 0-9, even in Persian and Arabic.
+    let (_, body) = warning_under(Language::Fa, CalendarSetting::Gregory);
+    assert_eq!(body, "مصرف 5 ساعته آن به 85٪ رسیده است.");
+    let (_, body) = warning_under(Language::Ar, CalendarSetting::Gregory);
+    assert_eq!(body, "بلغ استخدام نافذة 5 ساعات 85٪.");
+    // Chinese lunar: 0-9.
+    let (_, body) = warning_under(Language::Zh, CalendarSetting::Chinese);
+    assert_eq!(body, "5 小时用量已达 85%。");
+}
+
 #[test]
 fn every_event_and_window_reads_in_arabic_russian_and_chinese() {
     // A 5-hour limit and a weekly warning, then both windows resetting.
@@ -352,19 +387,19 @@ fn every_event_and_window_reads_in_arabic_russian_and_chinese() {
             [
                 (
                     "الحساب Account 2 بلغ حدّه",
-                    "بلغ استخدام نافذة ٥ ساعات 100٪. انتقل إلى حساب آخر.",
+                    "بلغ استخدام نافذة ٥ ساعات ١٠٠٪. انتقل إلى حساب آخر.",
                 ),
                 (
                     "الحساب Account 2 يقترب من حدّه",
-                    "بلغ استخدام نافذة أسبوعية 90٪.",
+                    "بلغ استخدام نافذة أسبوعية ٩٠٪.",
                 ),
                 (
                     "أُعيد ضبط نافذة ٥ ساعات للحساب Account 2",
-                    "عاد الاستخدام إلى 1٪.",
+                    "عاد الاستخدام إلى ١٪.",
                 ),
                 (
                     "أُعيد ضبط نافذة أسبوعية للحساب Account 2",
-                    "عاد الاستخدام إلى 10٪.",
+                    "عاد الاستخدام إلى ١٠٪.",
                 ),
             ],
         ),

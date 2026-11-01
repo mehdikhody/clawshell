@@ -81,6 +81,7 @@
 	"cost_code_tab": "Code 标签页",
 	"cost_estimated": "{amount}",
 	"cost_extra_usage": "额外用量",
+	"cost_extra_usage_billing_month": "额外用量（计费月）",
 	"cost_tokens": "Token",
 	"cost_no_estimate": "无估算",
 	"cost_prices_unavailable": "无法获取模型价格，因此没有 Code 标签页的估算。请检查网络连接后刷新。",

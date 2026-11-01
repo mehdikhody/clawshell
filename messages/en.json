@@ -81,6 +81,7 @@
 	"cost_code_tab": "Code tab",
 	"cost_estimated": "{amount}",
 	"cost_extra_usage": "Extra usage",
+	"cost_extra_usage_billing_month": "Extra usage (billing month)",
 	"cost_tokens": "Tokens",
 	"cost_no_estimate": "No estimate",
 	"cost_prices_unavailable": "Couldn't fetch model prices, so there is no Code-tab estimate. Check your connection and refresh.",

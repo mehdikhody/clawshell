@@ -136,7 +136,7 @@ impl Core {
     }
 
     /// The local calendar day of `at`, as days since 1970-01-01.
-    fn local_day(&self, at: SystemTime) -> i64 {
+    pub(super) fn local_day(&self, at: SystemTime) -> i64 {
         (epoch_ms(at) + self.offset_ms(at)).div_euclid(DAY_MS)
     }
 

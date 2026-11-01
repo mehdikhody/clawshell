@@ -81,6 +81,7 @@
 	"cost_code_tab": "تبويب Code",
 	"cost_estimated": "{amount}",
 	"cost_extra_usage": "استخدام إضافي",
+	"cost_extra_usage_billing_month": "استخدام إضافي (شهر الفوترة)",
 	"cost_tokens": "الرموز",
 	"cost_no_estimate": "لا يوجد تقدير",
 	"cost_prices_unavailable": "تعذّر جلب أسعار النماذج، لذا لا يوجد تقدير لتبويب Code. تحقق من اتصالك ثم حدّث.",

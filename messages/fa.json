@@ -81,6 +81,7 @@
 	"cost_code_tab": "برگهٔ Code",
 	"cost_estimated": "{amount}",
 	"cost_extra_usage": "مصرف اضافه",
+	"cost_extra_usage_billing_month": "مصرف اضافه (ماه صورت‌حساب)",
 	"cost_tokens": "توکن",
 	"cost_no_estimate": "تخمینی در دسترس نیست",
 	"cost_prices_unavailable": "قیمت مدل‌ها دریافت نشد، پس تخمینی برای برگهٔ Code نیست. اتصال خود را بررسی و دوباره به‌روزرسانی کنید.",

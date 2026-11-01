@@ -7,6 +7,7 @@ mod support;
 
 use clawshell_lib::core::cost::{MonthCost, NoEstimate, PRICES_URL};
 use clawshell_lib::core::usage::USAGE_URL;
+use clawshell_lib::core::{CalendarSetting, Language, Settings};
 use serde_json::json;
 use std::time::Duration;
 use support::Harness;
@@ -372,6 +373,75 @@ fn understands_timestamps_with_an_explicit_offset() {
     // 2026-06-01T01:00+03:00 is 22:00 UTC on May 31, i.e. June 1 at UTC+3.
     assert_close(estimate_for("2026-06-01T01:00:00.000+03:00", 3), 1.0);
     assert_close(estimate_for("2026-06-01T01:00:00.000+03:00", 0), 0.0);
+}
+
+// Month bucketing in the calendar the user chose.
+
+/// Prices one message at `ts` under `calendar`. The clock stands at 15 June
+/// 2026: 25 Khordad 1405, and the last day of Dhu al-Hijjah 1447 in Umm al-Qura.
+fn estimate_in(ts: &'static str, calendar: CalendarSetting) -> f64 {
+    let h = Harness::new();
+    account_with_session(&h, ID_A, SESSION_A, &[]);
+    write_transcript(&h, &format!("proj-x/{SESSION_A}.jsonl"), &[at(ts)]);
+    prices_ok(&h);
+    let core = h.core();
+    core.update_settings(Settings {
+        calendar,
+        ..Settings::default()
+    })
+    .unwrap();
+    core.month_cost().estimate_usd.unwrap()
+}
+
+#[test]
+fn this_month_is_the_jalali_month_under_jalali() {
+    // Khordad 1405 runs from 22 May to 21 June.
+    assert_close(
+        estimate_in("2026-05-22T08:00:00.000Z", CalendarSetting::Persian),
+        1.0,
+    );
+    assert_close(
+        estimate_in("2026-05-21T08:00:00.000Z", CalendarSetting::Persian),
+        0.0,
+    );
+    // The same 22 May is last month on the Gregorian calendar.
+    assert_close(
+        estimate_in("2026-05-22T08:00:00.000Z", CalendarSetting::Gregory),
+        0.0,
+    );
+}
+
+#[test]
+fn this_month_is_the_hijri_month_under_hijri() {
+    // Dhu al-Hijjah 1447 runs from 18 May to 15 June.
+    assert_close(
+        estimate_in("2026-05-18T08:00:00.000Z", CalendarSetting::IslamicUmalqura),
+        1.0,
+    );
+    assert_close(
+        estimate_in("2026-05-17T08:00:00.000Z", CalendarSetting::IslamicUmalqura),
+        0.0,
+    );
+}
+
+#[test]
+fn this_month_follows_the_language_under_automatic() {
+    let h = Harness::new();
+    account_with_session(&h, ID_A, SESSION_A, &[]);
+    write_transcript(
+        &h,
+        &format!("proj-x/{SESSION_A}.jsonl"),
+        &[at("2026-05-25T08:00:00.000Z")],
+    );
+    prices_ok(&h);
+    let core = h.core();
+    core.update_settings(Settings {
+        language: Language::Fa,
+        ..Settings::default()
+    })
+    .unwrap();
+
+    assert_close(core.month_cost().estimate_usd.unwrap(), 1.0);
 }
 
 // Pricing details

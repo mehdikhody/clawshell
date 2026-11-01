@@ -4,10 +4,13 @@
 	import { Progress } from '$lib/components/ui/progress';
 	import { Separator } from '$lib/components/ui/separator';
 	import { m } from '$lib/paraglide/messages.js';
-	import { formatInteger, formatPercentValue } from '$lib/locale';
-	import { formatTag } from '$lib/locale-state.svelte';
+	import { formatInteger, formatPercentValue, resolveCalendar } from '$lib/locale';
+	import { active, formatTag } from '$lib/locale-state.svelte';
 
 	let { cost }: { cost: MonthCost } = $props();
+
+	/** Extra usage is the endpoint's billing month, which isn't the calendar's month unless it's Gregorian. */
+	const billingMonth = $derived(resolveCalendar(active.locale, active.calendar) !== 'gregory');
 
 	const usd = (amount: number) => formatUsdShort(amount, formatTag());
 	const count = (tokens: number) => formatCountShort(tokens, formatTag());
@@ -35,7 +38,7 @@
 				</div>
 			{/if}
 			<div class="flex justify-between">
-				<dt>{m.cost_extra_usage()}</dt>
+				<dt>{billingMonth ? m.cost_extra_usage_billing_month() : m.cost_extra_usage()}</dt>
 				<dd class="tabular-nums">{usd(cost.extraUsd)}</dd>
 			</div>
 			<div class="flex justify-between">

@@ -3,6 +3,9 @@
 //! agree on what the user chose.
 
 use super::Language;
+use icu_calendar::Date;
+use icu_calendar::cal::{ChineseTraditional, Gregorian, Hijri, Persian};
+use icu_calendar::types::RataDie;
 use serde::{Deserialize, Serialize};
 
 /// What the user picked, saved with the `Intl` calendar ids. Automatic follows
@@ -64,6 +67,21 @@ pub fn digits_of(calendar: Calendar) -> Digits {
     }
 }
 
+/// `text` with its 0-9 written in `digits`; everything else stays as it is.
+pub fn localize_digits(text: &str, digits: Digits) -> String {
+    let zero = match digits {
+        Digits::Latn => return text.to_string(),
+        Digits::Arab => '\u{0660}',
+        Digits::Arabext => '\u{06F0}',
+    };
+    text.chars()
+        .map(|c| match c.to_digit(10) {
+            Some(n) => char::from_u32(zero as u32 + n).unwrap_or(c),
+            _ => c,
+        })
+        .collect()
+}
+
 /// The day a week starts on, counted as JavaScript's `Date.getDay` counts
 /// (Sunday is 0). Jalali and Hijri start on Saturday and Chinese lunar on
 /// Monday; Gregorian takes it from the language.
@@ -77,4 +95,24 @@ pub fn week_start_of(language: Language, setting: CalendarSetting) -> u8 {
             Language::Fa | Language::Ar => 6,
         },
     }
+}
+
+/// Days from 0001-01-01 (Rata Die day 1) to 1970-01-01.
+const UNIX_EPOCH_RATA_DIE: i64 = 719_163;
+
+/// The month of `calendar` that holds `day` (days since 1970-01-01): its first
+/// day, and the first day of the next month.
+pub fn month_span(calendar: Calendar, day: i64) -> (i64, i64) {
+    match calendar {
+        Calendar::Gregory => span_in(Gregorian, day),
+        Calendar::Persian => span_in(Persian::new(), day),
+        Calendar::IslamicUmalqura => span_in(Hijri::new_umm_al_qura(), day),
+        Calendar::Chinese => span_in(ChineseTraditional::new(), day),
+    }
+}
+
+fn span_in<C: icu_calendar::Calendar>(calendar: C, day: i64) -> (i64, i64) {
+    let date = Date::from_rata_die(RataDie::new(day + UNIX_EPOCH_RATA_DIE), calendar);
+    let first = day - i64::from(date.day_of_month().0 - 1);
+    (first, first + i64::from(date.days_in_month()))
 }

@@ -6,6 +6,7 @@
 //! identified by its `resets_at`, and the flags below belong to it: when the
 //! window changes, they start over.
 
+use super::calendar::{Digits, digits_of, localize_digits, resolve_calendar};
 use super::settings::Settings;
 use super::usage::{UsageSnapshot, UsageSource, WindowUsage};
 use super::{Core, Language};
@@ -155,9 +156,9 @@ fn observe(notes: &mut Option<WindowNotes>, reading: &WindowUsage, rules: &Rules
 impl Language {
     fn window_name(self, window: WindowKind) -> &'static str {
         match (self, window) {
-            (Language::Fa, WindowKind::FiveHour) => "۵ ساعته",
+            (Language::Fa, WindowKind::FiveHour) => "5 ساعته",
             (Language::Fa, WindowKind::Weekly) => "هفتگی",
-            (Language::Ar, WindowKind::FiveHour) => "٥ ساعات",
+            (Language::Ar, WindowKind::FiveHour) => "5 ساعات",
             (Language::Ar, WindowKind::Weekly) => "أسبوعية",
             (Language::Ru, WindowKind::FiveHour) => "5-часовое",
             (Language::Ru, WindowKind::Weekly) => "недельное",
@@ -169,16 +170,18 @@ impl Language {
     }
 }
 
-/// Notification text. Account labels only: never an email or a token.
+/// Notification text, its numbers in `digits`. Account labels only: never an
+/// email or a token.
 fn text(
     language: Language,
+    digits: Digits,
     event: Event,
     window: WindowKind,
     label: &str,
     percent: f64,
 ) -> (String, String) {
-    let name = language.window_name(window);
-    let percent = percent.round() as i64;
+    let name = localize_digits(language.window_name(window), digits);
+    let percent = localize_digits(&(percent.round() as i64).to_string(), digits);
     match (language, event) {
         (Language::Fa, Event::Warning) => (
             format!("{label} به سقف مصرف نزدیک می‌شود"),
@@ -253,6 +256,7 @@ impl Core {
         }
         let settings = self.settings();
         let rules = Rules::of(&settings);
+        let digits = digits_of(resolve_calendar(settings.language, settings.calendar));
         let mut sends = Vec::new();
         {
             let mut fired = self.fired.lock().unwrap();
@@ -270,6 +274,7 @@ impl Core {
                 for event in observe(notes, reading, &rules) {
                     sends.push(text(
                         settings.language,
+                        digits,
                         event,
                         kind,
                         label,

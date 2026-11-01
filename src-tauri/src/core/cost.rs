@@ -11,7 +11,8 @@ mod heatmap;
 pub use heatmap::{DayAccount, DayValues, Heatmap, HeatmapDay};
 
 use super::accounts::Status;
-use super::pooled::{days_from_civil, rfc3339_ms};
+use super::calendar::{month_span, resolve_calendar};
+use super::pooled::rfc3339_ms;
 use super::ports::HttpRequest;
 use super::{Account, Core};
 use serde::Serialize;
@@ -92,7 +93,7 @@ impl Core {
             .into_iter()
             .filter(|a| a.status != Status::Missing)
             .collect();
-        let this_month = self.local_month(self.ports.clock.now());
+        let this_month = self.this_month();
 
         let owners = session_owners(&accounts);
         let records = self.month_records(&owners, this_month);
@@ -158,10 +159,12 @@ impl Core {
         }
     }
 
-    /// `(year, month)` of `at` on the local calendar.
-    fn local_month(&self, at: SystemTime) -> (i64, i64) {
-        let offset = i64::from(self.ports.clock.utc_offset_secs(at));
-        civil_month(epoch_ms(at) + offset * 1_000)
+    /// The month of the user's calendar that holds today: its first local
+    /// day, and the first local day of the next month (days since 1970-01-01).
+    fn this_month(&self) -> (i64, i64) {
+        let settings = self.settings();
+        let calendar = resolve_calendar(settings.language, settings.calendar);
+        month_span(calendar, self.local_day(self.ports.clock.now()))
     }
 
     /// Every usage record of this month in the mapped transcripts, one per
@@ -169,10 +172,10 @@ impl Core {
     fn month_records(
         &self,
         owners: &HashMap<String, String>,
-        this_month: (i64, i64),
+        (first, next): (i64, i64),
     ) -> Vec<(String, Record)> {
-        self.records_where(owners, self.month_start_ms(this_month), |at| {
-            self.local_month(at) == this_month
+        self.records_where(owners, self.day_start_ms(first), |at| {
+            (first..next).contains(&self.local_day(at))
         })
     }
 
@@ -230,10 +233,10 @@ impl Core {
         kept
     }
 
-    /// Epoch ms of local midnight on the first of `month`, near enough to
-    /// prefilter files by modified time.
-    fn month_start_ms(&self, (year, month): (i64, i64)) -> i64 {
-        let utc_midnight = days_from_civil(year, month, 1) * DAY_MS;
+    /// Epoch ms of local midnight on `day` (days since 1970-01-01), near
+    /// enough to prefilter files by modified time.
+    fn day_start_ms(&self, day: i64) -> i64 {
+        let utc_midnight = day * DAY_MS;
         let at = UNIX_EPOCH + Duration::from_millis(u64::try_from(utc_midnight).unwrap_or(0));
         utc_midnight - i64::from(self.ports.clock.utc_offset_secs(at)) * 1_000
     }
@@ -284,12 +287,6 @@ fn extra_usd_of(account: &Account) -> f64 {
 fn epoch_ms(at: SystemTime) -> i64 {
     at.duration_since(UNIX_EPOCH)
         .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
-}
-
-/// `(year, month)` of a count of milliseconds since 1970-01-01 on a calendar.
-fn civil_month(ms: i64) -> (i64, i64) {
-    let (year, month, _) = civil_date(ms.div_euclid(DAY_MS));
-    (year, month)
 }
 
 /// `(year, month, day)` of a count of days since 1970-01-01.

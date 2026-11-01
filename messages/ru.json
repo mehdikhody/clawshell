@@ -81,6 +81,7 @@
 	"cost_code_tab": "Вкладка Code",
 	"cost_estimated": "{amount}",
 	"cost_extra_usage": "Дополнительный расход",
+	"cost_extra_usage_billing_month": "Дополнительный расход (расчётный месяц)",
 	"cost_tokens": "Токены",
 	"cost_no_estimate": "Нет оценки",
 	"cost_prices_unavailable": "Не удалось получить цены моделей, поэтому оценки для вкладки Code нет. Проверьте подключение и обновите.",
