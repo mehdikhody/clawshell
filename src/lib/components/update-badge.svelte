@@ -7,7 +7,7 @@
 	let open = $state(false);
 </script>
 
-<button type="button" class={[badgeVariants(), 'cursor-pointer']} onclick={() => (open = true)}>
+<button type="button" class={badgeVariants({ class: 'h-4 cursor-pointer px-1.5 text-[10px]' })} onclick={() => (open = true)}>
 	{m.update_available()}
 </button>
 <UpdateDialog bind:open />
