@@ -24,15 +24,6 @@ pub(super) struct Deferred {
     held: Vec<Vec<String>>,
 }
 
-/// What accepting the disclaimer asks the shell to do.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Accepted {
-    /// True the first time only: the shell starts the background work.
-    pub start_background: bool,
-    /// The arguments held while the disclaimer was pending, oldest first.
-    pub held: Vec<Vec<String>>,
-}
-
 impl Core {
     pub fn disclaimer_status(&self) -> DisclaimerStatus {
         DisclaimerStatus {
@@ -44,26 +35,38 @@ impl Core {
         }
     }
 
-    /// Saves the current version and hands back what was waiting: whether
-    /// the background work still has to start, and the held arguments.
-    pub fn accept_disclaimer(&self) -> io::Result<Accepted> {
-        let mut deferred = self.deferred.lock().unwrap();
+    /// Saves the current version.
+    pub fn accept_disclaimer(&self) -> io::Result<()> {
         let mut settings = self.settings();
         settings.disclaimer_accepted = Some(DISCLAIMER_VERSION);
-        settings.save(&self.ports.roots.local_app_data)?;
-        Ok(Accepted {
-            start_background: !std::mem::replace(&mut deferred.started, true),
-            held: std::mem::take(&mut deferred.held),
-        })
+        settings.save(&self.ports.roots.local_app_data)
     }
 
-    /// Claims the right to start the background work. True once per run.
-    pub fn start_background_once(&self) -> bool {
-        !std::mem::replace(&mut self.deferred.lock().unwrap().started, true)
+    /// Runs `start` unless the background work has already started, then
+    /// hands each held launch's arguments to `replay`, oldest first. The work
+    /// counts as started only once `start` succeeds: when it fails, the held
+    /// arguments stay queued and a retry runs it again. Every step runs under
+    /// the lock, so a launch that arrives meanwhile queues behind the held
+    /// ones, or is applied directly once they were replayed.
+    pub fn start_background_once<E>(
+        &self,
+        start: impl FnOnce() -> Result<(), E>,
+        mut replay: impl FnMut(Vec<String>),
+    ) -> Result<(), E> {
+        let mut deferred = self.deferred.lock().unwrap();
+        if deferred.started {
+            return Ok(());
+        }
+        start()?;
+        deferred.started = true;
+        std::mem::take(&mut deferred.held)
+            .into_iter()
+            .for_each(&mut replay);
+        Ok(())
     }
 
-    /// Keeps a launch's arguments for replay after acceptance. False when
-    /// the background work has already started: apply them now.
+    /// Keeps a launch's arguments for replay once the background work starts.
+    /// False when it already has: apply them now.
     pub fn hold_launch_args(&self, args: Vec<String>) -> bool {
         let mut deferred = self.deferred.lock().unwrap();
         if deferred.started {

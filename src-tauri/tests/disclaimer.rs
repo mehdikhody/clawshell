@@ -2,7 +2,7 @@
 
 mod support;
 
-use clawshell_lib::core::DISCLAIMER_VERSION;
+use clawshell_lib::core::{Core, DISCLAIMER_VERSION};
 use support::Harness;
 
 fn write_settings(h: &Harness, json: &str) {
@@ -82,37 +82,44 @@ fn a_general_settings_save_leaves_the_disclaimer_as_it_was() {
     assert!(h.core().disclaimer_status().accepted);
 }
 
-#[test]
-fn accepting_starts_the_background_work_exactly_once() {
-    let h = Harness::new();
-    let core = h.core();
-
-    assert!(core.accept_disclaimer().unwrap().start_background);
-    assert!(!core.accept_disclaimer().unwrap().start_background);
+/// Starts the background work with a stand-in that succeeds, and returns the
+/// held arguments in the order they were replayed.
+fn start(core: &Core) -> Vec<Vec<String>> {
+    let mut replayed = Vec::new();
+    core.start_background_once(|| Ok::<(), String>(()), |held| replayed.push(held))
+        .unwrap();
+    replayed
 }
 
 #[test]
-fn an_accepted_launch_starts_the_background_work_exactly_once() {
+fn the_background_work_starts_exactly_once() {
     let h = Harness::new();
-    h.core().accept_disclaimer().unwrap();
     let core = h.core();
+    let mut starts = 0;
 
-    assert!(core.start_background_once());
-    assert!(!core.start_background_once());
-    assert!(!core.accept_disclaimer().unwrap().start_background);
+    for _ in 0..2 {
+        core.start_background_once(
+            || {
+                starts += 1;
+                Ok::<(), String>(())
+            },
+            |_| {},
+        )
+        .unwrap();
+    }
+
+    assert_eq!(starts, 1);
 }
 
 #[test]
-fn held_arguments_come_back_in_order_when_the_disclaimer_is_accepted() {
+fn held_arguments_come_back_in_order_when_the_background_work_starts() {
     let h = Harness::new();
     let core = h.core();
     assert!(core.hold_launch_args(args(&["clawshell.exe", "--open-account", "a"])));
     assert!(core.hold_launch_args(args(&["clawshell.exe", "claude://login"])));
 
-    let accepted = core.accept_disclaimer().unwrap();
-
     assert_eq!(
-        accepted.held,
+        start(&core),
         vec![
             args(&["clawshell.exe", "--open-account", "a"]),
             args(&["clawshell.exe", "claude://login"]),
@@ -121,22 +128,40 @@ fn held_arguments_come_back_in_order_when_the_disclaimer_is_accepted() {
 }
 
 #[test]
+fn a_second_instance_that_arrives_early_does_not_jump_the_first_launch() {
+    // The first launch queues its own arguments before the core is shared, so
+    // a second instance that races setup can only queue behind them.
+    let h = Harness::new();
+    let core = h.core();
+    core.hold_launch_args(args(&["first launch"]));
+    core.hold_launch_args(args(&["second instance"]));
+
+    assert_eq!(
+        start(&core),
+        vec![args(&["first launch"]), args(&["second instance"])]
+    );
+}
+
+#[test]
 fn arguments_are_replayed_once_and_later_ones_are_not_held() {
     let h = Harness::new();
     let core = h.core();
     core.hold_launch_args(args(&["first"]));
-    core.accept_disclaimer().unwrap();
+    start(&core);
 
-    assert!(core.accept_disclaimer().unwrap().held.is_empty());
+    assert!(start(&core).is_empty());
     assert!(!core.hold_launch_args(args(&["late"])));
 }
 
 #[test]
-fn arguments_are_not_held_once_the_background_work_has_started() {
+fn a_failed_start_keeps_the_held_arguments_and_a_retry_runs_it() {
     let h = Harness::new();
-    h.core().accept_disclaimer().unwrap();
     let core = h.core();
-    core.start_background_once();
+    core.hold_launch_args(args(&["first"]));
 
-    assert!(!core.hold_launch_args(args(&["now"])));
+    let failed = core.start_background_once(|| Err("no tray"), |_| panic!("replayed"));
+
+    assert_eq!(failed, Err("no tray"));
+    assert!(core.hold_launch_args(args(&["second"])));
+    assert_eq!(start(&core), vec![args(&["first"]), args(&["second"])]);
 }

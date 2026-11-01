@@ -510,17 +510,10 @@ pub fn accept_disclaimer(
     core: State<'_, Arc<Core>>,
     feed: State<'_, AccountFeed>,
 ) -> Result<(), CommandError> {
-    let accepted = core
-        .accept_disclaimer()
+    core.accept_disclaimer()
         .map_err(|e| CommandError::new("io", e.to_string()))?;
-    if accepted.start_background {
-        crate::start_background(&app, core.inner(), &feed)
-            .map_err(|e| CommandError::new("io", e.to_string()))?;
-    }
-    for args in accepted.held {
-        crate::handle_launch_args(&app, &args);
-    }
-    Ok(())
+    crate::start_deferred_work(&app, core.inner(), &feed)
+        .map_err(|e| CommandError::new("io", e.to_string()))
 }
 
 #[tauri::command]

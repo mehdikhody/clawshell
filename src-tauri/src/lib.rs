@@ -57,19 +57,34 @@ pub(crate) fn handle_launch_args(app: &tauri::AppHandle, args: &[String]) {
 }
 
 /// The work that waits for the disclaimer: watchers, usage polling, the tray
-/// and the link handler. Started once, by `setup` when the disclaimer is
-/// already accepted or else by `accept_disclaimer`.
-pub(crate) fn start_background(
+/// and the link handler.
+fn start_background(
     app: &tauri::AppHandle,
     core: &Arc<Core>,
     feed: &commands::AccountFeed,
 ) -> tauri::Result<()> {
+    // The only step that can fail goes first, so a retry never doubles the rest.
+    tray::build(app, core)?;
     commands::watch_accounts(feed.clone());
     commands::poll_usage(core.clone(), feed.clone());
-    tray::build(app, core)?;
     // Take the link handler back if Claude rewrote it while clawshell was closed.
     core.keep_link_handler();
     Ok(())
+}
+
+/// Starts that work once, by `setup` when the disclaimer is already accepted
+/// or else by `accept_disclaimer`, and then carries out the launches held
+/// meanwhile in the order they arrived. If starting fails, the held launches
+/// stay queued for a retry.
+pub(crate) fn start_deferred_work(
+    app: &tauri::AppHandle,
+    core: &Arc<Core>,
+    feed: &commands::AccountFeed,
+) -> tauri::Result<()> {
+    core.start_background_once(
+        || start_background(app, core, feed),
+        |args| handle_launch_args(app, &args),
+    )
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -117,9 +132,6 @@ pub fn run() {
                 app.handle().clone(),
             );
             let feed = commands::AccountFeed::new(app.handle().clone(), core.clone());
-            app.manage(feed.clone());
-            app.manage(core.clone());
-            app.manage(locator);
             // The window starts hidden; a boot launch may keep it that way.
             let args: Vec<String> = std::env::args().collect();
             let boot = args.iter().any(|arg| arg == AUTOSTART_ARG);
@@ -127,19 +139,23 @@ pub fn run() {
             let clicked = account_to_open(&args).is_some();
             // Likewise a sign-in link that started clawshell.
             let linked = link_argument(&args).is_some();
+            // This launch's own request goes into the queue before the core is
+            // shared, so a second instance that races setup queues behind it.
+            // It is replayed with the rest once the background work starts.
+            if clicked || linked {
+                core.hold_launch_args(args);
+            }
+            app.manage(feed.clone());
+            app.manage(core.clone());
+            app.manage(locator);
             // Until the disclaimer is accepted only the window runs, and it is
-            // always shown; the arguments wait for acceptance.
+            // always shown; the queue waits for acceptance.
             let accepted = core.disclaimer_status().accepted;
             if !accepted || (!clicked && !linked && core.shows_window_at_launch(boot)) {
                 tray::show_main_window(app.handle());
             }
             if accepted {
-                core.start_background_once();
-                start_background(app.handle(), &core, &feed)?;
-                tray::open_from_command_line(app.handle(), &args);
-                tray::route_from_command_line(app.handle(), &args);
-            } else {
-                core.hold_launch_args(args);
+                start_deferred_work(app.handle(), &core, &feed)?;
             }
             Ok(())
         })

@@ -36,7 +36,7 @@ pub use accounts::{
 pub use calendar::CalendarSetting;
 pub use copy_target::CopyBlocker;
 pub use cost::{AccountCost, Heatmap, MonthCost, NoEstimate};
-pub use disclaimer::{Accepted, DISCLAIMER_VERSION, DisclaimerStatus};
+pub use disclaimer::{DISCLAIMER_VERSION, DisclaimerStatus};
 pub use launch_options::{EnvVar, LaunchOptions, LaunchOptionsError};
 pub use pooled::{PooledRemaining, PooledWindow};
 pub use routing::{RouteError, RoutingChange, RoutingError};
