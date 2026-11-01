@@ -100,10 +100,23 @@ impl Records {
             .unwrap_or(usize::MAX)
     }
 
-    /// Puts the records in the order of `ids`. Unknown ids are ignored, and a
-    /// record `ids` does not name keeps its place after the named ones.
-    pub fn reorder(&mut self, ids: &[String]) {
-        let mut rest = std::mem::take(&mut self.accounts);
+    /// Puts the records in the order of `ids`, except those `fixed` names:
+    /// they keep their places, and the others fill the places around them.
+    /// Unknown ids are ignored, and a record `ids` does not name keeps its
+    /// place after the named ones.
+    pub fn reorder(&mut self, ids: &[String], fixed: &[String]) {
+        let mut rest = Vec::new();
+        let places: Vec<Option<Record>> = std::mem::take(&mut self.accounts)
+            .into_iter()
+            .map(|r| {
+                if fixed.contains(&r.id) {
+                    Some(r)
+                } else {
+                    rest.push(r);
+                    None
+                }
+            })
+            .collect();
         let mut ordered = Vec::with_capacity(rest.len());
         for id in ids {
             if let Some(at) = rest.iter().position(|r| &r.id == id) {
@@ -111,7 +124,11 @@ impl Records {
             }
         }
         ordered.extend(rest);
-        self.accounts = ordered;
+        let mut ordered = ordered.into_iter();
+        self.accounts = places
+            .into_iter()
+            .filter_map(|place| place.or_else(|| ordered.next()))
+            .collect();
         self.ordered = true;
     }
 

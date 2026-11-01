@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The update dialog lays out the release notes with their headings, paragraphs and bullet lists, instead of showing the raw `##` and `-` markers.
+- Limited accounts and accounts whose folder is missing are now listed after the others, on the Accounts screen and in the tray menu. They keep their place in your order and return to it once usable again. They can't be dragged, and other rows can't be dropped among them.
 
 ### Fixed
 

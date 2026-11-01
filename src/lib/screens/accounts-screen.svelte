@@ -125,6 +125,8 @@
 	let confirming = $state<Account | null>(null);
 	/** The account ids in the order a drag has moved them into, kept until that order is saved. */
 	let dragOrder = $state<string[] | null>(null);
+	/** The rows that looked disabled when the drag started; they stay locked until it ends. */
+	let dragLocked = $state<Set<string> | null>(null);
 	/** The list of rows, so a drop can tell whether it landed on the list. */
 	let listElement = $state<HTMLElement | null>(null);
 
@@ -145,6 +147,12 @@
 	/** Limited and missing rows look disabled; their badges and buttons keep their colour. */
 	const looksDisabled = (status: AccountStatus) => status === 'limited' || status === 'missing';
 	const disabledLook = 'opacity-60 grayscale';
+	/**
+	 * Disabled rows are listed last and can't be dragged or dropped among. While a drag runs, the
+	 * rows locked when it started stay locked, so a status change doesn't move rows under the pointer.
+	 */
+	const locked = (account: Account) =>
+		dragLocked ? dragLocked.has(account.id) : looksDisabled(account.status);
 
 	/** The usage bar under the pointer, and where its tooltip points: just above the bar, at the pointer. */
 	let hoveredBar = $state<{ id: string; anchor: { getBoundingClientRect: () => DOMRect } } | null>(
@@ -245,7 +253,13 @@
 		const overList =
 			!!box && at.x >= box.left && at.x <= box.right && at.y >= box.top && at.y <= box.bottom;
 		if (!canceled && overList && changed) void saveOrder(ids);
-		else dragOrder = null;
+		else endHold();
+	}
+
+	/** Lets the rows follow the list again: its order, and which rows are locked. */
+	function endHold() {
+		dragOrder = null;
+		dragLocked = null;
 	}
 
 	/** Saves an order, and keeps the rows in it until the core confirms it, so they do not flicker back. */
@@ -257,7 +271,7 @@
 			failure = describe(error, m.error_reorder_failed());
 		} finally {
 			await refresh();
-			dragOrder = null;
+			endHold();
 		}
 	}
 
@@ -386,9 +400,15 @@
 
 	{#if list.accounts.length > 0}
 		<DragDropProvider
-			onDragStart={() => (dragOrder = list.accounts.map((account) => account.id))}
+			onDragStart={() => {
+				dragOrder = list.accounts.map((account) => account.id);
+				dragLocked = new Set(list.accounts.filter(locked).map((account) => account.id));
+			}}
 			onDragOver={(event) => {
-				if (dragOrder) dragOrder = move(dragOrder, event);
+				if (!dragOrder) return;
+				const order = dragOrder;
+				const moved = move(order, event);				// The locked rows stay put at the bottom, so nothing goes among or below them.
+				if (moved.every((id, i) => !dragLocked?.has(id) || id === order[i])) dragOrder = moved;
 			}}
 			onDragEnd={(event) => {
 				// The release point; a keyboard drop has none, so it uses where the row was moved to.
@@ -402,7 +422,8 @@
 		>
 			<Item.Group class="gap-2" bind:ref={listElement}>
 				{#each rows as account, index (account.id)}
-					<SortableRow id={account.id} {index} {sensors}>
+					<!-- A locked row gets no sensors rather than `disabled`, which would mark its buttons disabled. -->
+					<SortableRow id={account.id} {index} sensors={locked(account) ? [] : sensors}>
 						{#snippet children(sortable)}
 							<ContextMenu.Root>
 								<ContextMenu.Trigger class="contents">

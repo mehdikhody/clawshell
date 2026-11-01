@@ -371,6 +371,27 @@ fn a_running_limited_account_is_limited_but_still_marked_running() {
 }
 
 #[test]
+fn a_limited_account_is_listed_after_the_usable_ones() {
+    let h = Harness::new();
+    signed_in(&h, ID_A, TOKEN_A);
+    signed_in(&h, ID_B, TOKEN_B);
+    script_ok(&h, "a@example.com", 100.0, 20.0);
+    script_ok(&h, "b@example.com", 30.0, 40.0);
+    let core = h.core();
+
+    core.refresh_usage(false);
+
+    let ids: Vec<String> = core
+        .list_accounts()
+        .unwrap()
+        .added()
+        .into_iter()
+        .map(|a| a.id)
+        .collect();
+    assert_eq!(ids, vec![ID_B, ID_A]);
+}
+
+#[test]
 fn signed_out_outranks_limited() {
     let h = Harness::new();
     signed_in(&h, ID_A, TOKEN_A);

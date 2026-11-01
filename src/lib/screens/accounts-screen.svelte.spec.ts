@@ -749,6 +749,51 @@ describe('AccountsScreen', () => {
 				.poll(() => tauri.calls.filter((call) => call.cmd === 'reorder_accounts'))
 				.toEqual([{ cmd: 'reorder_accounts', args: { ids: ['id-idle', 'default'] } }]);
 		});
+
+		/** Two usable accounts above a limited one, as the core lists them. */
+		const withLimited: AccountList = {
+			...threeAccounts,
+			accounts: [
+				account('id-work', 'Work', 'idle'),
+				account('id-home', 'Home', 'idle'),
+				account('id-lim', 'Limited one', 'limited')
+			] as AccountList['accounts']
+		};
+
+		it('cannot drag a limited or missing row', async () => {
+			const tauri = mount({}, withLimited);
+			await expect.element(page.getByRole('listitem').nth(2)).toBeVisible();
+			const [first, , last] = [...document.querySelectorAll('[role="listitem"]')];
+			const over = spot(first, 'top');
+
+			pointer('pointerdown', spot(last, 'middle'), last);
+			pointer('pointermove', over);
+			pointer('pointerup', over);
+
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			expect(rowTexts()[2]).toContain('Limited one');
+			expect(tauri.calls.filter((call) => call.cmd === 'reorder_accounts')).toEqual([]);
+		});
+
+		it('keeps a dragged row above the limited and missing rows', async () => {
+			const tauri = mount({}, withLimited);
+			await expect.element(page.getByRole('listitem').nth(2)).toBeVisible();
+			const [first, middle, last] = [...document.querySelectorAll('[role="listitem"]')];
+
+			pointer('pointerdown', spot(first, 'middle'), first);
+			pointer('pointermove', spot(middle, 'bottom'));
+			await expect.poll(() => rowTexts()[1]).toContain('Work');
+			const below = spot(last, 'bottom');
+			pointer('pointermove', below);
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			// While dragged, a row also leaves a placeholder copy, so count from the end.
+			expect(rowTexts().at(-1)).toContain('Limited one');
+			pointer('pointerup', below);
+
+			await expect
+				.poll(() => tauri.calls.filter((call) => call.cmd === 'reorder_accounts'))
+				.toEqual([{ cmd: 'reorder_accounts', args: { ids: ['id-home', 'id-work', 'id-lim'] } }]);
+		});
 	});
 
 	describe('the default account', () => {

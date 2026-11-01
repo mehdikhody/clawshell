@@ -13,8 +13,12 @@ One Claude Desktop sign-in that clawshell lists, with its own profile, name and 
 _Avoid_: User, login, instance
 
 **Default account**:
-The account backed by Claude's own profile, the one Claude's Start-menu entry opens. Listed first as "Claude".
+The account backed by Claude's own profile, the one Claude's Start-menu entry opens. Listed first as "Claude" until moved.
 _Avoid_: Main account, original profile
+
+**Disabled account**:
+An account that is limited, or whose profile is missing. Listed after the others, and keeps its place in the saved order while the others are moved.
+_Avoid_: Inactive, unavailable account
 
 **Profile**:
 The folder that holds one account's Claude data.

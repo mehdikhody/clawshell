@@ -783,11 +783,11 @@ fn an_account_whose_folder_vanished_is_listed_as_missing() {
     let accounts = h.core().list_accounts().unwrap().added();
 
     assert_eq!(accounts.len(), 2);
-    assert_eq!(accounts[0].id, ID_A);
-    assert_eq!(accounts[0].label, "Work");
-    assert_eq!(accounts[0].status, Status::Missing);
-    assert!(!accounts[0].running);
-    assert_eq!(accounts[1].status, Status::SignedOut);
+    assert_eq!(accounts[0].status, Status::SignedOut);
+    assert_eq!(accounts[1].id, ID_A);
+    assert_eq!(accounts[1].label, "Work");
+    assert_eq!(accounts[1].status, Status::Missing);
+    assert!(!accounts[1].running);
 }
 
 #[test]
@@ -896,7 +896,7 @@ fn a_reorder_ignores_unknown_ids_and_keeps_unnamed_accounts_last() {
 }
 
 #[test]
-fn a_missing_account_keeps_its_saved_place_until_it_is_removed() {
+fn a_missing_account_is_listed_after_the_others() {
     let h = Harness::new();
     h.fixture.add_profile(ID_A);
     h.fixture.add_profile(ID_B);
@@ -909,9 +909,49 @@ fn a_missing_account_keeps_its_saved_place_until_it_is_removed() {
 
     assert_eq!(
         accounts.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
-        vec![ID_B, ID_A]
+        vec![ID_A, ID_B]
     );
-    assert_eq!(accounts[0].status, Status::Missing);
+    assert_eq!(accounts[1].status, Status::Missing);
+}
+
+#[test]
+fn disabled_accounts_are_listed_last_in_their_saved_order() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.fixture.add_profile(ID_C);
+    h.core()
+        .reorder_accounts(&[ID_C.to_string(), ID_B.to_string(), ID_A.to_string()])
+        .unwrap();
+    std::fs::remove_dir_all(h.fixture.profile_path(ID_C)).unwrap();
+    std::fs::remove_dir_all(h.fixture.profile_path(ID_B)).unwrap();
+
+    assert_eq!(ids_in_list(&h), vec![ID_A, ID_C, ID_B]);
+}
+
+#[test]
+fn a_reorder_keeps_a_disabled_account_in_its_saved_place() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.fixture.add_profile(ID_C);
+    assert_eq!(ids_in_list(&h), vec![ID_A, ID_B, ID_C]);
+    std::fs::remove_dir_all(h.fixture.profile_path(ID_B)).unwrap();
+    assert_eq!(ids_in_list(&h), vec![ID_A, ID_C, ID_B]);
+
+    // C dragged above A, as the screen sends it: every row, the default
+    // account's included. B, shown last, keeps its place between them.
+    h.core()
+        .reorder_accounts(&[
+            "default".to_string(),
+            ID_C.to_string(),
+            ID_A.to_string(),
+            ID_B.to_string(),
+        ])
+        .unwrap();
+    h.fixture.add_profile(ID_B);
+
+    assert_eq!(ids_in_list(&h), vec![ID_C, ID_B, ID_A]);
 }
 
 #[test]

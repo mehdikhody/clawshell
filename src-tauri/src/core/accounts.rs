@@ -35,6 +35,14 @@ pub enum Status {
     Missing,
 }
 
+impl Status {
+    /// Limited and missing accounts are disabled: listed after the others,
+    /// and their saved place is kept when the others are reordered.
+    pub fn is_disabled(self) -> bool {
+        matches!(self, Status::Limited | Status::Missing)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Account {
@@ -42,9 +50,9 @@ pub struct Account {
     /// account's is `default`.
     pub id: String,
     pub label: String,
-    /// Claude's own profile, the one its Start-menu entry opens. Always
-    /// listed first; it has no badge, shortcuts or taskbar identity of its
-    /// own and is never deleted.
+    /// Claude's own profile, the one its Start-menu entry opens. Listed
+    /// first until moved; it has no badge, shortcuts or taskbar identity of
+    /// its own and is never deleted.
     pub is_default: bool,
     /// The first letter of the label, in capitals; shown on the row and the
     /// taskbar icon.
@@ -124,7 +132,7 @@ impl Core {
 
     /// Every account clawshell knows: the default account, the profile folders
     /// on disk and recorded accounts whose folder has vanished (status
-    /// Missing), in the saved order.
+    /// Missing), in the saved order with the disabled accounts last.
     pub(super) fn known_accounts(&self) -> io::Result<Vec<Account>> {
         let scan = self.scan_profiles()?;
         let records = self.synced_records(&scan.profiles);
@@ -173,7 +181,7 @@ impl Core {
             })
             .collect();
         accounts.extend(missing);
-        accounts.sort_by_key(|a| records.position_of(&a.id));
+        accounts.sort_by_key(|a| (a.status.is_disabled(), records.position_of(&a.id)));
         Ok(accounts)
     }
 
@@ -186,11 +194,18 @@ impl Core {
     }
 
     /// Saves the order the accounts were dropped into, as `ids` lists them.
-    /// Every list of accounts follows it from then on.
+    /// Every list of accounts follows it from then on. Disabled accounts keep
+    /// their saved places, so each returns there once it is usable again.
     pub fn reorder_accounts(&self, ids: &[String]) -> io::Result<()> {
+        let disabled: Vec<String> = self
+            .known_accounts()?
+            .into_iter()
+            .filter(|a| a.status.is_disabled())
+            .map(|a| a.id)
+            .collect();
         let scan = self.scan_profiles()?;
         let mut records = self.synced_records(&scan.profiles);
-        records.reorder(ids);
+        records.reorder(ids, &disabled);
         records.save(&self.ports.roots.local_app_data)
     }
 
