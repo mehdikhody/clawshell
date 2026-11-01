@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The update dialog lays out the release notes with their headings, paragraphs and bullet lists, instead of showing the raw `##` and `-` markers.
+
+### Fixed
+
+- The update dialog's **What's new** was empty because the release notes never reached the update manifest. Releases now include them, and v0.4.0's manifest has been fixed too.
+
 ## [0.4.0] - 2026-11-01
 
 ### Changed

@@ -221,11 +221,21 @@
 		disclaimerAccepted: 1
 	};
 
+	// Markdown, as the release workflow writes it into latest.json.
 	const notes = [
-		'One usage bar per account for weekly and 5-hour',
-		'Hover the bar to see when each window resets',
-		'Limited accounts fade out until they come back',
-		'Loading placeholders shaped like account rows'
+		'Weekly and 5-hour usage share one bar per account.',
+		'',
+		'## New',
+		'',
+		'### Reset countdown on hover',
+		'',
+		'Hover an account’s usage bar to see how long until each window resets.',
+		'',
+		'## Changed',
+		'',
+		'- Limited accounts fade out until they come back.',
+		'- The usage bars keep their own colours.',
+		'- Loading placeholders look like account rows.'
 	].join('\n');
 
 	const handlers = {

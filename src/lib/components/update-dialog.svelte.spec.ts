@@ -82,6 +82,44 @@ describe('update dialog', () => {
 		expect(area.scrollHeight).toBeGreaterThan(area.clientHeight);
 	});
 
+	it('lays out Markdown release notes as headings, paragraphs and a list, never as HTML', async () => {
+		({ restore } = mockTauri());
+		updateState.current = {
+			status: 'available',
+			update: new Update({
+				rid: 7,
+				currentVersion: '0.1.0',
+				version: '0.2.0',
+				body: [
+					'One bar per account.',
+					'',
+					'## New',
+					'',
+					'### Reset countdown',
+					'',
+					'Hover the **bar**.',
+					'',
+					'## Changed',
+					'',
+					'- Limited accounts fade.',
+					'- <img src=x onerror="window.injected=true">'
+				].join('\n'),
+				rawJson: {}
+			})
+		};
+		render(TopBar);
+		await badge().click();
+
+		const area = dialog().getByTestId('update-notes');
+		await expect.element(area.getByRole('heading', { name: 'New' })).toBeVisible();
+		await expect.element(area.getByRole('heading', { name: 'Reset countdown' })).toBeVisible();
+		await expect.element(area.getByText('bar', { exact: true })).toHaveClass(/font-semibold/);
+		expect(area.getByRole('listitem').elements()).toHaveLength(2);
+		await expect.element(area).not.toHaveTextContent('##');
+		expect(area.element().querySelector('img')).toBeNull();
+		await expect.element(area).toHaveTextContent('<img src=x onerror="window.injected=true">');
+	});
+
 	it('closes with Later and keeps the badge', async () => {
 		({ restore } = mockTauri());
 		updateState.current = { status: 'available', update: release() };
