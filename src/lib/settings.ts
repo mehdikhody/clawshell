@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { Locale } from '$lib/locale';
+import type { CalendarSetting, Locale } from '$lib/locale';
 
 /** Mirrors the core's `Settings`. The core saves them and applies the side effects. */
 export type Settings = {
@@ -12,6 +12,8 @@ export type Settings = {
 	closeToTray: boolean;
 	/** The language of the window and the tray menu. */
 	language: Locale;
+	/** How dates are written, which digits numbers use and which day weeks start on; Automatic follows the language. */
+	calendar: CalendarSetting;
 	/** Where Claude.exe is, used when detection fails; null when not set. */
 	claudePath: string | null;
 	/** Notify when a window reaches the warning threshold. */

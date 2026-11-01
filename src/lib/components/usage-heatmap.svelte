@@ -19,8 +19,8 @@
 	/** The day whose tooltip is open: hover, focus and tap all land here. */
 	let openDate = $state<string | null>(null);
 
-	/** The week's first day, so the grid and its labels start on it: Saturday in Persian. */
-	const firstDay = weekStartOf(active.locale);
+	/** The week's first day, so the grid and its labels start on it: Saturday under Jalali. */
+	const firstDay = weekStartOf(active.locale, active.calendar);
 	const cells = $derived(cellsFor(heatmap.days, firstDay));
 	/** Row 0 is the first day of the week. 7 Jan 2024 was a Sunday, so 7 + the day counts from it. */
 	const weekdayLabels = Array.from({ length: 7 }, (_, row) =>

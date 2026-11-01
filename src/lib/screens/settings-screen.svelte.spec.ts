@@ -4,7 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import '../../routes/layout.css';
 import { mockTauri, type IpcHandlers } from '$lib/test/tauri-ipc';
 import { m } from '$lib/paraglide/messages.js';
-import { active, switchLocale } from '$lib/locale-state.svelte';
+import { active, formatTag, switchCalendar, switchLocale } from '$lib/locale-state.svelte';
 import type { Settings } from '$lib/settings';
 
 import SettingsScreen from './settings-screen.svelte';
@@ -13,6 +13,7 @@ let restore: () => void;
 afterEach(() => {
 	restore?.();
 	switchLocale('en');
+	switchCalendar('automatic');
 });
 
 const defaults: Settings = {
@@ -20,6 +21,7 @@ const defaults: Settings = {
 	startHidden: false,
 	closeToTray: true,
 	language: 'en',
+	calendar: 'automatic',
 	claudePath: null,
 	notifyWarning: true,
 	notifyLimited: true,
@@ -139,6 +141,61 @@ describe('SettingsScreen', () => {
 			await expect.element(page.getByRole('menuitemradio', { name })).not.toBeChecked();
 		}
 		expect(page.getByRole('menuitemradio').elements()).toHaveLength(5);
+	});
+
+	it('puts the Calendar setting directly below Language, on Automatic by default', async () => {
+		mount();
+
+		const language = page.getByRole('button', { name: 'Language' });
+		const calendar = page.getByRole('button', { name: 'Calendar' });
+		await expect.element(calendar).toHaveTextContent('Automatic');
+		const below = (await language.element()).getBoundingClientRect().bottom;
+		const top = (await calendar.element()).getBoundingClientRect().top;
+		expect(top).toBeGreaterThan(below);
+		expect(top - below).toBeLessThan(80);
+	});
+
+	it('offers Automatic, Gregorian, Jalali, Hijri and Chinese lunar, with the saved one picked', async () => {
+		mount({ ...defaults, calendar: 'islamic-umalqura' });
+
+		await page.getByRole('button', { name: 'Calendar' }).click();
+		await expect.element(page.getByRole('menuitemradio', { name: 'Hijri' })).toBeChecked();
+		for (const name of ['Automatic', 'Gregorian', 'Jalali', 'Chinese lunar']) {
+			await expect.element(page.getByRole('menuitemradio', { name })).not.toBeChecked();
+		}
+		expect(page.getByRole('menuitemradio').elements()).toHaveLength(5);
+	});
+
+	it('saves the chosen calendar and writes numbers in its digits at once', async () => {
+		const tauri = mount();
+
+		await page.getByRole('button', { name: 'Calendar' }).click();
+		await page.getByRole('menuitemradio', { name: 'Jalali' }).click();
+
+		expect(updates(tauri.calls)).toEqual([{ ...defaults, calendar: 'persian' }]);
+		expect(active.calendar).toBe('persian');
+		expect(formatTag()).toBe('en-u-ca-persian-nu-arabext');
+		await expect.element(page.getByText('۸۰٪', { exact: true })).toBeVisible();
+	});
+
+	it('keeps a pinned calendar when the language changes', async () => {
+		const tauri = mount({ ...defaults, calendar: 'chinese' });
+
+		await page.getByRole('button', { name: 'Language' }).click();
+		await page.getByRole('menuitemradio', { name: 'Русский' }).click();
+
+		expect(updates(tauri.calls)).toEqual([{ ...defaults, calendar: 'chinese', language: 'ru' }]);
+		expect(active.locale).toBe('ru');
+		expect(active.calendar).toBe('chinese');
+	});
+
+	it('lets Automatic follow the language, so Persian shows Persian digits', async () => {
+		mount();
+
+		await page.getByRole('button', { name: 'Language' }).click();
+		await page.getByRole('menuitemradio', { name: 'فارسی' }).click();
+
+		await expect.element(page.getByText('۸۰٪', { exact: true })).toBeVisible();
 	});
 
 	it('lays the window out right to left once Arabic is chosen', async () => {

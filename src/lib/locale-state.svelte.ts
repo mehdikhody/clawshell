@@ -1,8 +1,11 @@
 import { setLocale } from '$lib/paraglide/runtime.js';
-import { directionOf, intlLocale, type Locale } from '$lib/locale';
+import { directionOf, intlLocale, type CalendarSetting, type Locale } from '$lib/locale';
 
-/** The language on screen. Screens re-render on a change by keying on `active.locale`. */
-export const active = $state<{ locale: Locale }>({ locale: 'en' });
+/** The language and calendar on screen. Screens re-render on a change by keying on both. */
+export const active = $state<{ locale: Locale; calendar: CalendarSetting }>({
+	locale: 'en',
+	calendar: 'automatic'
+});
 
 /** Switches every string, the document direction and `active` in one step, without a reload. */
 export function switchLocale(locale: Locale) {
@@ -12,5 +15,10 @@ export function switchLocale(locale: Locale) {
 	active.locale = locale;
 }
 
-/** The tag for `Intl` in the language on screen. */
-export const formatTag = () => intlLocale(active.locale);
+/** Switches the calendar on screen. A pinned one stays when the language changes. */
+export function switchCalendar(calendar: CalendarSetting) {
+	active.calendar = calendar;
+}
+
+/** The tag for `Intl` in the language and calendar on screen. */
+export const formatTag = () => intlLocale(active.locale, active.calendar);

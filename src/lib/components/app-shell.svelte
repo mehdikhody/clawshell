@@ -4,8 +4,8 @@
 	import IconSettings from '@tabler/icons-svelte/icons/settings';
 	import IconUsers from '@tabler/icons-svelte/icons/users';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import { isLocale, type Locale } from '$lib/locale';
-	import { active, switchLocale } from '$lib/locale-state.svelte';
+	import { isCalendar, isLocale, type CalendarSetting, type Locale } from '$lib/locale';
+	import { active, switchCalendar, switchLocale } from '$lib/locale-state.svelte';
 	import { m } from '$lib/paraglide/messages.js';
 	import AccountsScreen from '$lib/screens/accounts-screen.svelte';
 	import SettingsScreen from '$lib/screens/settings-screen.svelte';
@@ -53,15 +53,18 @@
 
 	onMount(async () => {
 		let language: Locale = 'en';
+		let calendar: CalendarSetting = 'automatic';
 		try {
 			const saved = await getSettings();
 			// Without readable settings the window opens in English.
 			if (isLocale(saved?.language)) language = saved.language;
+			if (isCalendar(saved?.calendar)) calendar = saved.calendar;
 		} catch {
 			// Keep English.
 		}
 		// Always applied: the built page carries unfilled lang and dir placeholders.
 		switchLocale(language);
+		switchCalendar(calendar);
 		startAutoRefresh();
 		if (!unmounted) stopUpdateChecks = startUpdateChecks();
 		ready = true;
@@ -69,8 +72,8 @@
 </script>
 
 {#if ready}
-	<!-- Messages are plain functions, so a new language redraws everything by re-keying. `tab` lives above the key and survives. -->
-	{#key active.locale}
+	<!-- Messages are plain functions, so a new language or calendar redraws everything by re-keying. `tab` lives above the key and survives. -->
+	{#key `${active.locale}-${active.calendar}`}
 		<div class="flex h-screen w-screen flex-col overflow-hidden rounded-xl border bg-background">
 			<TopBar />
 			<Tabs.Root bind:value={tab} class="min-h-0 flex-1 gap-0 data-horizontal:flex-col-reverse">

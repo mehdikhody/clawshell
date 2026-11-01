@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { emit } from '@tauri-apps/api/event';
 import '../../routes/layout.css';
-import { switchLocale } from '$lib/locale-state.svelte';
+import { active, switchCalendar, switchLocale } from '$lib/locale-state.svelte';
 import type { Settings } from '$lib/settings';
 import { mockTauri } from '$lib/test/tauri-ipc';
 import { UPDATE_CHECK_MS, updateState } from '$lib/update.svelte';
@@ -16,6 +16,7 @@ const core = { list_accounts: () => ({ claudeFound: true, accounts: [] }) };
 afterEach(() => {
 	restore?.();
 	switchLocale('en');
+	switchCalendar('automatic');
 	updateState.current = { status: 'idle' };
 });
 
@@ -24,6 +25,7 @@ const saved: Settings = {
 	startHidden: false,
 	closeToTray: true,
 	language: 'en',
+	calendar: 'automatic',
 	claudePath: null,
 	notifyWarning: true,
 	notifyLimited: true,
@@ -195,6 +197,15 @@ describe('AppShell in Persian', () => {
 		await expect.element(page.getByRole('tab', { name: 'مصرف' })).toBeVisible();
 		expect(document.documentElement.dir).toBe('rtl');
 		expect(document.documentElement.lang).toBe('fa');
+	});
+
+	it('opens in the calendar the core saved, whatever the language', async () => {
+		({ restore } = mockTauri({ ...core, get_settings: () => ({ ...saved, calendar: 'persian' }) }));
+		render(AppShell);
+
+		await expect.element(page.getByRole('tab', { name: 'Settings' })).toBeVisible();
+		expect(active.calendar).toBe('persian');
+		expect(document.documentElement.lang).toBe('en');
 	});
 
 	it('opens in English, left-to-right, when the settings cannot be read', async () => {

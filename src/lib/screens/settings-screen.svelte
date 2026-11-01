@@ -9,8 +9,15 @@
 	import * as Item from '$lib/components/ui/item';
 	import { Label } from '$lib/components/ui/label';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { directionOf, formatPercentValue, isLocale, locales } from '$lib/locale';
-	import { active, formatTag, switchLocale } from '$lib/locale-state.svelte';
+	import {
+		calendars,
+		directionOf,
+		formatPercentValue,
+		isCalendar,
+		isLocale,
+		locales
+	} from '$lib/locale';
+	import { active, formatTag, switchCalendar, switchLocale } from '$lib/locale-state.svelte';
 	import { Slider as SliderPrimitive } from 'bits-ui';
 	import { Switch } from '$lib/components/ui/switch';
 	import { m } from '$lib/paraglide/messages.js';
@@ -93,6 +100,7 @@
 			draftPath = settings.claudePath ?? '';
 			syncDrafts();
 			if (settings.language !== active.locale) switchLocale(settings.language);
+			if (settings.calendar !== active.calendar) switchCalendar(settings.calendar);
 		} catch (error) {
 			failure = failureText[errorCode(error) ?? '']?.() ?? m.error_settings_save_failed();
 		}
@@ -125,6 +133,14 @@
 		ar: () => m.language_ar(),
 		ru: () => m.language_ru(),
 		zh: () => m.language_zh()
+	};
+
+	const calendarName = {
+		automatic: () => m.calendar_automatic(),
+		gregory: () => m.calendar_gregory(),
+		persian: () => m.calendar_persian(),
+		'islamic-umalqura': () => m.calendar_islamic_umalqura(),
+		chinese: () => m.calendar_chinese()
 	};
 
 	const switches = [
@@ -318,6 +334,39 @@
 							{#each locales as locale (locale)}
 								<DropdownMenu.RadioItem value={locale} lang={locale}
 									>{languageName[locale]()}</DropdownMenu.RadioItem
+								>
+							{/each}
+						</DropdownMenu.RadioGroup>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			</Item.Actions>
+		</Item.Root>
+
+		<Item.Root variant="outline" size="sm">
+			<Item.Content>
+				<Item.Title id="setting-calendar">{m.settings_calendar()}</Item.Title>
+				<Item.Description>{m.settings_calendar_hint()}</Item.Description>
+			</Item.Content>
+			<Item.Actions>
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						{#snippet child({ props })}
+							<Button {...props} variant="outline" size="sm" aria-labelledby="setting-calendar">
+								{calendarName[settings!.calendar]()}
+								<IconChevronDown />
+							</Button>
+						{/snippet}
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="end">
+						<DropdownMenu.RadioGroup
+							value={settings!.calendar}
+							onValueChange={(next) => {
+								if (isCalendar(next) && next !== settings!.calendar) void save({ calendar: next });
+							}}
+						>
+							{#each calendars as calendar (calendar)}
+								<DropdownMenu.RadioItem value={calendar}
+									>{calendarName[calendar]()}</DropdownMenu.RadioItem
 								>
 							{/each}
 						</DropdownMenu.RadioGroup>

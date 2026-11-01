@@ -13,7 +13,7 @@ import type { Heatmap } from '$lib/heatmap';
 import type { MonthCost as MonthCostType } from '$lib/cost';
 import { emptyPooled, type AccountList, type PooledRemaining } from '$lib/accounts';
 import { autoRefresh } from '$lib/auto-refresh.svelte';
-import { switchLocale } from '$lib/locale-state.svelte';
+import { switchCalendar, switchLocale } from '$lib/locale-state.svelte';
 import { intlLocale } from '$lib/locale';
 import UsageScreen from './usage-screen.svelte';
 
@@ -571,6 +571,47 @@ describe('UsageScreen in Persian', () => {
 		expect(title.element().getBoundingClientRect().left).toBeGreaterThan(
 			percent.element().getBoundingClientRect().left
 		);
+	});
+});
+
+describe('UsageScreen heatmap week start', () => {
+	afterEach(() => {
+		switchLocale('en');
+		switchCalendar('automatic');
+	});
+
+	/** The grid is 7 weekday labels, then the days column by column; the data starts on a Sunday, 19 April 2026. */
+	const gridChildren = async () => {
+		mount(listWith(emptyPooled), {
+			heatmap: () => heatmapOf({ '2026-04-19': { usd: values([['Work', 1]]) } })
+		});
+		const grid = page.getByRole('group', { name: /9/ });
+		await expect.element(grid).toBeVisible();
+		return [...grid.element().children];
+	};
+	/** The row, from 0, of the first real day (the one with a label). */
+	const firstDayRow = async () => {
+		const children = await gridChildren();
+		return children.findIndex((child, i) => i >= 7 && child.hasAttribute('aria-label')) - 7;
+	};
+
+	it('puts Sunday in the first row for English with Automatic', async () => {
+		expect(await firstDayRow()).toBe(0);
+	});
+
+	it('starts weeks on Monday under the Chinese lunar calendar, even in English', async () => {
+		switchCalendar('chinese');
+		expect(await firstDayRow()).toBe(6);
+	});
+
+	it('starts weeks on Saturday under Jalali, even in English', async () => {
+		switchCalendar('persian');
+		expect(await firstDayRow()).toBe(1);
+	});
+
+	it('starts weeks on Monday in Russian with Automatic', async () => {
+		switchLocale('ru');
+		expect(await firstDayRow()).toBe(6);
 	});
 });
 

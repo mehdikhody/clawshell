@@ -1,6 +1,6 @@
 mod support;
 
-use clawshell_lib::core::{Language, Settings, SettingsError};
+use clawshell_lib::core::{CalendarSetting, Language, Settings, SettingsError};
 use support::{Harness, add_default};
 
 const ID: &str = "3f2b8c1e-5a4d-4e7b-9c10-2d6f8a9b0c11";
@@ -18,6 +18,7 @@ fn a_fresh_install_has_the_default_settings() {
             start_hidden: false,
             close_to_tray: true,
             language: Language::En,
+            calendar: CalendarSetting::Automatic,
             claude_path: None,
             notify_warning: true,
             notify_limited: true,
@@ -150,6 +151,55 @@ fn a_settings_file_from_before_languages_opens_in_english() {
 
     assert_eq!(settings.language, Language::En);
     assert!(!settings.close_to_tray);
+}
+
+#[test]
+fn the_calendar_is_saved_by_its_intl_id() {
+    for (calendar, id) in [
+        (CalendarSetting::Automatic, "automatic"),
+        (CalendarSetting::Gregory, "gregory"),
+        (CalendarSetting::Persian, "persian"),
+        (CalendarSetting::IslamicUmalqura, "islamic-umalqura"),
+        (CalendarSetting::Chinese, "chinese"),
+    ] {
+        let h = Harness::new();
+        let core = h.core();
+        let mut settings = core.settings();
+        settings.calendar = calendar;
+        core.update_settings(settings).unwrap();
+
+        let text =
+            std::fs::read_to_string(h.fixture.local_app_data().join("clawshell/settings.json"))
+                .unwrap();
+        assert!(text.contains(&format!("\"calendar\": \"{id}\"")), "{text}");
+        assert_eq!(h.core().settings().calendar, calendar);
+    }
+}
+
+#[test]
+fn a_settings_file_from_before_calendars_opens_on_automatic() {
+    let h = Harness::new();
+    let dir = h.fixture.local_app_data().join("clawshell");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("settings.json"), r#"{ "language": "fa" }"#).unwrap();
+
+    assert_eq!(h.core().settings().calendar, CalendarSetting::Automatic);
+}
+
+#[test]
+fn a_pinned_calendar_stays_when_the_language_changes() {
+    let h = Harness::new();
+    let core = h.core();
+    let mut settings = core.settings();
+    settings.calendar = CalendarSetting::Chinese;
+    core.update_settings(settings).unwrap();
+
+    let mut settings = core.settings();
+    settings.language = Language::Ar;
+    core.update_settings(settings).unwrap();
+
+    assert_eq!(h.core().settings().calendar, CalendarSetting::Chinese);
+    assert_eq!(h.core().settings().language, Language::Ar);
 }
 
 #[test]

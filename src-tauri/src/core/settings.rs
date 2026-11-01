@@ -2,6 +2,7 @@
 //! local app data, read and written only by the core.
 
 use super::Core;
+use super::calendar::CalendarSetting;
 use super::ports::{ClaudeInstall, ClaudeLocator};
 use serde::{Deserialize, Serialize};
 use std::io;
@@ -49,6 +50,10 @@ pub struct Settings {
     pub close_to_tray: bool,
     /// The language of the window and the tray menu.
     pub language: Language,
+    /// How dates are written, which digits numbers use and which day weeks
+    /// start on. Automatic follows the language; a pinned one stays when the
+    /// language changes.
+    pub calendar: CalendarSetting,
     /// Where `Claude.exe` is, when detection can't find it.
     pub claude_path: Option<PathBuf>,
     /// Notify when a window reaches the warning threshold.
@@ -74,6 +79,7 @@ impl Default for Settings {
             start_hidden: false,
             close_to_tray: true,
             language: Language::En,
+            calendar: CalendarSetting::Automatic,
             claude_path: None,
             notify_warning: true,
             notify_limited: true,
