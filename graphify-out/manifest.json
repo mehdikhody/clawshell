@@ -3642,9 +3642,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793556512.3344362,
-    "seen": 1793556615.3110344,
-    "ast_hash": "7da684c8f0135b21992c24990cc2d1f2",
+    "mtime": 1793557855.441602,
+    "seen": 1793558478.9196367,
+    "ast_hash": "b6c5c3577e702a264cb756207a15bce9",
     "semantic_hash": ""
   },
   "docs/agents/domain.md": {
@@ -5448,15 +5448,15 @@
     "semantic_hash": ""
   },
   "src/lib/components/update-dialog.svelte": {
-    "mtime": 1793483099.7046568,
-    "seen": 1793495114.0512536,
-    "ast_hash": "89fe1a636cdf91ea05a1f4df65616872",
+    "mtime": 1793558404.0980952,
+    "seen": 1793558478.9192388,
+    "ast_hash": "6a683345eb3a2f022d783c604a4bbfb8",
     "semantic_hash": ""
   },
   "src/lib/components/update-dialog.svelte.spec.ts": {
-    "mtime": 1793483099.7046568,
-    "seen": 1793495114.0512543,
-    "ast_hash": "968e90ef09eccdb060750808788351b2",
+    "mtime": 1793558404.1450431,
+    "seen": 1793558478.9192398,
+    "ast_hash": "11d39a863ea9e355273145aabd1bf448",
     "semantic_hash": ""
   },
   "src/lib/disclaimer.svelte.ts": {
@@ -5538,9 +5538,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/release.yml": {
-    "mtime": 1793490244.8636415,
-    "seen": 1793495114.0516284,
-    "ast_hash": "972617d36cc9b5b981ce6a5cfe989bc8",
+    "mtime": 1793557840.7917314,
+    "seen": 1793558478.919609,
+    "ast_hash": "d37e627b65073df320701b29d258bb4f",
     "semantic_hash": ""
   },
   ".scratch/auto-update/issues/01-update-badge.md": {
@@ -5652,9 +5652,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793556512.3569462,
-    "seen": 1793556615.311032,
-    "ast_hash": "759ec16b222b6a4f023c4a14eba2d232",
+    "mtime": 1793558421.254168,
+    "seen": 1793558478.9196346,
+    "ast_hash": "983307214b44815255119ffc7444ee4a",
     "semantic_hash": ""
   },
   "GLOSSARY.md": {
@@ -5736,9 +5736,9 @@
     "semantic_hash": ""
   },
   "docs/screenshots/update.png": {
-    "mtime": 1793556552.940168,
-    "seen": 1793556615.311125,
-    "ast_hash": "55105ae487de6767561a3b01c5476787",
+    "mtime": 1793558429.009658,
+    "seen": 1793558478.9197288,
+    "ast_hash": "23dc2f462309de0ef6293cb9c812fa60",
     "semantic_hash": ""
   },
   "docs/screenshots/usage.png": {
@@ -5964,9 +5964,9 @@
     "semantic_hash": ""
   },
   "scripts/screenshots/mock.js": {
-    "mtime": 1793556510.7390487,
-    "seen": 1793556615.3104606,
-    "ast_hash": "02ce21bf66566850e18c5eebc9e9dd3a",
+    "mtime": 1793558402.5352213,
+    "seen": 1793558478.91906,
+    "ast_hash": "00fbafef866b32f42a90305f365b4dda",
     "semantic_hash": ""
   },
   "docs/updates/v0.3.0.md": {
@@ -6027,6 +6027,18 @@
     "mtime": 1793556528.9566276,
     "seen": 1793556615.3111258,
     "ast_hash": "30a84b407bcbab47330667519ca02012",
+    "semantic_hash": ""
+  },
+  "src/lib/release-notes.spec.ts": {
+    "mtime": 1793558351.5271654,
+    "seen": 1793558478.9192479,
+    "ast_hash": "708cfbe085a912c50309e99b1a92ab03",
+    "semantic_hash": ""
+  },
+  "src/lib/release-notes.ts": {
+    "mtime": 1793558349.9716134,
+    "seen": 1793558478.9192488,
+    "ast_hash": "072d0408afad4c9cb49bc7382670b1b0",
     "semantic_hash": ""
   }
 }
