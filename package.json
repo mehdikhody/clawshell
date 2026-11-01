@@ -15,7 +15,8 @@
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run",
 		"lint": "prettier --check . && eslint .",
-		"format": "prettier --write ."
+		"format": "prettier --write .",
+		"screenshots": "node scripts/screenshots/capture.mjs"
 	},
 	"license": "MIT",
 	"dependencies": {

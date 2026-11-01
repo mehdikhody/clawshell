@@ -24,7 +24,7 @@
 clawshell is a small tray app for people with more than one Claude subscription. Each account runs in its own Claude Desktop window at the same time, so you never sign out to switch. A compact dashboard shows how much of each account's 5-hour and weekly limits you have used, and what your Code-tab sessions cost.
 
 > [!TIP]
-> **New in this release:** automatic updates, drag-and-drop account order, a reset alert for every window, a 9-week heatmap with a per-account breakdown, and a warning when Windows sends sign-in links to another app. See [What's new](docs/updates/v0.2.0.md).
+> **New in this release:** Arabic, Russian and Chinese, a Calendar setting with Jalali, Hijri and Chinese lunar dates, copying Code sessions between accounts, and Quit Claude per account. See [What's new](docs/updates/v0.3.0.md).
 
 > [!IMPORTANT]
 > clawshell is an unofficial project and is not affiliated with Anthropic. See the [disclaimer](#disclaimer) before you use it.
@@ -68,15 +68,24 @@ clawshell is a small tray app for people with more than one Claude subscription.
 
 ### New in this release
 
-|                                                                  Update dialog                                                                   |                                                                    Heatmap breakdown                                                                    |                                                                   Reset alerts                                                                   |
-| :----------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------------------------------------: |
-| <img src="docs/screenshots/update.png" alt="Update dialog showing the new version, its release notes, and Update and Later buttons" width="260"> | <img src="docs/screenshots/heatmap-tooltip.png" alt="Heatmap tooltip with a day's dollars and tokens, split by account with badge colours" width="260"> | <img src="docs/screenshots/notifications.png" alt="Notification settings with warning, limit and reset alerts and their thresholds" width="260"> |
-|                                                       Release notes, one click to install                                                        |                                                         A day's dollars and tokens per account                                                          |                                                         Warning, limit and reset alerts                                                          |
+|                                                                         Copy sessions                                                                         |                                                                               Account menu                                                                                |                                                                   Calendar                                                                   |
+| :-----------------------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------: |
+| <img src="docs/screenshots/copy-sessions.png" alt="Copy sessions dialog with three Code sessions ticked, each with its folder and last activity" width="260"> | <img src="docs/screenshots/account-menu.png" alt="An account's context menu with Edit account, Copy sessions, Environment and flags, Quit Claude and Delete" width="260"> | <img src="docs/screenshots/calendar.png" alt="Calendar setting open with Automatic, Gregorian, Jalali, Hijri and Lunar options" width="260"> |
+|                                                             Move Code sessions to another account                                                             |                                                                    Edit, copy sessions and quit Claude                                                                    |                                                      Gregorian, Jalali, Hijri or Lunar                                                       |
 
-|                                                                            Sign-in warning                                                                            |                                                   Persian                                                   |
-| :-------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------: |
-| <img src="docs/screenshots/sign-in-warning.png" alt="Settings warning that Windows sends sign-in links to another app, with an Open Default Apps button" width="260"> | <img src="docs/screenshots/persian.png" alt="Usage tab in Persian with a right-to-left layout" width="260"> |
-|                                                            Tells you when Windows sends sign-ins elsewhere                                                            |                                          Right-to-left throughout                                           |
+### Languages
+
+|                                                                      Persian                                                                       |                                                          Arabic                                                           |                                                    Russian                                                    |                                            Chinese                                            |
+| :------------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------: |
+| <img src="docs/screenshots/persian.png" alt="Usage tab in Persian, right to left, with Persian digits and weeks starting on Saturday" width="195"> | <img src="docs/screenshots/arabic.png" alt="Accounts tab in Arabic, right to left, with Arabic-Indic digits" width="195"> | <img src="docs/screenshots/russian.png" alt="Usage tab in Russian with weeks starting on Monday" width="195"> | <img src="docs/screenshots/chinese.png" alt="Accounts tab in Simplified Chinese" width="195"> |
+|                                                           Right to left, Jalali calendar                                                           |                                               Right to left, Hijri calendar                                               |                                               Weeks from Monday                                               |                                         Its own font                                          |
+
+### More
+
+|                                                                  Update dialog                                                                   |                                                                    Heatmap breakdown                                                                    |                                                                   Reset alerts                                                                   |                                                                            Sign-in warning                                                                            |
+| :----------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| <img src="docs/screenshots/update.png" alt="Update dialog showing the new version, its release notes, and Update and Later buttons" width="195"> | <img src="docs/screenshots/heatmap-tooltip.png" alt="Heatmap tooltip with a day's dollars and tokens, split by account with badge colours" width="195"> | <img src="docs/screenshots/notifications.png" alt="Notification settings with warning, limit and reset alerts and their thresholds" width="195"> | <img src="docs/screenshots/sign-in-warning.png" alt="Settings warning that Windows sends sign-in links to another app, with an Open Default Apps button" width="195"> |
+|                                                       Release notes, one click to install                                                        |                                                         A day's dollars and tokens per account                                                          |                                                         Warning, limit and reset alerts                                                          |                                                                 When Windows sends sign-ins elsewhere                                                                 |
 
 <sub>Screenshots use sample data.</sub>
 
@@ -127,17 +136,17 @@ Lists each account with its badge, name, email, 5-hour and weekly usage, and one
 
 ### Settings tab
 
-| Setting                  | Description                                                                                   |
-| ------------------------ | --------------------------------------------------------------------------------------------- |
-| Launch at boot           | Start clawshell when Windows starts.                                                          |
-| Start hidden             | When Windows starts it, stay in the tray instead of showing the window.                       |
-| Close to tray            | Keep running in the tray when the window is closed. Off, it quits.                            |
-| Sign-in routing          | Send browser sign-ins back to the account that started them.                                  |
-| Warning and limit alerts | Notify when an account reaches the warning or limit threshold you set.                        |
-| Reset alert              | Notify whenever an account's 5-hour or weekly window resets, whether or not it hit the limit. |
+| Setting                  | Description                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Launch at boot           | Start clawshell when Windows starts.                                                                         |
+| Start hidden             | When Windows starts it, stay in the tray instead of showing the window.                                      |
+| Close to tray            | Keep running in the tray when the window is closed. Off, it quits.                                           |
+| Sign-in routing          | Send browser sign-ins back to the account that started them.                                                 |
+| Warning and limit alerts | Notify when an account reaches the warning or limit threshold you set.                                       |
+| Reset alert              | Notify whenever an account's 5-hour or weekly window resets, whether or not it hit the limit.                |
 | Language                 | English, Persian, Arabic, Russian or Chinese (Arabic and Persian right-to-left). Also changes the tray menu. |
-| Calendar                 | Automatic, Gregorian, Jalali, Hijri or Chinese lunar. Decides how dates are written.          |
-| Claude.exe path          | A manual path to `Claude.exe` if automatic detection fails.                                   |
+| Calendar                 | Automatic, Gregorian, Jalali, Hijri or Chinese lunar. Decides how dates are written.                         |
+| Claude.exe path          | A manual path to `Claude.exe` if automatic detection fails.                                                  |
 
 If sign-in routing is on but Windows sends `claude://` links to another app, which happens with the Microsoft Store build of Claude, Settings shows a warning with an **Open Default Apps** button. Set the `claude` link type to clawshell there and the warning clears by itself.
 
@@ -193,18 +202,19 @@ npm run tauri dev
 | `npm run check`             | Type-check with svelte-check                        |
 | `npm run lint`              | Check formatting with Prettier and lint with ESLint |
 | `npm run format`            | Format the codebase with Prettier                   |
+| `npm run screenshots`       | Retake the README screenshots with sample data      |
 
 Release builds also create signed updater artifacts, and `tauri build` fails at the end if `TAURI_SIGNING_PRIVATE_KEY` is not set. For a local build, use `npm run tauri:build:local`. It turns updater artifacts off, so it needs no key.
 
 ### Tech stack
 
-| Layer        | Technology                                                                                     |
-| ------------ | ---------------------------------------------------------------------------------------------- |
-| Shell        | [Tauri v2](https://tauri.app/) (Rust), with the updater and process plugins                    |
-| Frontend     | [SvelteKit](https://svelte.dev/docs/kit) with [Svelte 5](https://svelte.dev/)                  |
-| Styling      | [Tailwind CSS 4](https://tailwindcss.com/) and [shadcn-svelte](https://www.shadcn-svelte.com/) |
+| Layer        | Technology                                                                                                            |
+| ------------ | --------------------------------------------------------------------------------------------------------------------- |
+| Shell        | [Tauri v2](https://tauri.app/) (Rust), with the updater and process plugins                                           |
+| Frontend     | [SvelteKit](https://svelte.dev/docs/kit) with [Svelte 5](https://svelte.dev/)                                         |
+| Styling      | [Tailwind CSS 4](https://tailwindcss.com/) and [shadcn-svelte](https://www.shadcn-svelte.com/)                        |
 | Localisation | [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) (English, Persian, Arabic, Russian and Chinese) |
-| Testing      | [Vitest](https://vitest.dev/) with browser tests through Playwright                            |
+| Testing      | [Vitest](https://vitest.dev/) with browser tests through Playwright                                                   |
 
 ### Project layout
 
@@ -215,6 +225,7 @@ src/                SvelteKit frontend
   lib/screens/      The Usage, Accounts and Settings screens
 messages/           Translation strings (en.json, fa.json)
 src-tauri/          Rust backend: profiles, tray, taskbar, shortcuts, commands
+scripts/screenshots/  Retakes the README screenshots against a sample-data backend
 .scratch/           Specs and tickets (clawshell-v1, auto-update)
 docs/screenshots/   README screenshots
 docs/updates/       Release notes for each version
@@ -233,8 +244,9 @@ Releases are built by the [release workflow](.github/workflows/release.yml) on G
 
 1. Bump `version` in `src-tauri/tauri.conf.json` and `package.json`.
 2. Add the release notes to `docs/updates/`, as `v<version>.md`. The workflow fails if the file is missing and publishes it as the release body, which the in-app update dialog shows under **What's new**.
-3. Commit the changes.
-4. Push a matching tag, for example `v0.2.0`:
+3. Run `npm run screenshots` to retake the README screenshots. It runs the frontend in headless Chromium against the sample data in `scripts/screenshots/mock.js` and writes to `docs/screenshots/`. Pass names, such as `npm run screenshots -- usage persian`, to retake only some.
+4. Commit the changes.
+5. Push a matching tag, for example `v0.2.0`:
 
    ```powershell
    git tag v0.2.0
