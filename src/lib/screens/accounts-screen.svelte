@@ -6,7 +6,6 @@
 	import IconAppWindow from '@tabler/icons-svelte/icons/app-window';
 	import IconCheck from '@tabler/icons-svelte/icons/check';
 	import IconCopy from '@tabler/icons-svelte/icons/copy';
-	import IconDots from '@tabler/icons-svelte/icons/dots';
 	import IconFolderOpen from '@tabler/icons-svelte/icons/folder-open';
 	import IconPalette from '@tabler/icons-svelte/icons/palette';
 	import IconPencil from '@tabler/icons-svelte/icons/pencil';
@@ -54,8 +53,9 @@
 	import { formatAgo, formatReset } from '$lib/usage';
 	import { getSettings } from '$lib/settings';
 	import { addRequest } from '$lib/add-account-request.svelte';
-	import { moveAccount } from '$lib/account-order';
-	import { attachDraggable, attachDroppable, type DragDropState } from '@thisux/sveltednd';
+	import SortableRow from '$lib/components/sortable-row.svelte';
+	import { DragDropProvider, KeyboardSensor, PointerSensor } from '@dnd-kit/svelte';
+	import { move } from '@dnd-kit/helpers';
 	import {
 		defaultThresholds,
 		usageBarClass,
@@ -74,14 +74,32 @@
 	};
 	const list = $derived(shown.list ?? noAccounts);
 	const loaded = $derived(shown.list !== null);
-	/** The rows in the order they show: the saved order, with the dragged row already moved to its spot. */
+	/** The rows in the order they show: the saved order, or the order a drag has moved them into. */
 	const rows = $derived.by(() => {
-		if (!dragMove) return list.accounts;
-		const ids = list.accounts.map((account) => account.id);
-		const moved = moveAccount(ids, dragMove.dragged, dragMove.target, dragMove.position) ?? ids;
+		if (!dragOrder) return list.accounts;
 		const byId = new Map(list.accounts.map((account) => [account.id, account]));
-		return moved.flatMap((id) => byId.get(id) ?? []);
+		const moved = dragOrder.flatMap((id) => byId.get(id) ?? []);
+		// An account added mid-drag goes to the end.
+		return [...moved, ...list.accounts.filter((account) => !dragOrder?.includes(account.id))];
 	});
+	/**
+	 * Space picks a row up and puts it down, so Enter still launches the account. Each row gets
+	 * these itself: the provider keeps the default keyboard sensor's keys whatever it is given.
+	 */
+	const sensors = [
+		PointerSensor,
+		KeyboardSensor.configure({
+			keyboardCodes: {
+				start: ['Space'],
+				cancel: ['Escape'],
+				end: ['Space', 'Tab'],
+				up: ['ArrowUp'],
+				down: ['ArrowDown'],
+				left: ['ArrowLeft'],
+				right: ['ArrowRight']
+			}
+		})
+	];
 	/** How long a confirmation stays on screen. */
 	const NOTICE_MS = 5000;
 	let adding = $state(false);
@@ -113,12 +131,10 @@
 	let copyingSessions = $state<Account | null>(null);
 	/** The account awaiting delete (or, when its folder is gone, remove) confirmation. */
 	let confirming = $state<Account | null>(null);
-	/** The row being dragged and the spot it is over. The rows show that move while the drag runs. */
-	let dragMove = $state<{ dragged: string; target: string; position: 'before' | 'after' } | null>(
-		null
-	);
-	/** True from a drop until its order is saved, so the drag ending first does not undo the move. */
-	let saving = false;
+	/** The account ids in the order a drag has moved them into, kept until that order is saved. */
+	let dragOrder = $state<string[] | null>(null);
+	/** The list of rows, so a drop can tell whether it landed on the list. */
+	let listElement = $state<HTMLElement | null>(null);
 
 	const statusLabel: Record<AccountStatus, () => string> = {
 		running: () => m.status_running(),
@@ -230,22 +246,22 @@
 		}
 	}
 
-	/** Saves the order a row was dropped into, beside the row it landed on. */
-	async function reorder(state: DragDropState<Account>) {
-		const { sourceContainer, targetContainer, dropPosition } = state;
-		if (!targetContainer || !dropPosition) return;
-		const ids = moveAccount(
-			list.accounts.map((account) => account.id),
-			sourceContainer,
-			targetContainer,
-			dropPosition
-		);
-		if (ids) await saveOrder(ids);
+	/**
+	 * Ends a drag. Released over the list, it saves the order the rows show. Released off the
+	 * list, or cancelled with Escape, the rows go back to the saved order.
+	 */
+	function endDrag(canceled: boolean, at: { x: number; y: number }) {
+		const ids = rows.map((account) => account.id);
+		const changed = ids.some((id, i) => id !== list.accounts[i]?.id);
+		const box = listElement?.getBoundingClientRect();
+		const overList =
+			!!box && at.x >= box.left && at.x <= box.right && at.y >= box.top && at.y <= box.bottom;
+		if (!canceled && overList && changed) void saveOrder(ids);
+		else dragOrder = null;
 	}
 
 	/** Saves an order, and keeps the rows in it until the core confirms it, so they do not flicker back. */
 	async function saveOrder(ids: string[]) {
-		saving = true;
 		failure = null;
 		try {
 			await reorderAccounts(ids);
@@ -253,31 +269,7 @@
 			failure = describe(error, m.error_reorder_failed());
 		} finally {
 			await refresh();
-			saving = false;
-			dragMove = null;
-		}
-	}
-
-	/** Moves the rows to the spot the dragged row is over, so the new order shows before the drop. */
-	function previewDrag(state: DragDropState<Account>) {
-		const { sourceContainer, targetContainer, dropPosition } = state;
-		if (!targetContainer || !dropPosition || sourceContainer === targetContainer) return;
-		dragMove = { dragged: sourceContainer, target: targetContainer, position: dropPosition };
-	}
-
-	/**
-	 * Ends a drag. Released over a row, it keeps the order the rows show, even when the row
-	 * has moved out from under the pointer. Otherwise the rows go back to the saved order.
-	 * A keyboard drag saves on Enter (see reorder), so Escape leaves the order alone.
-	 */
-	function endDrag(state: DragDropState<Account>) {
-		if (saving) return;
-		const ids = rows.map((account) => account.id);
-		const changed = ids.some((id, i) => id !== list.accounts[i]?.id);
-		if (dragMove && changed && state.targetContainer && state.dragInput !== 'keyboard') {
-			void saveOrder(ids);
-		} else {
-			dragMove = null;
+			dragOrder = null;
 		}
 	}
 
@@ -400,132 +392,136 @@
 	{/if}
 
 	{#if list.accounts.length > 0}
-		<Item.Group class="gap-2">
-			{#each rows as account (account.id)}
-				<ContextMenu.Root>
-					<ContextMenu.Trigger class="contents">
-						<Item.Root
-							role="listitem"
-							variant="outline"
-							size="sm"
-							tabindex={0}
-							class="cursor-default flex-wrap select-none"
-							{@attach (node) => {
-								// The default account always stays first. Reading it once keeps a refresh mid-drag from re-attaching the row.
-								if (untrack(() => account.isDefault)) return;
-								const drag = attachDraggable(() => ({
-									container: account.id,
-									dragData: account,
-									callbacks: { onDragEnd: endDrag }
-								}))(node);
-								const drop = attachDroppable(() => ({
-									container: account.id,
-									callbacks: { onDragOver: previewDrag, onDrop: reorder }
-								}))(node);
-								return () => {
-									if (typeof drag === 'function') drag();
-									if (typeof drop === 'function') drop();
-								};
-							}}
-							ondblclick={() => launch(account)}
-							onkeydown={(event: KeyboardEvent) => {
-								// Keys pressed on the row's own buttons belong to those buttons.
-								if (event.key === 'Enter' && event.target === event.currentTarget) {
-									void launch(account);
-								}
-							}}
-						>
-							<Item.Media>
-								<AccountIcon
-									badge={account.badge}
-									colour={account.colour}
-									isDefault={account.isDefault}
-								/>
-							</Item.Media>
-							<Item.Content>
-								<Item.Title>{account.label}</Item.Title>
-								{#if account.status === 'missing'}
-									<Item.Description>{m.missing_hint()}</Item.Description>
-								{:else}
-									{#if account.email}
-										<Item.Description class="text-xs">{account.email}</Item.Description>
+		<DragDropProvider
+			onDragStart={() => (dragOrder = list.accounts.map((account) => account.id))}
+			onDragOver={(event) => {
+				if (dragOrder) dragOrder = move(dragOrder, event);
+			}}
+			onDragEnd={(event) => {
+				// The release point; a keyboard drop has none, so it uses where the row was moved to.
+				const { nativeEvent } = event;
+				const at =
+					nativeEvent instanceof PointerEvent
+						? { x: nativeEvent.clientX, y: nativeEvent.clientY }
+						: event.operation.position.current;
+				endDrag(event.canceled, at);
+			}}
+		>
+			<Item.Group class="gap-2" bind:ref={listElement}>
+				{#each rows as account, index (account.id)}
+					<SortableRow id={account.id} {index} {sensors}>
+						{#snippet children(sortable)}
+							<ContextMenu.Root>
+								<ContextMenu.Trigger class="contents">
+									<Item.Root
+										role="listitem"
+										variant="outline"
+										size="sm"
+										tabindex={0}
+										class="cursor-default flex-wrap bg-background select-none"
+										{@attach sortable}
+										ondblclick={() => launch(account)}
+										onkeydown={(event: KeyboardEvent) => {
+											// Keys pressed on the row's own buttons belong to those buttons.
+											if (event.key === 'Enter' && event.target === event.currentTarget) {
+												void launch(account);
+											}
+										}}
+									>
+										<Item.Media>
+											<AccountIcon
+												badge={account.badge}
+												colour={account.colour}
+												isDefault={account.isDefault}
+											/>
+										</Item.Media>
+										<Item.Content>
+											<Item.Title>{account.label}</Item.Title>
+											{#if account.status === 'missing'}
+												<Item.Description>{m.missing_hint()}</Item.Description>
+											{:else}
+												{#if account.email}
+													<Item.Description class="text-xs">{account.email}</Item.Description>
+												{/if}
+												{#if !account.usage && account.status !== 'signed-out'}
+													<p class="text-xs text-muted-foreground">{m.usage_none()}</p>
+												{/if}
+											{/if}
+										</Item.Content>
+										<Item.Actions class="self-start">
+											{#if account.status === 'limited' && account.running}
+												<Badge variant="secondary">{statusLabel.running()}</Badge>
+											{/if}
+											<Badge variant={statusVariant[account.status]}
+												>{statusLabel[account.status]()}</Badge
+											>
+											{#if account.status === 'missing'}
+												<Button size="xs" variant="destructive" onclick={() => askDelete(account)}>
+													{m.missing_remove()}
+												</Button>
+											{/if}
+										</Item.Actions>
+										{#if account.usage}
+											<div class="flex w-full flex-col gap-3 text-xs">
+												{@render usageLines(account.usage)}
+											</div>
+										{/if}
+									</Item.Root>
+								</ContextMenu.Trigger>
+								<ContextMenu.Content class="w-auto min-w-48">
+									<ContextMenu.Item onSelect={() => startRename(account)}>
+										<IconPencil />
+										{m.menu_rename()}
+									</ContextMenu.Item>
+									<ContextMenu.Item
+										disabled={account.status === 'missing'}
+										onSelect={() => openFolder(account)}
+									>
+										<IconFolderOpen />
+										{m.menu_open_folder()}
+									</ContextMenu.Item>
+									{#if account.running}
+										<ContextMenu.Item onSelect={() => quitClaude(account)}>
+											<IconPower />
+											{m.menu_quit_claude()}
+										</ContextMenu.Item>
 									{/if}
-									{#if !account.usage && account.status !== 'signed-out'}
-										<p class="text-xs text-muted-foreground">{m.usage_none()}</p>
+									{#if !account.isDefault}
+										<ContextMenu.Item
+											disabled={account.status === 'missing'}
+											onSelect={() => createShortcuts(account)}
+										>
+											<IconAppWindow />
+											{m.menu_add_shortcuts()}
+										</ContextMenu.Item>
 									{/if}
-								{/if}
-							</Item.Content>
-							<Item.Actions class="self-start">
-								{#if account.status === 'limited' && account.running}
-									<Badge variant="secondary">{statusLabel.running()}</Badge>
-								{/if}
-								<Badge variant={statusVariant[account.status]}
-									>{statusLabel[account.status]()}</Badge
-								>
-								{#if account.status === 'missing'}
-									<Button size="xs" variant="destructive" onclick={() => askDelete(account)}>
-										{m.missing_remove()}
-									</Button>
-								{/if}
-							</Item.Actions>
-							{#if account.usage}
-								<div class="flex w-full flex-col gap-3 text-xs">
-									{@render usageLines(account.usage)}
-								</div>
-							{/if}
-						</Item.Root>
-					</ContextMenu.Trigger>
-					<ContextMenu.Content class="w-auto min-w-48">
-						<ContextMenu.Item onSelect={() => startRename(account)}>
-							<IconPencil />
-							{m.menu_rename()}
-						</ContextMenu.Item>
-						<ContextMenu.Item
-							disabled={account.status === 'missing'}
-							onSelect={() => openFolder(account)}
-						>
-							<IconFolderOpen />
-							{m.menu_open_folder()}
-						</ContextMenu.Item>
-						{#if account.running}
-							<ContextMenu.Item onSelect={() => quitClaude(account)}>
-								<IconPower />
-								{m.menu_quit_claude()}
-							</ContextMenu.Item>
-						{/if}
-						{#if !account.isDefault}
-							<ContextMenu.Item
-								disabled={account.status === 'missing'}
-								onSelect={() => createShortcuts(account)}
-							>
-								<IconAppWindow />
-								{m.menu_add_shortcuts()}
-							</ContextMenu.Item>
-						{/if}
-						<ContextMenu.Item onSelect={() => (copyingSessions = account)}>
-							<IconCopy />
-							{m.menu_copy_sessions()}
-						</ContextMenu.Item>
-						<ContextMenu.Item onSelect={() => (editingOptions = account)}>
-							<IconTerminal2 />
-							{m.menu_launch_options()}
-						</ContextMenu.Item>
-						<!-- The default account has no badge, and its folder is Claude's own. -->
-						{#if !account.isDefault}
-							<ContextMenu.Item onSelect={() => (colouring = account)}>
-								<IconPalette />
-								{m.menu_badge_colour()}
-							</ContextMenu.Item>
-							<ContextMenu.Separator />
-							<ContextMenu.Item variant="destructive" onSelect={() => askDelete(account)}>
-								<IconTrash />
-								{m.menu_delete()}
-							</ContextMenu.Item>
-						{/if}
-					</ContextMenu.Content>
-				</ContextMenu.Root>
-			{/each}
-		</Item.Group>
+									<ContextMenu.Item onSelect={() => (copyingSessions = account)}>
+										<IconCopy />
+										{m.menu_copy_sessions()}
+									</ContextMenu.Item>
+									<ContextMenu.Item onSelect={() => (editingOptions = account)}>
+										<IconTerminal2 />
+										{m.menu_launch_options()}
+									</ContextMenu.Item>
+									<!-- The default account has no badge, and its folder is Claude's own. -->
+									{#if !account.isDefault}
+										<ContextMenu.Item onSelect={() => (colouring = account)}>
+											<IconPalette />
+											{m.menu_badge_colour()}
+										</ContextMenu.Item>
+										<ContextMenu.Separator />
+										<ContextMenu.Item variant="destructive" onSelect={() => askDelete(account)}>
+											<IconTrash />
+											{m.menu_delete()}
+										</ContextMenu.Item>
+									{/if}
+								</ContextMenu.Content>
+							</ContextMenu.Root>
+						{/snippet}
+					</SortableRow>
+				{/each}
+			</Item.Group>
+		</DragDropProvider>
 	{:else if !loaded}
 		<!-- Two rows shaped like account rows stand in until the first list arrives. -->
 		<Item.Group class="gap-2" aria-busy="true">

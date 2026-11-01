@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Calendar menu is wide enough for its longest name, and the English name for the Chinese lunar calendar is now **Lunar**.
 - Placeholders shaped like the real content on the Usage tab (heatmap, This month card, pooled usage) and the Accounts tab (account rows) replace the blank space and the "Loading…" line while they first load. They stay still under reduced motion, and refreshes, like changing the language or calendar, never bring them back.
 - Dragging an account on the Accounts tab moves the rows live, so you see the new order before you let go. Release the row over the list to save it; release it off the list and the old order stays.
+- Account drag and drop uses a new library: the other rows slide out of the way, and the dragged row is solid, so the rows under it no longer show through. From the keyboard, Space picks a focused row up and puts it down, the arrow keys move it, and Escape puts it back. Enter still launches the account.
+- The default account (Claude) can be dragged to any place in the account list, like any other account. It stays first until you move it.
 
 ## [0.2.0] - 2026-11-01
 

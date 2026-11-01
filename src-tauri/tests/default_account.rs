@@ -65,23 +65,49 @@ fn it_is_idle_once_signed_in_and_running_while_claude_uses_it() {
     assert!(account.running);
 }
 
-#[test]
-fn it_stays_first_whatever_order_the_accounts_are_dropped_in() {
-    let h = Harness::new();
-    let core = h.core();
-    let added = add_default(&core);
-
-    core.reorder_accounts(&[added.id.clone(), DEFAULT.to_string()])
-        .unwrap();
-
-    let ids: Vec<_> = core
+fn listed_ids(h: &Harness) -> Vec<String> {
+    h.core()
         .list_accounts()
         .unwrap()
         .accounts
         .into_iter()
         .map(|a| a.id)
-        .collect();
-    assert_eq!(ids, vec![DEFAULT.to_string(), added.id]);
+        .collect()
+}
+
+#[test]
+fn it_is_listed_where_it_was_dropped_and_it_survives_a_restart() {
+    let h = Harness::new();
+    let added = add_default(&h.core());
+
+    h.core()
+        .reorder_accounts(&[added.id.clone(), DEFAULT.to_string()])
+        .unwrap();
+
+    assert_eq!(listed_ids(&h), vec![added.id, DEFAULT.to_string()]);
+}
+
+#[test]
+fn an_older_records_file_lists_it_first_until_it_is_moved() {
+    let h = Harness::new();
+    let added = add_default(&h.core());
+    // Saved while the default account was always listed first, wherever its record sat.
+    fs::write(
+        h.fixture.local_app_data().join("clawshell/accounts.json"),
+        format!(
+            r#"{{"ordered":true,"accounts":[{{"id":"{}","label":"Work"}},{{"id":"{DEFAULT}","label":"Claude"}}]}}"#,
+            added.id
+        ),
+    )
+    .unwrap();
+
+    assert_eq!(listed_ids(&h), vec![DEFAULT.to_string(), added.id.clone()]);
+
+    h.core()
+        .reorder_accounts(&[added.id.clone(), DEFAULT.to_string()])
+        .unwrap();
+
+    assert_eq!(listed_ids(&h), vec![added.id, DEFAULT.to_string()]);
 }
 
 #[test]

@@ -146,7 +146,7 @@ fn breaks_a_day_down_by_account_in_the_saved_order() {
     spender(&h, ID_B, SESSION_B, &[("2026-06-12T09:00:00.000Z", 5)]);
     prices_ok(&h);
     h.core()
-        .reorder_accounts(&[ID_A.to_string(), ID_B.to_string()])
+        .reorder_accounts(&["default".to_string(), ID_A.to_string(), ID_B.to_string()])
         .unwrap();
 
     let map = h.core().heatmap();
@@ -241,7 +241,7 @@ fn breaks_a_days_tokens_down_by_account_in_the_saved_order() {
     spender(&h, ID_B, SESSION_B, &[("2026-06-12T10:00:00.000Z", 2)]);
     h.http.fail(PRICES_URL);
     h.core()
-        .reorder_accounts(&[ID_A.to_string(), ID_B.to_string()])
+        .reorder_accounts(&["default".to_string(), ID_A.to_string(), ID_B.to_string()])
         .unwrap();
 
     let map = h.core().heatmap();

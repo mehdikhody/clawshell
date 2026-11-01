@@ -45,8 +45,8 @@ export type Account = {
 	id: string;
 	label: string;
 	/**
-	 * Claude's own profile, the one its Start-menu entry opens. Always first; it has no badge,
-	 * shortcuts or drag handle, and can't be deleted.
+	 * Claude's own profile, the one its Start-menu entry opens. It has no badge or shortcuts,
+	 * and can't be deleted.
 	 */
 	isDefault: boolean;
 	/** The first letter of the label, in capitals. */

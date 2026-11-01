@@ -474,9 +474,14 @@ describe('AccountsScreen', () => {
 			expect(tauri.calls.filter((c) => c.cmd === 'add_shortcuts')).toEqual([
 				{ cmd: 'add_shortcuts', args: { id: 'id-idle' } }
 			]);
+			// The drag library keeps its own live region, so pick the notice by its text.
 			await expect
-				.element(page.getByRole('status'))
-				.toHaveTextContent('Shortcuts added to the Desktop and Start menu');
+				.element(
+					page
+						.getByRole('status')
+						.filter({ hasText: 'Shortcuts added to the Desktop and Start menu' })
+				)
+				.toBeVisible();
 		});
 
 		it('shows a clear message when the shortcuts cannot be added', async () => {
@@ -703,6 +708,31 @@ describe('AccountsScreen', () => {
 
 			await expect.poll(() => rowTexts()[0]).toContain('Account 2');
 			expect(tauri.calls.filter((call) => call.cmd === 'reorder_accounts')).toEqual([]);
+		});
+
+		it('moves the default account like any other', async () => {
+			const tauri = mount(
+				{},
+				{
+					...threeAccounts,
+					accounts: [
+						account('default', 'Claude', 'idle', '#d97757'),
+						account('id-idle', 'Work', 'idle')
+					] as AccountList['accounts']
+				}
+			);
+			await expect.element(page.getByRole('listitem').nth(1)).toBeVisible();
+			const [first, last] = [...document.querySelectorAll('[role="listitem"]')];
+			const below = spot(last, 'bottom');
+
+			pointer('pointerdown', spot(first, 'middle'), first);
+			pointer('pointermove', below);
+			await expect.poll(() => rowTexts()[1]).toContain('Claude');
+			pointer('pointerup', below);
+
+			await expect
+				.poll(() => tauri.calls.filter((call) => call.cmd === 'reorder_accounts'))
+				.toEqual([{ cmd: 'reorder_accounts', args: { ids: ['id-idle', 'default'] } }]);
 		});
 	});
 

@@ -145,12 +145,6 @@
 	}
 }
 
-/* The drop line of the account list's drag and drop, in the app's accent rather than the library's blue. */
-:root .drop-before::before,
-:root .drop-after::after {
-	background-color: var(--primary);
-}
-
 /* Flips chevrons in right-to-left layouts. */
 [dir='rtl'] .cn-rtl-flip {
 	transform: scaleX(-1);

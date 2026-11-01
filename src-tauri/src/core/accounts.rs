@@ -120,9 +120,9 @@ impl Core {
         })
     }
 
-    /// Every account clawshell knows: the default account first, then the
-    /// profile folders on disk plus recorded accounts whose folder has
-    /// vanished (status Missing), in the saved order.
+    /// Every account clawshell knows: the default account, the profile folders
+    /// on disk and recorded accounts whose folder has vanished (status
+    /// Missing), in the saved order.
     pub(super) fn known_accounts(&self) -> io::Result<Vec<Account>> {
         let scan = self.scan_profiles()?;
         let records = self.synced_records(&scan.profiles);
@@ -170,7 +170,7 @@ impl Core {
             })
             .collect();
         accounts.extend(missing);
-        accounts.sort_by_key(|a| (!a.is_default, records.position_of(&a.id)));
+        accounts.sort_by_key(|a| records.position_of(&a.id));
         Ok(accounts)
     }
 
@@ -399,6 +399,7 @@ impl Core {
         // Before any new account is added, so it lands at the end.
         let mut changed = records.adopt_id_order();
         changed |= records.ensure_default();
+        changed |= records.place_default();
         for profile in profiles {
             if records.label_of(&profile.id).is_none() {
                 records.add(&profile.id);

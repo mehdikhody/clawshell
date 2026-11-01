@@ -37,6 +37,10 @@ pub struct Records {
     /// listed by id, and keep that order until the first sync.
     #[serde(default)]
     pub ordered: bool,
+    /// Set once the default account sits where the user put it. Files saved
+    /// while it was always listed first lack it, and it moves to the front once.
+    #[serde(default)]
+    pub default_placed: bool,
 }
 
 fn file(local_app_data: &Path) -> PathBuf {
@@ -71,6 +75,20 @@ impl Records {
         }
         self.accounts.sort_by(|a, b| a.id.cmp(&b.id));
         self.ordered = true;
+        true
+    }
+
+    /// Moves the default account to the front of an older file's order, where
+    /// it was always listed, the first time; true when that saved a new order.
+    pub fn place_default(&mut self) -> bool {
+        if self.default_placed {
+            return false;
+        }
+        if let Some(at) = self.accounts.iter().position(|r| r.id == DEFAULT_ID) {
+            let record = self.accounts.remove(at);
+            self.accounts.insert(0, record);
+        }
+        self.default_placed = true;
         true
     }
 
