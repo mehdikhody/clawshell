@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Limited accounts and accounts whose folder is missing now look disabled on the Accounts screen: their icon, name, email and usage bars are greyed out and faded. Their badges and the Remove button keep their colour, and the row still launches and opens its menu as before.
+
 ## [0.3.0] - 2026-11-01
 
 ### Added

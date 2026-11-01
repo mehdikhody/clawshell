@@ -151,6 +151,9 @@
 		limited: 'destructive',
 		missing: 'destructive'
 	};
+	/** Limited and missing rows look disabled; their badges and buttons keep their colour. */
+	const looksDisabled = (status: AccountStatus) => status === 'limited' || status === 'missing';
+	const disabledLook = 'opacity-60 grayscale';
 
 	async function loadThresholds() {
 		try {
@@ -427,14 +430,16 @@
 											}
 										}}
 									>
-										<Item.Media>
+										<Item.Media class={[looksDisabled(account.status) && disabledLook]}>
 											<AccountIcon
 												badge={account.badge}
 												colour={account.colour}
 												isDefault={account.isDefault}
 											/>
 										</Item.Media>
-										<Item.Content class="min-w-0 flex-1">
+										<Item.Content
+											class={['min-w-0 flex-1', looksDisabled(account.status) && disabledLook]}
+										>
 											<Item.Title>{account.label}</Item.Title>
 											{#if account.status === 'missing'}
 												<Item.Description>{m.missing_hint()}</Item.Description>
@@ -465,7 +470,12 @@
 											{/if}
 										</Item.Actions>
 										{#if account.usage}
-											<div class="flex w-full flex-col gap-3 text-xs">
+											<div
+												class={[
+													'flex w-full flex-col gap-3 text-xs',
+													looksDisabled(account.status) && disabledLook
+												]}
+											>
 												{@render usageLines(account.usage)}
 											</div>
 										{:else if account.usagePending}

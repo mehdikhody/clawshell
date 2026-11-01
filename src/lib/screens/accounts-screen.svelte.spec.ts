@@ -60,6 +60,19 @@ function mount(overrides: IpcHandlers = {}, list: AccountList = threeAccounts) {
 	return tauri;
 }
 
+/** Which parts of an account row are drawn grey; the usage bars are the row's one unslotted child. */
+function greyedParts(row: Element) {
+	const greyed = (element: Element | null) =>
+		!!element && getComputedStyle(element).filter.includes('grayscale');
+	return {
+		row: greyed(row),
+		media: greyed(row.querySelector(':scope > [data-slot=item-media]')),
+		content: greyed(row.querySelector(':scope > [data-slot=item-content]')),
+		usage: greyed(row.querySelector(':scope > :not([data-slot])')),
+		actions: greyed(row.querySelector(':scope > [data-slot=item-actions]'))
+	};
+}
+
 describe('AccountsScreen', () => {
 	describe('badge', () => {
 		const badgeOf = (index: number) =>
@@ -801,6 +814,23 @@ describe('AccountsScreen', () => {
 				.not.toBeInTheDocument();
 		});
 
+		it('is greyed out, but its badge and Remove button keep their colour', async () => {
+			mount({}, withMissing);
+
+			const row = page.getByRole('listitem').nth(1);
+			await expect.element(row).toHaveTextContent('Folder missing');
+			expect(greyedParts(row.element())).toMatchObject({
+				row: false,
+				media: true,
+				content: true,
+				actions: false
+			});
+			expect(greyedParts(page.getByRole('listitem').nth(0).element())).toMatchObject({
+				media: false,
+				content: false
+			});
+		});
+
 		it('is removed after confirmation', async () => {
 			let removed = false;
 			const tauri = mount(
@@ -961,6 +991,34 @@ describe('AccountsScreen usage', () => {
 		const row = page.getByRole('listitem').nth(0);
 		await expect.element(row).toHaveTextContent('Limited');
 		await expect.element(row).not.toHaveTextContent('Running');
+	});
+
+	it('greys out a limited account, even while running, but keeps its badges in colour', async () => {
+		mount({}, listWith({}, 'limited', true));
+
+		const row = page.getByRole('listitem').nth(0);
+		await expect.element(row).toHaveTextContent('Limited');
+		expect(greyedParts(row.element())).toEqual({
+			row: false,
+			media: true,
+			content: true,
+			usage: true,
+			actions: false
+		});
+	});
+
+	it('does not grey out an account that is not limited', async () => {
+		mount({}, listWith({}));
+
+		const row = page.getByRole('listitem').nth(0);
+		await expect.element(row).toHaveTextContent('work@example.com');
+		expect(greyedParts(row.element())).toEqual({
+			row: false,
+			media: false,
+			content: false,
+			usage: false,
+			actions: false
+		});
 	});
 
 	it('marks a stale snapshot with how long ago it was updated', async () => {
