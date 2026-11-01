@@ -1022,9 +1022,7 @@ describe('AccountsScreen usage', () => {
 		await expect.element(tooltip).toBeVisible();
 		await expect
 			.element(tooltip)
-			.toHaveTextContent(
-				/Weekly\s*17%\s*·\s*resets in 2 days\s*5-hour\s*42%\s*·\s*resets in 3 hours/
-			);
+			.toHaveTextContent(/Weekly\s*17%\s*resets in 2 days\s*5-hour\s*42%\s*resets in 3 hours/);
 	});
 
 	it('leaves the reset out of the tooltip when it is unknown or already past', async () => {

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Limited accounts and accounts whose folder is missing now look disabled on the Accounts screen: their icon, name, email and usage bars are greyed out and faded. Their badges and the Remove button keep their colour, and the row still launches and opens its menu as before.
 - An account's weekly and 5-hour usage now share one thicker bar on the Accounts screen: an orange segment as wide as the weekly percentage, then an amber 5-hour segment that takes its percentage of the room the week leaves. As the week fills, the 5-hour segment shrinks, and once the week is used up it has no room. Underneath, a matching coloured dot labels each window with its real percentage and reset time.
+- The Accounts screen's loading placeholders now look like the account rows they stand in for: thin lines where the name, email and usage labels go, a dot for each label, and a status badge.
 - Hovering an account's usage bar shows a tooltip that follows the pointer, with both windows and how long until each resets, such as "resets in 2 days" or "resets in 45 minutes".
 - The account usage bars keep their own colours and no longer turn orange or red at the warning and limit thresholds. The thresholds still decide when you are notified.
 

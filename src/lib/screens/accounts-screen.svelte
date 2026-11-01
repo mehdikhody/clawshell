@@ -438,8 +438,8 @@
 												{#if account.email}
 													<Item.Description class="text-xs">{account.email}</Item.Description>
 												{:else if account.usagePending}
-													<Item.Description class="text-xs">
-														<Skeleton data-testid="email-skeleton" class="h-lh w-40" />
+													<Item.Description data-testid="email-skeleton" class="text-xs">
+														{@render textSkeleton('w-28')}
 													</Item.Description>
 												{/if}
 												{#if !account.usage && !account.usagePending && account.status !== 'signed-out'}
@@ -531,10 +531,13 @@
 					<Item.Media>
 						<Skeleton class="size-8" />
 					</Item.Media>
-					<Item.Content>
-						<Skeleton class="h-4 w-28" />
-						<Skeleton class="h-3 w-40" />
+					<Item.Content class="min-w-0 flex-1">
+						<Item.Title>{@render textSkeleton('w-20')}</Item.Title>
+						<Item.Description class="text-xs">{@render textSkeleton('w-28')}</Item.Description>
 					</Item.Content>
+					<Item.Actions class="shrink-0 self-start">
+						<Skeleton class="h-5 w-16 rounded-full" />
+					</Item.Actions>
 					{@render usageSkeleton()}
 				</Item.Root>
 			{/each}
@@ -584,7 +587,7 @@
 				data-testid="usage-tooltip"
 				customAnchor={hoveredBar?.anchor ?? null}
 				sideOffset={6}
-				class="pointer-events-none flex-col items-stretch gap-1"
+				class="pointer-events-none flex-col items-stretch gap-2"
 			>
 				{@render usageTip(m.usage_weekly(), usage.weekly, 'bg-usage-weekly')}
 				{@render usageTip(m.usage_five_hour(), usage.fiveHour, 'bg-usage-five-hour')}
@@ -608,15 +611,21 @@
 {#snippet usageTip(label: string, window: WindowUsage | null, dot: string)}
 	{#if window}
 		{@const resetIn = formatResetIn(window.resetsAt, now, formatTag(), m.usage_reset_soon())}
-		<p class="flex items-center gap-1.5">
-			<span class={['size-2 shrink-0 rounded-full', dot]} aria-hidden="true"></span>
+		<!-- The reset sits under the label, lined up with its text rather than the dot. -->
+		<div class="grid grid-cols-[auto_1fr] items-center gap-x-1.5">
+			<span class={['size-2 rounded-full', dot]} aria-hidden="true"></span>
 			<span>
 				{label}
 				<span class="tabular-nums"
 					>{formatPercentValue(Math.round(window.utilization), formatTag())}</span
-				>{#if resetIn}&nbsp;· {m.usage_resets({ time: resetIn })}{/if}
+				>
 			</span>
-		</p>
+			{#if resetIn}
+				<span class="col-start-2 text-[11px] text-background/65">
+					{m.usage_resets({ time: resetIn })}
+				</span>
+			{/if}
+		</div>
 	{/if}
 {/snippet}
 
@@ -641,15 +650,25 @@
 	{/if}
 {/snippet}
 
+<!-- A line of text still loading: a thin bar in a box one line tall, so the row keeps its height. -->
+{#snippet textSkeleton(width: string)}
+	<span class="flex h-lh items-center">
+		<Skeleton class={['h-[0.7em] rounded-full', width]} />
+	</span>
+{/snippet}
+
 <!-- Shaped like the bar and its labels: each line takes its height from the same text size. -->
 {#snippet usageSkeleton()}
 	<div data-testid="usage-skeleton" class="flex w-full flex-col gap-2 text-xs" aria-busy="true">
 		<Skeleton class="h-3 w-full rounded-full" />
-		<div class="flex justify-between">
+		<div class="grid grid-cols-2 gap-x-3">
 			{#each [0, 1] as n (n)}
 				<div class={['flex flex-col gap-0.5', n === 1 && 'items-end']}>
-					<Skeleton class="h-lh w-20" />
-					<span class="text-[11px]"><Skeleton class="h-lh w-28" /></span>
+					<span class="flex items-center gap-1.5 font-medium">
+						<Skeleton class="size-2 shrink-0 rounded-full" />
+						{@render textSkeleton('w-16')}
+					</span>
+					<span class="text-[11px]">{@render textSkeleton('w-24')}</span>
 				</div>
 			{/each}
 		</div>
