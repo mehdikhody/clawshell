@@ -31,7 +31,7 @@ describe('DisclaimerDialog', () => {
 
 		await expect.element(dialog()).toBeVisible();
 		await expect.element(page.getByRole('heading', { name: 'Before you start' })).toBeVisible();
-		await expect.element(dialog().getByText(/unofficial tool/)).toBeVisible();
+		await expect.element(dialog().getByText(/at your own risk/)).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Accept' })).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Exit' })).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Close' })).not.toBeInTheDocument();

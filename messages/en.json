@@ -179,7 +179,7 @@
 	"update_failed_detail": "Your current version is still running. Check your connection and try again.",
 	"update_retry": "Retry",
 	"disclaimer_title": "Before you start",
-	"disclaimer_body": "clawshell is an unofficial tool. It is not made, endorsed or supported by Anthropic.\n\nTo work, it reads each account's Claude sign-in to fetch usage and cost from Anthropic, starts and ends Claude Desktop, and changes files in Claude's profiles, for example when copying sessions. A Claude update can break any of this.\n\nYou use it at your own risk. It's your responsibility to use Claude and multiple accounts within Anthropic's terms.",
+	"disclaimer_body": "You use it at your own risk. It's your responsibility to use Claude and multiple accounts within Anthropic's terms.",
 	"disclaimer_accept": "Accept",
 	"disclaimer_exit": "Exit"
 }
