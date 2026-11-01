@@ -1,5 +1,6 @@
 // Injected by capture.mjs before the app loads: a stand-in Tauri backend answering with sample data.
-// Config comes from window.__SHOT__ = { language, routingNeedsChoice, noUpdate }.
+// Config comes from window.__SHOT__ = { language, routingNeedsChoice, update }.
+// `update` offers a new version; without it the header shows no "Update available".
 // The accounts, usage, costs and sessions here are what the README screenshots show.
 (() => {
 	const cfg = window.__SHOT__ || {};
@@ -243,16 +244,16 @@
 		list_sessions: () => sessions,
 		new_account_defaults: () => ({ label: 'Account 5', colour: '#0891b2' }),
 		'plugin:updater|check': () =>
-			cfg.noUpdate
-				? null
-				: {
+			cfg.update
+				? {
 						rid: 1,
 						currentVersion: '0.2.0',
 						version: '0.3.0',
 						date: iso(now),
 						body: notes,
 						rawJson: {}
-					},
+					}
+				: null,
 		'plugin:event|listen': () => Math.floor(Math.random() * 1e9),
 		'plugin:event|unlisten': () => null,
 		'plugin:resources|close': () => null

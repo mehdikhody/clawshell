@@ -120,6 +120,7 @@ const shots = {
 		go: (page) => tab(page, 1)
 	},
 	update: {
+		cfg: { update: true },
 		async go(page) {
 			await tab(page, 2);
 			await settle(page);
