@@ -70,7 +70,9 @@
 		await Promise.all([
 			monthCost()
 				.then(
-					(next) => (shown.cost = next ?? shown.cost),
+					(next) => {
+						if (next) shown.cost = next;
+					},
 					() => {
 						// Keep whatever was shown; the next load tries again.
 					}
@@ -78,7 +80,9 @@
 				.finally(() => (shown.costReady = true)),
 			loadHeatmap()
 				.then(
-					(next) => (shown.heatmap = next ?? shown.heatmap),
+					(next) => {
+						if (next) shown.heatmap = next;
+					},
 					() => {}
 				)
 				.finally(() => (shown.heatmapReady = true))
