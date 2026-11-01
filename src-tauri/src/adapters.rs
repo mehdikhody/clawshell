@@ -385,7 +385,7 @@ impl LinkHandlerRegistry for WindowsOs {
 /// no longer sees it.
 const END_WAIT_MS: u32 = 2_000;
 
-impl ProcessKiller for WindowsOs {
+impl ClaudeQuitter for WindowsOs {
     fn end(&self, pids: &[u32]) -> io::Result<()> {
         use windows::Win32::Foundation::{CloseHandle, ERROR_INVALID_PARAMETER};
         use windows::Win32::System::Threading::{

@@ -23,16 +23,16 @@ pub enum CopyBlocker {
 /// profile endpoint reports them. They name the folder Claude keeps the
 /// profile's Code sessions in.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct SessionIds {
+pub(super) struct ProfileIdentity {
     account: String,
     organization: String,
 }
 
-impl SessionIds {
+impl ProfileIdentity {
     /// Only well-formed uuids count: both become part of a path.
     pub(super) fn parse(account: &str, organization: &str) -> Option<Self> {
         let canonical = |id: &str| Uuid::parse_str(id).ok().map(|u| u.to_string());
-        Some(SessionIds {
+        Some(ProfileIdentity {
             account: canonical(account)?,
             organization: canonical(organization)?,
         })
@@ -44,7 +44,7 @@ impl SessionIds {
 pub(super) fn target_folder(
     status: Status,
     profile: &Path,
-    ids: Option<&SessionIds>,
+    ids: Option<&ProfileIdentity>,
 ) -> Result<PathBuf, CopyBlocker> {
     if matches!(status, Status::SignedOut | Status::Missing) {
         return Err(CopyBlocker::SignIn);
@@ -65,7 +65,7 @@ pub(super) fn target_folder(
 pub(super) fn copy_blocker(
     status: Status,
     profile: &Path,
-    ids: Option<&SessionIds>,
+    ids: Option<&ProfileIdentity>,
 ) -> Option<CopyBlocker> {
     target_folder(status, profile, ids).err()
 }

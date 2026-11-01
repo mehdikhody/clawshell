@@ -11,7 +11,7 @@ use super::pooled::{PooledRemaining, pool_remaining};
 use super::ports::LaunchSpec;
 use super::signin::is_signed_in;
 use super::store::Records;
-use super::usage::UsageSnapshot;
+use super::usage::{AccountUsage, UsageSnapshot};
 use super::{Core, PROFILE_PREFIX, Profile};
 use serde::Serialize;
 use std::collections::HashSet;
@@ -140,14 +140,8 @@ impl Core {
                     .to_string();
                 let colour = colour_in(&records, &profile.id);
                 let known = usage.accounts.get(&profile.id);
-                let email = known.and_then(|u| u.email.clone());
-                let snapshot = known.and_then(|u| u.snapshot.clone());
                 let options = records.options_of(&profile.id);
-                let mut account =
-                    account_of(profile, label, colour, &running, email, snapshot, options);
-                let ids = known.and_then(|u| u.ids.as_ref());
-                account.copy_blocker = copy_blocker(account.status, &account.path, ids);
-                account
+                account_of(profile, label, colour, &running, known, options)
             })
             .collect();
 
@@ -156,20 +150,23 @@ impl Core {
             .accounts
             .iter()
             .filter(|r| is_account_id(&r.id) && accounts.iter().all(|a| a.id != r.id))
-            .map(|r| Account {
-                id: r.id.clone(),
-                label: r.label.clone(),
-                is_default: false,
-                badge: badge_letter(&r.label),
-                colour: colour_in(&records, &r.id),
-                status: Status::Missing,
-                copy_blocker: Some(CopyBlocker::SignIn),
-                running: false,
-                email: None,
-                usage: None,
-                env: r.env.clone(),
-                flags: r.flags.clone(),
-                path: local.join(format!("{PROFILE_PREFIX}{}", r.id)),
+            .map(|r| {
+                let path = local.join(format!("{PROFILE_PREFIX}{}", r.id));
+                Account {
+                    id: r.id.clone(),
+                    label: r.label.clone(),
+                    is_default: false,
+                    badge: badge_letter(&r.label),
+                    colour: colour_in(&records, &r.id),
+                    status: Status::Missing,
+                    copy_blocker: copy_blocker(Status::Missing, &path, None),
+                    running: false,
+                    email: None,
+                    usage: None,
+                    env: r.env.clone(),
+                    flags: r.flags.clone(),
+                    path,
+                }
             })
             .collect();
         accounts.extend(missing);
@@ -390,7 +387,6 @@ impl Core {
             colour,
             &running,
             None,
-            None,
             LaunchOptions::default(),
         ))
     }
@@ -427,10 +423,12 @@ fn account_of(
     label: String,
     colour: String,
     running: &HashSet<PathBuf>,
-    email: Option<String>,
-    usage: Option<UsageSnapshot>,
+    known: Option<&AccountUsage>,
     options: LaunchOptions,
 ) -> Account {
+    let email = known.and_then(|u| u.email.clone());
+    let usage = known.and_then(|u| u.snapshot.clone());
+    let identity = known.and_then(|u| u.ids.as_ref());
     let is_running = running.iter().any(|p| same_path(p, &profile.path));
     let status = if !is_signed_in(&profile.path) {
         Status::SignedOut
@@ -448,7 +446,7 @@ fn account_of(
         label,
         colour,
         status,
-        copy_blocker: copy_blocker(status, &profile.path, None),
+        copy_blocker: copy_blocker(status, &profile.path, identity),
         running: is_running,
         email,
         usage,

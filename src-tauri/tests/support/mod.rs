@@ -386,7 +386,7 @@ pub struct FakeOs {
     pub default_apps_opened: Mutex<u32>,
     /// Every link handed on to a Claude process, in order.
     pub forwarded: Mutex<Vec<LinkForward>>,
-    /// Every process id handed to the process killer, in order.
+    /// Every process id handed to Quit Claude, in order.
     pub ended: Mutex<Vec<u32>>,
     /// Makes ending processes fail, as a protected process would.
     pub end_fails: Mutex<bool>,
@@ -612,7 +612,7 @@ impl Notifier for FakeOs {
             .push((title.to_string(), body.to_string()));
     }
 }
-impl ProcessKiller for FakeOs {
+impl ClaudeQuitter for FakeOs {
     fn end(&self, pids: &[u32]) -> io::Result<()> {
         if *self.end_fails.lock().unwrap() {
             return Err(io::Error::other("access denied"));

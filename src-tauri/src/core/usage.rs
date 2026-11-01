@@ -8,7 +8,7 @@
 
 use super::Core;
 use super::accounts::Status;
-use super::copy_target::SessionIds;
+use super::copy_target::ProfileIdentity;
 use super::polling::{
     MIN_INTERVAL, SATURATED_FLOOR_FOR, adaptive_interval, apply_saturated_floor, failure_backoff,
     jitter_unit, next_poll_delay, parse_retry_after, rate_limit_wait,
@@ -101,7 +101,7 @@ pub struct RefreshOutcome {
 pub(super) struct AccountUsage {
     pub email: Option<String>,
     /// The account and organisation uuids the profile endpoint reported.
-    pub ids: Option<SessionIds>,
+    pub ids: Option<ProfileIdentity>,
     pub snapshot: Option<UsageSnapshot>,
     last_attempt_ms: Option<i64>,
     /// A 429 told us to stay away until then (manual refresh obeys it too).
@@ -160,7 +160,7 @@ enum Fetched {
 /// What the profile endpoint said about the signed-in account.
 struct ProfileAnswer {
     email: Option<String>,
-    ids: Option<SessionIds>,
+    ids: Option<ProfileIdentity>,
 }
 
 fn ms(d: Duration) -> i64 {
@@ -259,14 +259,15 @@ impl Core {
 
     fn refresh_account(&self, id: &str, path: &Path, running: bool, now: i64) {
         let history = read_history(path);
-        let needs_profile = self
+        let email_known = self
             .usage
             .lock()
             .unwrap()
             .accounts
             .get(id)
-            .is_none_or(|s| s.email.is_none());
-        let fetched = self.fetch(path, now, needs_profile);
+            .is_some_and(|s| s.email.is_some());
+        // The profile endpoint is only asked until the email is known.
+        let fetched = self.fetch(path, now, !email_known);
 
         let mut state = self.usage.lock().unwrap();
         let s = state.accounts.entry(id.to_string()).or_default();
@@ -366,7 +367,7 @@ impl Core {
                 .map(str::to_string),
             ids: text("/account/uuid")
                 .zip(text("/organization/uuid"))
-                .and_then(|(account, organization)| SessionIds::parse(account, organization)),
+                .and_then(|(account, organization)| ProfileIdentity::parse(account, organization)),
         })
     }
 }

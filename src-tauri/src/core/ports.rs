@@ -250,7 +250,7 @@ pub trait LinkHandlerRegistry: Send + Sync {
     fn forward_link(&self, forward: &LinkForward) -> io::Result<()>;
 }
 
-pub trait ProcessKiller: Send + Sync {
+pub trait ClaudeQuitter: Send + Sync {
     /// Ends every process in `pids` at once, with no graceful step. A process
     /// that is already gone counts as ended.
     fn end(&self, pids: &[u32]) -> io::Result<()>;
@@ -279,7 +279,7 @@ pub trait OsAdapters:
     + TaskbarIdentity
     + Shortcuts
     + LinkHandlerRegistry
-    + ProcessKiller
+    + ClaudeQuitter
     + Autostart
     + Notifier
     + UiLanguage
