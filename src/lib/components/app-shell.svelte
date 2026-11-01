@@ -15,10 +15,14 @@
 	import { addRequest } from '$lib/add-account-request.svelte';
 	import { startAutoRefresh } from '$lib/auto-refresh.svelte';
 	import { disclaimer, loadDisclaimer } from '$lib/disclaimer.svelte';
+	import { provideScreenData } from '$lib/screen-data.svelte';
 	import { startUpdateChecks } from '$lib/update.svelte';
 	import RoutingOffer from './routing-offer.svelte';
 	import TopBar from './top-bar.svelte';
 	import { scrollFade } from '$lib/scroll-fade';
+
+	// Kept above the key, so a redraw shows what the screens already loaded.
+	provideScreenData();
 
 	let tab = $state('accounts');
 	/** Nothing is drawn until the saved language is known, so the window never flashes the wrong one. */

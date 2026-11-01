@@ -1,15 +1,11 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import { autoRefresh } from '$lib/auto-refresh.svelte';
-	import {
-		listAccounts,
-		onAccountsChanged,
-		type AccountList,
-		type PooledWindow
-	} from '$lib/accounts';
+	import { useScreenData } from '$lib/screen-data.svelte';
+	import { listAccounts, onAccountsChanged, type PooledWindow } from '$lib/accounts';
 	import MonthCostCard from '$lib/components/month-cost.svelte';
 	import UsageHeatmap from '$lib/components/usage-heatmap.svelte';
-	import { monthCost, type MonthCost } from '$lib/cost';
+	import { monthCost } from '$lib/cost';
 	import { heatmap as loadHeatmap, type Heatmap } from '$lib/heatmap';
 	import * as Item from '$lib/components/ui/item';
 	import { Progress } from '$lib/components/ui/progress';
@@ -27,18 +23,14 @@
 		type UsageThresholds
 	} from '$lib/usage-stage';
 
-	let list = $state<AccountList | null>(null);
+	/**
+	 * The sections' data, and whether each has had its first answer or failed. Until then it shows
+	 * a skeleton; refreshes, and a language or calendar change that remounts the screen, never
+	 * bring one back.
+	 */
+	const shown = useScreenData().usage;
 	/** The warning and limit thresholds that colour the bars; the defaults until the saved ones load. */
 	let thresholds = $state<UsageThresholds>(defaultThresholds);
-	let cost = $state<MonthCost | null>(null);
-	let heatmap = $state<Heatmap | null>(null);
-	/**
-	 * Whether each lazily loaded section has had its first answer, or failed. Until then it shows
-	 * a skeleton; refreshes never bring one back.
-	 */
-	let heatmapReady = $state(false);
-	let costReady = $state(false);
-	let listReady = $state(false);
 	/** The month is a scan of transcripts, so pushed changes reread it at most this often. */
 	const COST_REREAD_MS = 60_000;
 	let costReadAt = 0;
@@ -46,7 +38,7 @@
 	let now = $state(Date.now());
 	/** Signed-in accounts exist, whether or not they have a reading yet. */
 	const hasSignedIn = $derived(
-		list?.accounts.some((a) => a.status !== 'signed-out' && a.status !== 'missing') ?? false
+		shown.list?.accounts.some((a) => a.status !== 'signed-out' && a.status !== 'missing') ?? false
 	);
 
 	/** Nothing to draw until some day has a reading, or prices are why the dollars are empty. */
@@ -64,11 +56,11 @@
 
 	async function load() {
 		try {
-			list = await listAccounts();
+			shown.list = await listAccounts();
 		} catch {
 			// The core pushes the next snapshot when it can.
 		} finally {
-			listReady = true;
+			shown.listReady = true;
 		}
 	}
 
@@ -78,18 +70,18 @@
 		await Promise.all([
 			monthCost()
 				.then(
-					(next) => (cost = next ?? cost),
+					(next) => (shown.cost = next ?? shown.cost),
 					() => {
 						// Keep whatever was shown; the next load tries again.
 					}
 				)
-				.finally(() => (costReady = true)),
+				.finally(() => (shown.costReady = true)),
 			loadHeatmap()
 				.then(
-					(next) => (heatmap = next ?? heatmap),
+					(next) => (shown.heatmap = next ?? shown.heatmap),
 					() => {}
 				)
-				.finally(() => (heatmapReady = true))
+				.finally(() => (shown.heatmapReady = true))
 		]);
 	}
 
@@ -105,8 +97,8 @@
 		void loadThresholds();
 		const tick = setInterval(() => (now = Date.now()), 1000);
 		const unlisten = onAccountsChanged((next) => {
-			list = next;
-			listReady = true;
+			shown.list = next;
+			shown.listReady = true;
 			if (Date.now() - costReadAt >= COST_REREAD_MS) void loadCost();
 		});
 		return () => {
@@ -121,7 +113,7 @@
 		<h1 class="text-base font-semibold">{m.tab_usage()}</h1>
 	</header>
 
-	{#if !heatmapReady}
+	{#if !shown.heatmapReady}
 		<Item.Root data-testid="skeleton-heatmap" variant="outline" size="sm" aria-busy="true">
 			<Item.Content>
 				<Skeleton class="h-4 w-24" />
@@ -136,11 +128,11 @@
 				<Skeleton class="ms-auto h-3 w-40" />
 			</Item.Content>
 		</Item.Root>
-	{:else if heatmap && hasHeatmapData(heatmap)}
-		<UsageHeatmap {heatmap} />
+	{:else if shown.heatmap && hasHeatmapData(shown.heatmap)}
+		<UsageHeatmap heatmap={shown.heatmap} />
 	{/if}
 
-	{#if !listReady}
+	{#if !shown.listReady}
 		<Item.Root data-testid="skeleton-pooled" variant="outline" size="sm" aria-busy="true">
 			<Item.Content>
 				{#each [0, 1] as n (n)}
@@ -161,13 +153,13 @@
 				{/each}
 			</Item.Content>
 		</Item.Root>
-	{:else if list}
+	{:else if shown.list}
 		{#if hasSignedIn}
 			<Item.Root variant="outline" size="sm">
 				<Item.Content>
-					{@render pooledWindow(m.usage_five_hour(), list.pooled.fiveHour)}
+					{@render pooledWindow(m.usage_five_hour(), shown.list.pooled.fiveHour)}
 					<Item.Separator />
-					{@render pooledWindow(m.usage_weekly(), list.pooled.weekly)}
+					{@render pooledWindow(m.usage_weekly(), shown.list.pooled.weekly)}
 				</Item.Content>
 			</Item.Root>
 		{:else}
@@ -178,7 +170,7 @@
 		{/if}
 	{/if}
 
-	{#if !costReady}
+	{#if !shown.costReady}
 		<Item.Root data-testid="skeleton-cost" variant="outline" size="sm" aria-busy="true">
 			<Item.Content>
 				<div class="flex items-baseline justify-between">
@@ -204,8 +196,8 @@
 				</div>
 			</Item.Content>
 		</Item.Root>
-	{:else if cost && cost.accounts.length > 0}
-		<MonthCostCard {cost} />
+	{:else if shown.cost && shown.cost.accounts.length > 0}
+		<MonthCostCard cost={shown.cost} />
 	{/if}
 </section>
 

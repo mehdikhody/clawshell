@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import { autoRefresh } from '$lib/auto-refresh.svelte';
+	import { useScreenData } from '$lib/screen-data.svelte';
 	import IconAlertTriangle from '@tabler/icons-svelte/icons/alert-triangle';
 	import IconAppWindow from '@tabler/icons-svelte/icons/app-window';
 	import IconCheck from '@tabler/icons-svelte/icons/check';
@@ -62,16 +63,19 @@
 		type UsageThresholds
 	} from '$lib/usage-stage';
 
-	let list = $state<AccountList>({
+	/** The last list, kept by the shell so a language or calendar change redraws it, not a placeholder. */
+	const shown = useScreenData().accounts;
+	const noAccounts: AccountList = {
 		claudeFound: true,
 		refreshAllowedAt: null,
 		pooled: emptyPooled,
 		palette: [],
 		accounts: []
-	});
+	};
+	const list = $derived(shown.list ?? noAccounts);
+	const loaded = $derived(shown.list !== null);
 	/** How long a confirmation stays on screen. */
 	const NOTICE_MS = 5000;
-	let loaded = $state(false);
 	let adding = $state(false);
 	/** Ticks every second so "updated X ago" and the refresh wait stay current. */
 	let now = $state(Date.now());
@@ -128,8 +132,7 @@
 
 	async function refresh() {
 		try {
-			list = await listAccounts();
-			loaded = true;
+			shown.list = await listAccounts();
 		} catch {
 			// The core pushes the next snapshot when it can.
 		}
@@ -310,8 +313,7 @@
 		void loadThresholds();
 		const tick = setInterval(() => (now = Date.now()), 1000);
 		const unlisten = onAccountsChanged((next) => {
-			list = next;
-			loaded = true;
+			shown.list = next;
 		});
 		return () => {
 			clearInterval(tick);

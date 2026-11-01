@@ -1,11 +1,15 @@
 import { page } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { tick } from 'svelte';
 import { emit } from '@tauri-apps/api/event';
 import '../../routes/layout.css';
 import { REFRESH_MS } from '$lib/auto-refresh.svelte';
 import { disclaimer } from '$lib/disclaimer.svelte';
 import { active, switchCalendar, switchLocale } from '$lib/locale-state.svelte';
+import { pooledWindow } from '$lib/test/pooled';
+import { accountCost, monthCost } from '$lib/test/cost';
+import { heatmapOf, values } from '$lib/test/heatmap';
 import type { Settings } from '$lib/settings';
 import { mockTauri } from '$lib/test/tauri-ipc';
 import { UPDATE_CHECK_MS, updateState } from '$lib/update.svelte';
@@ -334,5 +338,91 @@ describe('AppShell in Persian', () => {
 
 		await expect.element(page.getByRole('tab', { name: 'Settings' })).toBeVisible();
 		expect(document.documentElement.dir).toBe('ltr');
+	});
+});
+
+describe('AppShell redraws', () => {
+	/** Once set, the core never answers again: a remounted screen cannot get fresh data. */
+	let held = false;
+	afterEach(async () => {
+		held = false;
+		// Back to English while the mock still answers: the screens remount on the way.
+		switchLocale('en');
+		switchCalendar('automatic');
+		await tick();
+	});
+	const unlessHeld =
+		<T>(answer: T) =>
+		() =>
+			held ? new Promise<T>(() => {}) : answer;
+	const signedIn = {
+		claudeFound: true,
+		refreshAllowedAt: null,
+		pooled: {
+			fiveHour: pooledWindow({ remainingPercent: 80, available: 1, total: 1 }),
+			weekly: pooledWindow({ remainingPercent: 80, available: 1, total: 1 })
+		},
+		palette: ['#2563eb'],
+		accounts: [
+			{
+				id: 'work',
+				label: 'Work',
+				isDefault: false,
+				badge: 'W',
+				colour: '#2563eb',
+				status: 'idle',
+				copyBlocker: null,
+				running: false,
+				email: null,
+				usage: null,
+				env: [],
+				flags: []
+			}
+		]
+	};
+	const skeletons = () => document.querySelectorAll('[data-slot=skeleton]');
+
+	it.each([
+		['language', () => switchLocale('fa'), 'مصرف'],
+		['calendar', () => switchCalendar('persian'), 'Usage']
+	])(
+		'keeps the loaded Usage data, with no placeholders, when the %s changes',
+		async (_what, change, usageTab) => {
+			({ restore } = mockTauri({
+				...core,
+				list_accounts: unlessHeld(signedIn),
+				month_cost: unlessHeld(monthCost({ accounts: [accountCost('Work')] })),
+				heatmap: unlessHeld(heatmapOf({ '2026-06-10': { usd: values([['Work', 1]]) } }))
+			}));
+			render(AppShell);
+			await page.getByRole('tab', { name: 'Usage' }).click();
+			await expect.element(page.getByRole('progressbar', { name: '5-hour' })).toBeVisible();
+			await expect.element(page.getByRole('group', { name: 'Last 9 weeks' })).toBeVisible();
+			expect(skeletons()).toHaveLength(0);
+
+			held = true;
+			change();
+			// The shell redraws by remounting its screens.
+			await tick();
+
+			await expect.element(page.getByRole('tab', { name: usageTab })).toBeVisible();
+			expect(skeletons()).toHaveLength(0);
+			expect(document.querySelector('[aria-busy=true]')).toBeNull();
+		}
+	);
+
+	it('keeps the loaded Accounts list, with no placeholders, when the language changes', async () => {
+		({ restore } = mockTauri({ ...core, list_accounts: unlessHeld(signedIn) }));
+		render(AppShell);
+		await expect.element(page.getByRole('listitem').first()).toBeVisible();
+
+		held = true;
+		switchLocale('fa');
+		await tick();
+
+		await expect.element(page.getByRole('tab', { name: 'حساب‌ها' })).toBeVisible();
+		await expect.element(page.getByRole('listitem').first()).toBeVisible();
+		await expect.element(page.getByTestId('account-skeleton')).not.toBeInTheDocument();
+		expect(skeletons()).toHaveLength(0);
 	});
 });
