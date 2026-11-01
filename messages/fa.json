@@ -78,6 +78,7 @@
 	"usage_five_hour": "۵ ساعته",
 	"usage_weekly": "هفتگی",
 	"usage_resets": "بازنشانی {time}",
+	"usage_reset_soon": "کمتر از یک دقیقه بعد",
 	"usage_none": "هنوز داده‌ای از مصرف نیست",
 	"usage_stale": "قدیمی، به‌روزرسانی {ago}",
 	"usage_local_history": "از تاریخچهٔ محلی، به‌روزرسانی {ago}",

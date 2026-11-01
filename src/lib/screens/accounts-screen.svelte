@@ -45,23 +45,16 @@
 	import * as ContextMenu from '$lib/components/ui/context-menu';
 	import { Input } from '$lib/components/ui/input';
 	import * as Item from '$lib/components/ui/item';
-	import { Progress } from '$lib/components/ui/progress';
 	import { Skeleton } from '$lib/components/ui/skeleton';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { m } from '$lib/paraglide/messages.js';
 	import { formatTag } from '$lib/locale-state.svelte';
 	import { formatPercentValue } from '$lib/locale';
-	import { formatAgo, formatReset } from '$lib/usage';
-	import { getSettings } from '$lib/settings';
+	import { formatAgo, formatReset, formatResetIn } from '$lib/usage';
 	import { addRequest } from '$lib/add-account-request.svelte';
 	import SortableRow from '$lib/components/sortable-row.svelte';
 	import { DragDropProvider, KeyboardSensor, PointerSensor } from '@dnd-kit/svelte';
 	import { move } from '@dnd-kit/helpers';
-	import {
-		defaultThresholds,
-		usageBarClass,
-		usageStage,
-		type UsageThresholds
-	} from '$lib/usage-stage';
 
 	/** The last list, kept by the shell so a language or calendar change redraws it, not a placeholder. */
 	const shown = useScreenData().accounts;
@@ -106,8 +99,6 @@
 	/** Ticks every second so "updated X ago" and the refresh wait stay current. */
 	let now = $state(Date.now());
 	let failure = $state<string | null>(null);
-	/** The warning and limit thresholds that colour the usage bars; the defaults until the saved ones load. */
-	let thresholds = $state<UsageThresholds>(defaultThresholds);
 	/** A short confirmation for an action that otherwise shows nothing. */
 	let notice = $state<string | null>(null);
 
@@ -155,13 +146,14 @@
 	const looksDisabled = (status: AccountStatus) => status === 'limited' || status === 'missing';
 	const disabledLook = 'opacity-60 grayscale';
 
-	async function loadThresholds() {
-		try {
-			const saved = await getSettings();
-			if (saved) thresholds = saved;
-		} catch {
-			// Keep the defaults.
-		}
+	/** The usage bar under the pointer, and where its tooltip points: just above the bar, at the pointer. */
+	let hoveredBar = $state<{ id: string; anchor: { getBoundingClientRect: () => DOMRect } } | null>(
+		null
+	);
+	function pointAt(id: string, event: PointerEvent) {
+		const bar = (event.currentTarget as HTMLElement).getBoundingClientRect();
+		const at = new DOMRect(event.clientX, bar.top, 0, bar.height);
+		hoveredBar = { id, anchor: { getBoundingClientRect: () => at } };
 	}
 
 	async function refresh() {
@@ -348,7 +340,6 @@
 	});
 
 	onMount(() => {
-		void loadThresholds();
 		const tick = setInterval(() => (now = Date.now()), 1000);
 		const unlisten = onAccountsChanged((next) => {
 			shown.list = next;
@@ -472,11 +463,11 @@
 										{#if account.usage}
 											<div
 												class={[
-													'flex w-full flex-col gap-3 text-xs',
+													'flex w-full flex-col gap-2 text-xs',
 													looksDisabled(account.status) && disabledLook
 												]}
 											>
-												{@render usageLines(account.usage)}
+												{@render usageLines(account.id, account.usage)}
 											</div>
 										{:else if account.usagePending}
 											{@render usageSkeleton()}
@@ -556,48 +547,126 @@
 	{/if}
 </section>
 
-{#snippet usageWindow(label: string, window: WindowUsage | null)}
+<!--
+	One track for both windows. Weekly comes first, as wide as its own percentage; the 5-hour
+	window takes its percentage of the room weekly leaves, so it shrinks as the week fills and has
+	none once the week is used up. The labels underneath, and the tooltip, give each its real number.
+-->
+{#snippet usageBar(id: string, usage: UsageSnapshot)}
+	{@const weekly = Math.min(usage.weekly?.utilization ?? 0, 100)}
+	{@const fiveHour = (Math.min(usage.fiveHour?.utilization ?? 0, 100) * (100 - weekly)) / 100}
+	<Tooltip.Provider delayDuration={0} disableHoverableContent>
+		<Tooltip.Root open={hoveredBar?.id === id}>
+			<div
+				role="presentation"
+				class="flex h-3 w-full overflow-hidden rounded-full bg-muted"
+				onpointermove={(event) => pointAt(id, event)}
+				onpointerleave={() => (hoveredBar = null)}
+			>
+				{#if usage.weekly}
+					{@render usageSegment(
+						m.usage_weekly(),
+						usage.weekly.utilization,
+						weekly,
+						'bg-usage-weekly'
+					)}
+				{/if}
+				{#if usage.fiveHour}
+					{@render usageSegment(
+						m.usage_five_hour(),
+						usage.fiveHour.utilization,
+						fiveHour,
+						'bg-usage-five-hour'
+					)}
+				{/if}
+			</div>
+			<Tooltip.Content
+				data-testid="usage-tooltip"
+				customAnchor={hoveredBar?.anchor ?? null}
+				sideOffset={6}
+				class="pointer-events-none flex-col items-stretch gap-1"
+			>
+				{@render usageTip(m.usage_weekly(), usage.weekly, 'bg-usage-weekly')}
+				{@render usageTip(m.usage_five_hour(), usage.fiveHour, 'bg-usage-five-hour')}
+			</Tooltip.Content>
+		</Tooltip.Root>
+	</Tooltip.Provider>
+{/snippet}
+
+{#snippet usageSegment(label: string, value: number, width: number, colour: string)}
+	<div
+		role="progressbar"
+		aria-label={label}
+		aria-valuemin={0}
+		aria-valuemax={100}
+		aria-valuenow={value}
+		class={['min-w-0 shrink-0', colour]}
+		style:width="{width}%"
+	></div>
+{/snippet}
+
+{#snippet usageTip(label: string, window: WindowUsage | null, dot: string)}
 	{#if window}
-		<div class="flex flex-col gap-1.5 text-xs">
-			<div class="flex items-baseline justify-between">
-				<span class="text-muted-foreground">{label}</span>
+		{@const resetIn = formatResetIn(window.resetsAt, now, formatTag(), m.usage_reset_soon())}
+		<p class="flex items-center gap-1.5">
+			<span class={['size-2 shrink-0 rounded-full', dot]} aria-hidden="true"></span>
+			<span>
+				{label}
 				<span class="tabular-nums"
 					>{formatPercentValue(Math.round(window.utilization), formatTag())}</span
-				>
-			</div>
-			<Progress
-				value={window.utilization}
-				aria-label={label}
-				class={usageBarClass[usageStage(window.utilization, thresholds)]}
-			/>
+				>{#if resetIn}&nbsp;· {m.usage_resets({ time: resetIn })}{/if}
+			</span>
+		</p>
+	{/if}
+{/snippet}
+
+{#snippet usageLabel(label: string, window: WindowUsage | null, dot: string, side: string)}
+	{#if window}
+		<div class={['flex flex-col gap-0.5', side]}>
+			<span class="flex items-center gap-1.5 font-medium">
+				<span class={['size-2 shrink-0 rounded-full', dot]} aria-hidden="true"></span>
+				<span>
+					{label}
+					<span class="tabular-nums"
+						>{formatPercentValue(Math.round(window.utilization), formatTag())}</span
+					>
+				</span>
+			</span>
 			{#if window.resetsAt}
-				<p class="text-[11px] text-muted-foreground">
+				<span class="text-[11px] text-muted-foreground">
 					{m.usage_resets({ time: formatReset(window.resetsAt, new Date(now), formatTag()) })}
-				</p>
+				</span>
 			{/if}
 		</div>
 	{/if}
 {/snippet}
 
-<!-- Shaped like usageWindow twice: each line takes its height from the same text size. -->
+<!-- Shaped like the bar and its labels: each line takes its height from the same text size. -->
 {#snippet usageSkeleton()}
-	<div data-testid="usage-skeleton" class="flex w-full flex-col gap-3 text-xs" aria-busy="true">
-		{#each [0, 1] as n (n)}
-			<div class="flex flex-col gap-1.5">
-				<div class="flex justify-between">
-					<Skeleton class="h-lh w-10" />
-					<Skeleton class="h-lh w-7" />
+	<div data-testid="usage-skeleton" class="flex w-full flex-col gap-2 text-xs" aria-busy="true">
+		<Skeleton class="h-3 w-full rounded-full" />
+		<div class="flex justify-between">
+			{#each [0, 1] as n (n)}
+				<div class={['flex flex-col gap-0.5', n === 1 && 'items-end']}>
+					<Skeleton class="h-lh w-20" />
+					<span class="text-[11px]"><Skeleton class="h-lh w-28" /></span>
 				</div>
-				<Skeleton class="h-1.5 w-full rounded-full" />
-				<p class="text-[11px]"><Skeleton class="h-lh w-28" /></p>
-			</div>
-		{/each}
+			{/each}
+		</div>
 	</div>
 {/snippet}
 
-{#snippet usageLines(usage: UsageSnapshot)}
-	{@render usageWindow(m.usage_five_hour(), usage.fiveHour)}
-	{@render usageWindow(m.usage_weekly(), usage.weekly)}
+{#snippet usageLines(id: string, usage: UsageSnapshot)}
+	{@render usageBar(id, usage)}
+	<div class="grid grid-cols-2 gap-x-3">
+		{@render usageLabel(m.usage_weekly(), usage.weekly, 'bg-usage-weekly', '')}
+		{@render usageLabel(
+			m.usage_five_hour(),
+			usage.fiveHour,
+			'bg-usage-five-hour',
+			'col-start-2 items-end text-end'
+		)}
+	</div>
 	{#if usage.source !== 'live'}
 		{@const ago = formatAgo(usage.fetchedAtMs, now, formatTag())}
 		<p class="text-[11px] text-muted-foreground">

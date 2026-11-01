@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { intlLocale } from './locale';
-import { formatAgo, formatCountdown, formatReset } from './usage';
+import { formatAgo, formatCountdown, formatReset, formatResetIn } from './usage';
 
 // Local-time dates keep these independent of the machine's time zone.
 const at = (y: number, mo: number, d: number, h: number, mi = 0) => new Date(y, mo - 1, d, h, mi);
@@ -59,6 +59,29 @@ describe('formatAgo', () => {
 
 	it('never reports the future', () => {
 		expect(formatAgo(now + 60_000, now, 'en-US')).toBe('now');
+	});
+});
+
+describe('formatResetIn', () => {
+	const now = 1_781_524_800_000;
+	const MIN = 60_000;
+	const iso = (ms: number) => new Date(now + ms).toISOString();
+	const soon = 'in less than a minute';
+
+	it('rounds down to one unit, so it never reads later than the reset', () => {
+		expect(formatResetIn(iso((24 + 20) * 60 * MIN), now, 'en-US', soon)).toBe('in 1 day');
+		expect(formatResetIn(iso((5 * 60 + 50) * MIN), now, 'en-US', soon)).toBe('in 5 hours');
+		expect(formatResetIn(iso(45 * MIN + 30_000), now, 'en-US', soon)).toBe('in 45 minutes');
+	});
+
+	it('says in less than a minute under a minute', () => {
+		expect(formatResetIn(iso(20_000), now, 'en-US', soon)).toBe(soon);
+	});
+
+	it('returns an empty string for a missing, unreadable or past time', () => {
+		expect(formatResetIn(null, now, 'en-US', soon)).toBe('');
+		expect(formatResetIn('not a date', now, 'en-US', soon)).toBe('');
+		expect(formatResetIn(iso(-2 * 60 * MIN), now, 'en-US', soon)).toBe('');
 	});
 });
 

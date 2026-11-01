@@ -78,6 +78,7 @@
 	"usage_five_hour": "5 小时",
 	"usage_weekly": "每周",
 	"usage_resets": "{time}重置",
+	"usage_reset_soon": "不到一分钟后",
 	"usage_none": "暂无用量数据",
 	"usage_stale": "已过期，{ago}更新",
 	"usage_local_history": "来自本地记录，{ago}更新",

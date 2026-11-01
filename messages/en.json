@@ -78,6 +78,7 @@
 	"usage_five_hour": "5-hour",
 	"usage_weekly": "Weekly",
 	"usage_resets": "resets {time}",
+	"usage_reset_soon": "in less than a minute",
 	"usage_none": "No usage data yet",
 	"usage_stale": "Stale, updated {ago}",
 	"usage_local_history": "From local history, updated {ago}",

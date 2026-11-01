@@ -78,6 +78,7 @@
 	"usage_five_hour": "5 часов",
 	"usage_weekly": "Неделя",
 	"usage_resets": "сброс {time}",
+	"usage_reset_soon": "менее чем через минуту",
 	"usage_none": "Данных о расходе пока нет",
 	"usage_stale": "Устарело, обновлено {ago}",
 	"usage_local_history": "Из локальной истории, обновлено {ago}",

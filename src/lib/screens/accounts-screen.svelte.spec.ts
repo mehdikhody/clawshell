@@ -962,12 +962,87 @@ describe('AccountsScreen usage', () => {
 		await expect.element(row).toHaveTextContent(/Jan 4, 9:30\s?AM/);
 	});
 
-	it('draws a bar for each window', async () => {
+	it('draws a segment for each window, weekly first', async () => {
 		mount({}, listWith({}));
 
 		const bars = page.getByRole('progressbar');
-		await expect.element(bars.nth(0)).toHaveAttribute('aria-valuenow', '42');
-		await expect.element(bars.nth(1)).toHaveAttribute('aria-valuenow', '17.4');
+		await expect.element(bars.nth(0)).toHaveAccessibleName('Weekly');
+		await expect.element(bars.nth(0)).toHaveAttribute('aria-valuenow', '17.4');
+		await expect.element(bars.nth(1)).toHaveAccessibleName('5-hour');
+		await expect.element(bars.nth(1)).toHaveAttribute('aria-valuenow', '42');
+	});
+
+	it('labels weekly first, then the 5-hour window', async () => {
+		mount({}, listWith({}));
+
+		await expect.element(page.getByRole('listitem').nth(0)).toHaveTextContent(/Weekly.*5-hour/);
+	});
+
+	const windows = (weekly: number, fiveHour: number) =>
+		listWith({
+			usage: usage({
+				fiveHour: { utilization: fiveHour, resetsAt: fiveReset },
+				weekly: { utilization: weekly, resetsAt: weekReset }
+			})
+		});
+
+	it('gives the 5-hour window its share of the room weekly leaves', async () => {
+		mount({}, windows(40, 50));
+
+		const bars = page.getByRole('progressbar');
+		await expect.element(bars.nth(0)).toHaveStyle({ width: '40%' });
+		await expect.element(bars.nth(1)).toHaveStyle({ width: '30%' });
+	});
+
+	it('leaves the 5-hour window no room once the week is used up, but still reports its value', async () => {
+		mount({}, windows(100, 60));
+
+		const bars = page.getByRole('progressbar');
+		await expect.element(bars.nth(0)).toHaveStyle({ width: '100%' });
+		await expect.element(bars.nth(1)).toHaveStyle({ width: '0%' });
+		await expect.element(bars.nth(1)).toHaveAttribute('aria-valuenow', '60');
+		await expect.element(page.getByRole('listitem').nth(0)).toHaveTextContent(/5-hour\s*60%/);
+	});
+
+	it('shows both windows and how long until each resets when the bar is hovered', async () => {
+		const later = (ms: number) => new Date(Date.now() + ms).toISOString();
+		mount(
+			{},
+			listWith({
+				usage: usage({
+					fiveHour: { utilization: 42, resetsAt: later((3 * 60 + 10) * MIN) },
+					weekly: { utilization: 17.4, resetsAt: later((2 * 24 * 60 + 30) * MIN) }
+				})
+			})
+		);
+
+		await userEvent.hover(page.getByRole('progressbar').nth(0));
+
+		const tooltip = page.getByTestId('usage-tooltip');
+		await expect.element(tooltip).toBeVisible();
+		await expect
+			.element(tooltip)
+			.toHaveTextContent(
+				/Weekly\s*17%\s*·\s*resets in 2 days\s*5-hour\s*42%\s*·\s*resets in 3 hours/
+			);
+	});
+
+	it('leaves the reset out of the tooltip when it is unknown or already past', async () => {
+		mount(
+			{},
+			listWith({
+				usage: usage({
+					fiveHour: { utilization: 42, resetsAt: new Date(Date.now() - 60 * MIN).toISOString() },
+					weekly: { utilization: 17.4, resetsAt: null }
+				})
+			})
+		);
+
+		await userEvent.hover(page.getByRole('progressbar').nth(0));
+
+		const tooltip = page.getByTestId('usage-tooltip');
+		await expect.element(tooltip).toBeVisible();
+		await expect.element(tooltip).not.toHaveTextContent('resets');
 	});
 
 	it('shows a Limited badge, and Running beside it when Claude is open on the account', async () => {

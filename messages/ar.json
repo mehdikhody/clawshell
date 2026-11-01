@@ -78,6 +78,7 @@
 	"usage_five_hour": "٥ ساعات",
 	"usage_weekly": "أسبوعي",
 	"usage_resets": "يُعاد الضبط {time}",
+	"usage_reset_soon": "خلال أقل من دقيقة",
 	"usage_none": "لا توجد بيانات استخدام بعد",
 	"usage_stale": "قديمة، آخر تحديث {ago}",
 	"usage_local_history": "من السجل المحلي، آخر تحديث {ago}",

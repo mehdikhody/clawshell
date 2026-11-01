@@ -26,6 +26,9 @@
 	--accent-foreground: oklch(0.165 0.004 60);
 	--destructive: oklch(0.68 0.19 25);
 	--usage-warning: oklch(0.67 0.18 33);
+	/* The account row's usage bar: one colour per window, whatever its level. */
+	--usage-five-hour: oklch(0.8 0.1 70);
+	--usage-weekly: oklch(0.7 0.135 40);
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
 	--ring: oklch(0.7 0.135 40);
@@ -66,6 +69,8 @@
 	--color-border: var(--border);
 	--color-destructive: var(--destructive);
 	--color-usage-warning: var(--usage-warning);
+	--color-usage-five-hour: var(--usage-five-hour);
+	--color-usage-weekly: var(--usage-weekly);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-accent: var(--accent);
 	--color-muted-foreground: var(--muted-foreground);

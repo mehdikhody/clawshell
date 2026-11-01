@@ -37,6 +37,29 @@ export function formatAgo(thenMs: number, nowMs: number, locale: string): string
 	return rtf.format(-Math.floor(hours / 24), 'day');
 }
 
+/**
+ * How long until a window resets, rounded down to one unit so it never reads later than the reset:
+ * "in 1 day", "in 5 hours", "in 45 minutes", and `soon` under a minute.
+ * Empty when the time is missing, unreadable or already past.
+ */
+export function formatResetIn(
+	iso: string | null,
+	nowMs: number,
+	locale: string,
+	soon: string
+): string {
+	if (!iso) return '';
+	const at = new Date(iso).getTime();
+	if (Number.isNaN(at) || at <= nowMs) return '';
+	const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'always' });
+	const minutes = Math.floor((at - nowMs) / 60_000);
+	if (minutes < 1) return soon;
+	if (minutes < 60) return rtf.format(minutes, 'minute');
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return rtf.format(hours, 'hour');
+	return rtf.format(Math.floor(hours / 24), 'day');
+}
+
 /** A wait as m:ss, rounded up so a pending wait never reads 0:00. */
 export function formatCountdown(ms: number, locale = 'en'): string {
 	const total = Math.max(0, Math.ceil(ms / 1000));
