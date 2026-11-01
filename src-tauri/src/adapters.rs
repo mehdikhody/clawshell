@@ -387,7 +387,7 @@ const END_WAIT_MS: u32 = 2_000;
 
 impl ClaudeQuitter for WindowsOs {
     fn end(&self, pids: &[u32]) -> io::Result<()> {
-        use windows::Win32::Foundation::{CloseHandle, ERROR_INVALID_PARAMETER};
+        use windows::Win32::Foundation::{CloseHandle, ERROR_INVALID_PARAMETER, WAIT_OBJECT_0};
         use windows::Win32::System::Threading::{
             OpenProcess, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, TerminateProcess,
             WaitForSingleObject,
@@ -408,13 +408,14 @@ impl ClaudeQuitter for WindowsOs {
                 };
             // SAFETY: `handle` is open and owned here.
             unsafe {
-                match TerminateProcess(handle, 1) {
-                    Ok(()) => {
-                        WaitForSingleObject(handle, END_WAIT_MS);
-                    }
-                    Err(e) => {
-                        failure.get_or_insert(io::Error::from(e));
-                    }
+                let ended = TerminateProcess(handle, 1);
+                // A child already exiting with its parent refuses with access
+                // denied; it still counts as ended once it is gone.
+                let gone = WaitForSingleObject(handle, END_WAIT_MS) == WAIT_OBJECT_0;
+                if let Err(e) = ended
+                    && !gone
+                {
+                    failure.get_or_insert(io::Error::from(e));
                 }
                 let _ = CloseHandle(handle);
             }

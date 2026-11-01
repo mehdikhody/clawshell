@@ -139,6 +139,25 @@ fn the_newest_activity_comes_first() {
 }
 
 #[test]
+fn a_session_whose_cli_id_claude_cleared_is_listed_under_its_own_id() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    write_record(&h, ACCOUNT, ORG, "cli-1", &record("cli-1", "Fine", 1));
+    write_record(
+        &h,
+        ACCOUNT,
+        ORG,
+        "cleared",
+        r#"{"sessionId":"local_cleared","priorCliSessionIds":["cli-old"],"title":"Cleared","lastActivityAt":2}"#,
+    );
+
+    let sessions = h.core().list_sessions(ID_A).unwrap();
+
+    assert_eq!(ids(&sessions), ["local_cleared", "cli-1"]);
+    assert_eq!(sessions[0].title, "Cleared");
+}
+
+#[test]
 fn a_record_that_does_not_read_as_a_session_fails_the_whole_listing() {
     for bad in [
         "not json at all",

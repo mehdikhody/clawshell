@@ -60,6 +60,8 @@ export type Account = {
 	running: boolean;
 	email: string | null;
 	usage: UsageSnapshot | null;
+	/** Signed in, but no usage poll has been tried for it yet this session. */
+	usagePending: boolean;
 	env: EnvVar[];
 	flags: string[];
 };

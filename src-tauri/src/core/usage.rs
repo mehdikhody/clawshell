@@ -200,12 +200,18 @@ impl Core {
             self.notify_after_poll(&account.id, &account.label);
             refreshed += 1;
         }
-        let present: Vec<&str> = accounts.iter().map(|a| a.id.as_str()).collect();
+        // A signed-out account forgets its reading and email: whoever signs in
+        // next starts from a first poll, which may be a different person.
+        let kept: Vec<&str> = accounts
+            .iter()
+            .filter(|a| a.status != Status::SignedOut)
+            .map(|a| a.id.as_str())
+            .collect();
         self.usage
             .lock()
             .unwrap()
             .accounts
-            .retain(|id, _| present.contains(&id.as_str()));
+            .retain(|id, _| kept.contains(&id.as_str()));
         RefreshOutcome {
             refreshed,
             refresh_allowed_at: self.refresh_allowed_at(&accounts),

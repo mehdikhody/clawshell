@@ -60,6 +60,8 @@ pub struct Account {
     pub email: Option<String>,
     /// The latest usage reading; none until the first poll.
     pub usage: Option<UsageSnapshot>,
+    /// Signed in, but no usage poll has been tried for it yet this session.
+    pub usage_pending: bool,
     /// Environment variables set on this account's Claude process only.
     pub env: Vec<EnvVar>,
     /// Extra launch arguments for this account's Claude.
@@ -163,6 +165,7 @@ impl Core {
                     running: false,
                     email: None,
                     usage: None,
+                    usage_pending: false,
                     env: r.env.clone(),
                     flags: r.flags.clone(),
                     path,
@@ -310,13 +313,17 @@ impl Core {
     /// Ends every Claude Desktop process of the account's profile, the ones
     /// hidden in Claude's own tray included. Claude has no quit command, so
     /// the end is forced. An account that is not running has nothing to end.
+    /// A refusal counts only while some of its processes are still running.
     pub fn quit_account(&self, id: &str) -> Result<(), AccountError> {
         let account = self.find_account(id)?.ok_or(AccountError::Unknown)?;
         let pids = self.ports.processes.pids_for(&account.path);
-        if !pids.is_empty() {
-            self.ports.os.end(&pids)?;
+        if pids.is_empty() {
+            return Ok(());
         }
-        Ok(())
+        match self.ports.os.end(&pids) {
+            Err(_) if self.ports.processes.pids_for(&account.path).is_empty() => Ok(()),
+            result => Ok(result?),
+        }
     }
 
     /// Removes the profile folder, the account's record and its shortcuts.
@@ -451,6 +458,7 @@ fn account_of(
         running: is_running,
         email,
         usage,
+        usage_pending: status != Status::SignedOut && known.is_none(),
         env: options.env,
         flags: options.flags,
         path: profile.path,

@@ -96,6 +96,60 @@ fn nothing_is_shown_before_the_first_refresh() {
 }
 
 #[test]
+fn a_signed_in_account_is_pending_until_its_first_poll() {
+    let h = Harness::new();
+    signed_in(&h, ID_A, TOKEN_A);
+    script_ok(&h, "a@example.com", 42.0, 17.5);
+    let core = h.core();
+    assert!(account(&core, ID_A).usage_pending);
+
+    core.refresh_usage(false);
+
+    assert!(!account(&core, ID_A).usage_pending);
+}
+
+#[test]
+fn a_failed_first_poll_ends_pending_with_no_usage() {
+    let h = Harness::new();
+    signed_in(&h, ID_A, TOKEN_A);
+    h.http.fail(USAGE_URL);
+    let core = h.core();
+
+    core.refresh_usage(false);
+
+    let a = account(&core, ID_A);
+    assert!(!a.usage_pending);
+    assert!(a.usage.is_none());
+}
+
+#[test]
+fn signing_back_in_after_a_sign_out_starts_from_a_first_poll() {
+    let h = Harness::new();
+    signed_in(&h, ID_A, TOKEN_A);
+    script_ok(&h, "a@example.com", 42.0, 17.5);
+    let core = h.core();
+    core.refresh_usage(false);
+    h.fixture
+        .write_config(ID_A, r#"{"windowSizeWasSignedIn": false}"#);
+    core.refresh_usage(false);
+
+    h.fixture.sign_in(ID_A);
+
+    let a = account(&core, ID_A);
+    assert!(a.usage_pending);
+    assert_eq!(a.email, None);
+    assert!(a.usage.is_none());
+}
+
+#[test]
+fn a_signed_out_account_is_never_pending() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A); // no sign-in
+
+    assert!(!account(&h.core(), ID_A).usage_pending);
+}
+
+#[test]
 fn each_account_is_fetched_with_its_own_token_and_only_from_the_two_endpoints() {
     let h = Harness::new();
     signed_in(&h, ID_A, TOKEN_A);

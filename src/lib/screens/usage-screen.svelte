@@ -40,6 +40,8 @@
 	const hasSignedIn = $derived(
 		shown.list?.accounts.some((a) => a.status !== 'signed-out' && a.status !== 'missing') ?? false
 	);
+	/** Some account's first poll hasn't been tried yet, so the pooled numbers would still move. */
+	const pending = $derived(shown.list?.accounts.some((a) => a.usagePending) ?? false);
 
 	/** Nothing to draw until some day has a reading, or prices are why the dollars are empty. */
 	const hasHeatmapData = (map: Heatmap) =>
@@ -120,38 +122,53 @@
 	{#if !shown.heatmapReady}
 		<Item.Root data-testid="skeleton-heatmap" variant="outline" size="sm" aria-busy="true">
 			<Item.Content>
-				<Skeleton class="h-4 w-24" />
-				<!-- Same grid as the heatmap: 7 rows, 9 weeks of 1.75rem cells. -->
+				<Item.Title><Skeleton class="h-lh w-24" /></Item.Title>
+				<!-- Same grid as the heatmap: a weekday column, then 7 rows, 9 weeks of 1.75rem cells. -->
 				<div
 					class="mx-auto grid w-max auto-cols-[1.75rem] grid-flow-col grid-rows-[repeat(7,1.75rem)] gap-1 py-1"
 				>
+					{#each { length: 7 } as _, i (i)}
+						<span class="flex items-center justify-center text-[10px]">
+							<Skeleton class="h-lh w-2 rounded-sm" />
+						</span>
+					{/each}
 					{#each { length: 63 } as _, i (i)}
 						<Skeleton data-testid="skeleton-day" class="size-7 rounded-sm" />
 					{/each}
 				</div>
-				<Skeleton class="ms-auto h-3 w-40" />
+				<!-- Same row as the legend: no data, less, the five levels, more. -->
+				<div class="flex items-center justify-end gap-1 text-[11px]">
+					<Skeleton class="size-3 rounded-sm" />
+					<Skeleton class="me-2 h-lh w-10" />
+					<Skeleton class="h-lh w-6" />
+					{#each { length: 5 } as _, i (i)}
+						<Skeleton class="size-3 rounded-sm" />
+					{/each}
+					<Skeleton class="h-lh w-6" />
+				</div>
 			</Item.Content>
 		</Item.Root>
 	{:else if shown.heatmap && hasHeatmapData(shown.heatmap)}
 		<UsageHeatmap heatmap={shown.heatmap} />
 	{/if}
 
-	{#if !shown.listReady}
+	{#if !shown.listReady || pending}
 		<Item.Root data-testid="skeleton-pooled" variant="outline" size="sm" aria-busy="true">
 			<Item.Content>
+				<!-- Shaped like pooledWindow twice: each line takes its height from the same text size. -->
 				{#each [0, 1] as n (n)}
 					{#if n > 0}
 						<Item.Separator />
 					{/if}
 					<div class="flex flex-col gap-1">
-						<div class="flex items-baseline justify-between">
-							<Skeleton class="h-4 w-16" />
-							<Skeleton class="h-6 w-12" />
+						<div class="flex items-end justify-between">
+							<Item.Title><Skeleton class="h-lh w-12" /></Item.Title>
+							<span class="text-lg"><Skeleton class="h-lh w-9" /></span>
 						</div>
-						<Skeleton data-testid="skeleton-bar" class="h-2 w-full rounded-full" />
-						<div class="flex items-center justify-between">
-							<Skeleton class="h-3 w-32" />
-							<Skeleton class="h-3 w-24" />
+						<Skeleton data-testid="skeleton-bar" class="h-1.5 w-full rounded-full" />
+						<div class="flex items-center justify-between text-xs">
+							<Skeleton class="h-lh w-32" />
+							<Skeleton class="h-lh w-20" />
 						</div>
 					</div>
 				{/each}

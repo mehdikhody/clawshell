@@ -115,16 +115,17 @@
 	let addOpen = $state(false);
 	let newName = $state('');
 	let newColour = $state('');
-	/** The badge letter the new account will show: the first letter or digit of its name, in capitals. */
-	const newBadge = $derived(
-		[...newName.trim()].find((c) => /[\p{L}\p{N}]/u.test(c))?.toUpperCase() ?? '?'
-	);
+	/** The badge letter an account shows: the first letter or digit of its name, in capitals. */
+	function badgeOf(name: string) {
+		return [...name.trim()].find((c) => /[\p{L}\p{N}]/u.test(c))?.toUpperCase() ?? '?';
+	}
+	const newBadge = $derived(badgeOf(newName));
 
-	/** The account being renamed, and the draft name in the dialog. */
-	let renaming = $state<Account | null>(null);
+	/** The account being edited, and the name and badge colour the Edit dialog holds for it. */
+	let editing = $state<Account | null>(null);
 	let draftName = $state('');
-	/** The account whose badge colour is being picked. */
-	let colouring = $state<Account | null>(null);
+	let draftColour = $state('');
+	const draftBadge = $derived(badgeOf(draftName));
 	/** The account whose environment variables and flags are being edited. */
 	let editingOptions = $state<Account | null>(null);
 	/** The account whose Code sessions are listed for copying. */
@@ -214,33 +215,25 @@
 		}
 	}
 
-	function startRename(account: Account) {
+	function startEdit(account: Account) {
 		draftName = account.label;
-		renaming = account;
+		draftColour = account.colour;
+		editing = account;
 	}
 
-	async function saveRename() {
-		const account = renaming;
+	/** Saves the name and colour the dialog holds. Only what changed is sent. */
+	async function saveEdit() {
+		const account = editing;
 		const label = draftName.trim();
 		if (!account || !label) return;
-		renaming = null;
+		const colour = draftColour;
+		editing = null;
 		failure = null;
 		try {
-			await renameAccount(account.id, label);
+			if (label !== account.label) await renameAccount(account.id, label);
+			if (colour !== account.colour) await setAccountColour(account.id, colour);
 		} catch (error) {
-			failure = describe(error, m.error_rename_failed());
-		} finally {
-			await refresh();
-		}
-	}
-
-	async function changeColour(account: Account, colour: string) {
-		colouring = null;
-		failure = null;
-		try {
-			await setAccountColour(account.id, colour);
-		} catch (error) {
-			failure = describe(error, m.error_colour_failed());
+			failure = describe(error, m.error_edit_failed());
 		} finally {
 			await refresh();
 		}
@@ -298,13 +291,19 @@
 		notice = null;
 		try {
 			await addShortcuts(account.id);
-			const shown = (notice = m.shortcuts_added());
-			setTimeout(() => {
-				if (notice === shown) notice = null;
-			}, NOTICE_MS);
+			showNotice(m.shortcuts_added());
 		} catch (error) {
 			failure = describe(error, m.error_shortcuts_failed());
 		}
+	}
+
+	/** Shows a confirmation for a while; a newer one takes its place. */
+	function showNotice(message: string) {
+		failure = null;
+		const shown = (notice = message);
+		setTimeout(() => {
+			if (notice === shown) notice = null;
+		}, NOTICE_MS);
 	}
 
 	function askDelete(account: Account) {
@@ -435,20 +434,24 @@
 												isDefault={account.isDefault}
 											/>
 										</Item.Media>
-										<Item.Content>
+										<Item.Content class="min-w-0 flex-1">
 											<Item.Title>{account.label}</Item.Title>
 											{#if account.status === 'missing'}
 												<Item.Description>{m.missing_hint()}</Item.Description>
 											{:else}
 												{#if account.email}
 													<Item.Description class="text-xs">{account.email}</Item.Description>
+												{:else if account.usagePending}
+													<Item.Description class="text-xs">
+														<Skeleton data-testid="email-skeleton" class="h-lh w-40" />
+													</Item.Description>
 												{/if}
-												{#if !account.usage && account.status !== 'signed-out'}
+												{#if !account.usage && !account.usagePending && account.status !== 'signed-out'}
 													<p class="text-xs text-muted-foreground">{m.usage_none()}</p>
 												{/if}
 											{/if}
 										</Item.Content>
-										<Item.Actions class="self-start">
+										<Item.Actions class="shrink-0 self-start">
 											{#if account.status === 'limited' && account.running}
 												<Badge variant="secondary">{statusLabel.running()}</Badge>
 											{/if}
@@ -465,13 +468,15 @@
 											<div class="flex w-full flex-col gap-3 text-xs">
 												{@render usageLines(account.usage)}
 											</div>
+										{:else if account.usagePending}
+											{@render usageSkeleton()}
 										{/if}
 									</Item.Root>
 								</ContextMenu.Trigger>
 								<ContextMenu.Content class="w-auto min-w-48">
-									<ContextMenu.Item onSelect={() => startRename(account)}>
+									<ContextMenu.Item onSelect={() => startEdit(account)}>
 										<IconPencil />
-										{m.menu_rename()}
+										{m.menu_edit_account()}
 									</ContextMenu.Item>
 									<ContextMenu.Item
 										disabled={account.status === 'missing'}
@@ -480,12 +485,6 @@
 										<IconFolderOpen />
 										{m.menu_open_folder()}
 									</ContextMenu.Item>
-									{#if account.running}
-										<ContextMenu.Item onSelect={() => quitClaude(account)}>
-											<IconPower />
-											{m.menu_quit_claude()}
-										</ContextMenu.Item>
-									{/if}
 									{#if !account.isDefault}
 										<ContextMenu.Item
 											disabled={account.status === 'missing'}
@@ -503,12 +502,13 @@
 										<IconTerminal2 />
 										{m.menu_launch_options()}
 									</ContextMenu.Item>
-									<!-- The default account has no badge, and its folder is Claude's own. -->
-									{#if !account.isDefault}
-										<ContextMenu.Item onSelect={() => (colouring = account)}>
-											<IconPalette />
-											{m.menu_badge_colour()}
+									{#if account.running}
+										<ContextMenu.Item onSelect={() => quitClaude(account)}>
+											<IconPower />
+											{m.menu_quit_claude()}
 										</ContextMenu.Item>
+									{/if}
+									{#if !account.isDefault}
 										<ContextMenu.Separator />
 										<ContextMenu.Item variant="destructive" onSelect={() => askDelete(account)}>
 											<IconTrash />
@@ -534,10 +534,7 @@
 						<Skeleton class="h-4 w-28" />
 						<Skeleton class="h-3 w-40" />
 					</Item.Content>
-					<div class="flex w-full flex-col gap-3">
-						<Skeleton class="h-2 w-full rounded-full" />
-						<Skeleton class="h-2 w-full rounded-full" />
-					</div>
+					{@render usageSkeleton()}
 				</Item.Root>
 			{/each}
 		</Item.Group>
@@ -570,6 +567,22 @@
 			{/if}
 		</div>
 	{/if}
+{/snippet}
+
+<!-- Shaped like usageWindow twice: each line takes its height from the same text size. -->
+{#snippet usageSkeleton()}
+	<div data-testid="usage-skeleton" class="flex w-full flex-col gap-3 text-xs" aria-busy="true">
+		{#each [0, 1] as n (n)}
+			<div class="flex flex-col gap-1.5">
+				<div class="flex justify-between">
+					<Skeleton class="h-lh w-10" />
+					<Skeleton class="h-lh w-7" />
+				</div>
+				<Skeleton class="h-1.5 w-full rounded-full" />
+				<p class="text-[11px]"><Skeleton class="h-lh w-28" /></p>
+			</div>
+		{/each}
+	</div>
 {/snippet}
 
 {#snippet usageLines(usage: UsageSnapshot)}
@@ -637,9 +650,9 @@
 </Dialog.Root>
 
 <Dialog.Root
-	open={renaming !== null}
+	open={editing !== null}
 	onOpenChange={(open) => {
-		if (!open) renaming = null;
+		if (!open) editing = null;
 	}}
 >
 	<Dialog.Content class="sm:max-w-sm">
@@ -647,13 +660,40 @@
 			class="flex flex-col gap-4"
 			onsubmit={(event) => {
 				event.preventDefault();
-				void saveRename();
+				void saveEdit();
 			}}
 		>
 			<Dialog.Header>
-				<Dialog.Title>{m.rename_title()}</Dialog.Title>
+				<Dialog.Title>{m.edit_title()}</Dialog.Title>
 			</Dialog.Header>
-			<Input aria-label={m.rename_field()} bind:value={draftName} autocomplete="off" />
+			<div class="flex items-center gap-3">
+				{#if editing && !editing.isDefault}
+					<AccountIcon badge={draftBadge} colour={draftColour} />
+				{/if}
+				<Input aria-label={m.add_name()} bind:value={draftName} autocomplete="off" />
+			</div>
+			{#if editing && !editing.isDefault}
+				<div
+					role="group"
+					aria-label={m.menu_badge_colour()}
+					class="grid grid-cols-5 justify-items-center gap-3"
+				>
+					{#each list.palette as colour (colour)}
+						<button
+							type="button"
+							aria-label={colour}
+							aria-pressed={colour === draftColour}
+							class="flex size-9 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+							style="background-color: {colour}"
+							onclick={() => (draftColour = colour)}
+						>
+							{#if colour === draftColour}
+								<IconCheck />
+							{/if}
+						</button>
+					{/each}
+				</div>
+			{/if}
 			<Dialog.Footer>
 				<Dialog.Close type="button">
 					{#snippet child({ props })}
@@ -666,36 +706,16 @@
 	</Dialog.Content>
 </Dialog.Root>
 
-<Dialog.Root
-	open={colouring !== null}
-	onOpenChange={(open) => {
-		if (!open) colouring = null;
-	}}
->
-	<Dialog.Content class="sm:max-w-sm">
-		<Dialog.Header>
-			<Dialog.Title>{m.menu_badge_colour()}</Dialog.Title>
-		</Dialog.Header>
-		<div class="grid grid-cols-5 justify-items-center gap-3">
-			{#each list.palette as colour (colour)}
-				<button
-					type="button"
-					aria-label={colour}
-					class="flex size-9 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-					style="background-color: {colour}"
-					onclick={() => colouring && changeColour(colouring, colour)}
-				>
-					{#if colour === colouring?.colour}
-						<IconCheck />
-					{/if}
-				</button>
-			{/each}
-		</div>
-	</Dialog.Content>
-</Dialog.Root>
-
 {#if copyingSessions}
-	<CopySessionsDialog account={copyingSessions} onclose={() => (copyingSessions = null)} />
+	<CopySessionsDialog
+		account={copyingSessions}
+		accounts={list.accounts}
+		oncopied={(message) => {
+			copyingSessions = null;
+			showNotice(message);
+		}}
+		onclose={() => (copyingSessions = null)}
+	/>
 {/if}
 
 {#if editingOptions}

@@ -28,6 +28,7 @@ const account = (id: string, label: string, status: string, colour = BLUE) => ({
 	running: status === 'running',
 	email: null,
 	usage: null,
+	usagePending: false,
 	env: [],
 	flags: []
 });
@@ -98,7 +99,7 @@ describe('AccountsScreen', () => {
 			await expect.poll(() => badgeOf(1).getAttribute('src')).toBe(`data:test,H${BLUE}`);
 		});
 
-		it('offers the palette in the menu and changes the colour', async () => {
+		it('changes the colour from the Edit account dialog', async () => {
 			let colour = BLUE;
 			const tauri = mount({
 				set_account_colour: (args) => {
@@ -116,11 +117,12 @@ describe('AccountsScreen', () => {
 			});
 
 			await page.getByText('Work', { exact: true }).click({ button: 'right' });
-			await page.getByRole('menuitem', { name: 'Badge colour' }).click();
-			await expect.element(page.getByRole('dialog', { name: 'Badge colour' })).toBeVisible();
+			await page.getByRole('menuitem', { name: 'Edit account' }).click();
+			await expect.element(page.getByRole('dialog', { name: 'Edit account' })).toBeVisible();
 			await expect.element(page.getByRole('button', { name: '#16a34a' })).toBeVisible();
 			await expect.element(page.getByRole('button', { name: '#2563eb' })).toBeVisible();
 			await page.getByRole('button', { name: '#dc2626' }).click();
+			await page.getByRole('button', { name: 'Save' }).click();
 
 			expect(tauri.calls.filter((c) => c.cmd === 'set_account_colour')).toEqual([
 				{ cmd: 'set_account_colour', args: { id: 'id-idle', colour: '#dc2626' } }
@@ -128,7 +130,7 @@ describe('AccountsScreen', () => {
 			await expect.poll(() => badgeOf(1).getAttribute('src')).toBe('data:test,W#dc2626');
 		});
 
-		it('shows a clear message when the colour cannot be changed', async () => {
+		it('shows a clear message when the account cannot be saved', async () => {
 			mount({
 				set_account_colour: () => {
 					throw { code: 'io', message: 'disk full' };
@@ -136,10 +138,11 @@ describe('AccountsScreen', () => {
 			});
 
 			await page.getByText('Work', { exact: true }).click({ button: 'right' });
-			await page.getByRole('menuitem', { name: 'Badge colour' }).click();
+			await page.getByRole('menuitem', { name: 'Edit account' }).click();
 			await page.getByRole('button', { name: '#dc2626' }).click();
+			await page.getByRole('button', { name: 'Save' }).click();
 
-			await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't change the colour");
+			await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't save the account");
 		});
 	});
 
@@ -354,14 +357,13 @@ describe('AccountsScreen', () => {
 	describe('account menu', () => {
 		const menuOf = (label: string) => page.getByText(label, { exact: true });
 
-		it('gives every row a menu with Rename, Open folder, Badge colour and Delete', async () => {
+		it('gives every row a menu with Edit account, Open folder and Delete', async () => {
 			mount();
 
 			await menuOf('Work').click({ button: 'right' });
 
-			await expect.element(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible();
+			await expect.element(page.getByRole('menuitem', { name: 'Edit account' })).toBeVisible();
 			await expect.element(page.getByRole('menuitem', { name: 'Open folder' })).toBeVisible();
-			await expect.element(page.getByRole('menuitem', { name: 'Badge colour' })).toBeVisible();
 			await expect.element(page.getByRole('menuitem', { name: 'Delete' })).toBeVisible();
 			await expect.element(menuOf('Account 2')).toBeVisible();
 			await expect.element(menuOf('Account 4')).toBeVisible();
@@ -370,7 +372,7 @@ describe('AccountsScreen', () => {
 		it('does not launch the account when its menu is opened', async () => {
 			const tauri = mount({ launch_account: () => 'started' });
 			await menuOf('Work').click({ button: 'right' });
-			await expect.element(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible();
+			await expect.element(page.getByRole('menuitem', { name: 'Edit account' })).toBeVisible();
 			await userEvent.keyboard('{Escape}');
 
 			expect(tauri.calls.some((c) => c.cmd === 'launch_account')).toBe(false);
@@ -515,7 +517,7 @@ describe('AccountsScreen', () => {
 			});
 
 			await menuOf('Work').click({ button: 'right' });
-			await page.getByRole('menuitem', { name: 'Rename' }).click();
+			await page.getByRole('menuitem', { name: 'Edit account' }).click();
 			const input = page.getByRole('textbox', { name: 'Name' });
 			await expect.element(input).toHaveValue('Work');
 			await input.fill('Personal');
@@ -532,7 +534,7 @@ describe('AccountsScreen', () => {
 			const tauri = mount({ rename_account: () => account('id-idle', 'Home', 'idle') });
 
 			await menuOf('Work').click({ button: 'right' });
-			await page.getByRole('menuitem', { name: 'Rename' }).click();
+			await page.getByRole('menuitem', { name: 'Edit account' }).click();
 			await page.getByRole('textbox', { name: 'Name' }).fill('Home');
 			await userEvent.keyboard('{Enter}');
 
@@ -545,7 +547,7 @@ describe('AccountsScreen', () => {
 			const tauri = mount();
 
 			await menuOf('Work').click({ button: 'right' });
-			await page.getByRole('menuitem', { name: 'Rename' }).click();
+			await page.getByRole('menuitem', { name: 'Edit account' }).click();
 			await page.getByRole('textbox', { name: 'Name' }).fill('   ');
 
 			await expect.element(page.getByRole('button', { name: 'Save' })).toBeDisabled();
@@ -556,7 +558,7 @@ describe('AccountsScreen', () => {
 			const tauri = mount();
 
 			await menuOf('Work').click({ button: 'right' });
-			await page.getByRole('menuitem', { name: 'Rename' }).click();
+			await page.getByRole('menuitem', { name: 'Edit account' }).click();
 			await page.getByRole('textbox', { name: 'Name' }).fill('Other');
 			await page.getByRole('button', { name: 'Cancel' }).click();
 
@@ -564,7 +566,7 @@ describe('AccountsScreen', () => {
 			await expect.element(page.getByRole('listitem').nth(1)).toHaveTextContent('Work');
 		});
 
-		it('shows a clear message when a rename fails', async () => {
+		it('shows a clear message when a save fails', async () => {
 			mount({
 				rename_account: () => {
 					throw { code: 'io', message: 'disk full' };
@@ -572,11 +574,11 @@ describe('AccountsScreen', () => {
 			});
 
 			await menuOf('Work').click({ button: 'right' });
-			await page.getByRole('menuitem', { name: 'Rename' }).click();
+			await page.getByRole('menuitem', { name: 'Edit account' }).click();
 			await page.getByRole('textbox', { name: 'Name' }).fill('Home');
 			await page.getByRole('button', { name: 'Save' }).click();
 
-			await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't rename");
+			await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't save the account");
 		});
 
 		it('asks before deleting, and deletes only after the user confirms', async () => {
@@ -755,12 +757,12 @@ describe('AccountsScreen', () => {
 				.toHaveAttribute('src', 'data:test,claude');
 		});
 
-		it('offers rename, folder and launch options, but no shortcuts, colour or delete', async () => {
+		it('offers edit, folder and launch options, but no shortcuts, colour or delete', async () => {
 			mount({}, withDefault);
 
 			await page.getByText('Claude', { exact: true }).click({ button: 'right' });
 
-			await expect.element(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible();
+			await expect.element(page.getByRole('menuitem', { name: 'Edit account' })).toBeVisible();
 			await expect.element(page.getByRole('menuitem', { name: 'Open folder' })).toBeVisible();
 			await expect
 				.element(page.getByRole('menuitem', { name: 'Environment and flags' }))
@@ -852,6 +854,8 @@ describe('AccountsScreen loading', () => {
 
 		await expect.element(skeletons().first()).toBeVisible();
 		expect(skeletons().elements()).toHaveLength(2);
+		// Each placeholder carries the usage block's shape too.
+		expect(page.getByTestId('usage-skeleton').elements()).toHaveLength(2);
 		await expect.element(page.getByText('Loading…')).not.toBeInTheDocument();
 
 		answer.resolve(threeAccounts);
@@ -994,10 +998,34 @@ describe('AccountsScreen usage', () => {
 		await expect.element(page.getByRole('listitem').nth(0)).not.toHaveTextContent(/stale/i);
 	});
 
-	it('says usage is not loaded yet when a signed-in account has no snapshot', async () => {
+	it('says there is no usage when the first poll brought none back', async () => {
 		mount({}, listWith({ usage: null, email: null }));
 
 		await expect.element(page.getByRole('listitem').nth(0)).toHaveTextContent('No usage data yet');
+		await expect.element(page.getByTestId('usage-skeleton')).not.toBeInTheDocument();
+	});
+
+	it('shows the email and usage as placeholders until the first poll is tried', async () => {
+		mount({}, listWith({ usage: null, email: null, usagePending: true }));
+
+		const row = page.getByRole('listitem').nth(0);
+		await expect.element(row.getByTestId('usage-skeleton')).toBeVisible();
+		await expect.element(row.getByTestId('email-skeleton')).toBeVisible();
+		await expect.element(row).toHaveTextContent('Idle');
+		await expect.element(row).not.toHaveTextContent('No usage data yet');
+	});
+
+	it('swaps the placeholders for the numbers when the first poll lands', async () => {
+		mount({}, listWith({ usage: null, email: null, usagePending: true }));
+		const row = page.getByRole('listitem').nth(0);
+		await expect.element(row.getByTestId('usage-skeleton')).toBeVisible();
+
+		await emit('accounts-changed', listWith({ email: 'a@example.com' }));
+
+		await expect.element(row).toHaveTextContent(/42%/);
+		await expect.element(row).toHaveTextContent('a@example.com');
+		await expect.element(row.getByTestId('usage-skeleton')).not.toBeInTheDocument();
+		await expect.element(row.getByTestId('email-skeleton')).not.toBeInTheDocument();
 	});
 
 	it('shows no usage for a signed-out account', async () => {

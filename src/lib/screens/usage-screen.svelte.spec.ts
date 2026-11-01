@@ -29,6 +29,7 @@ const account = (id: string, status: string) => ({
 	running: false,
 	email: null,
 	usage: null,
+	usagePending: false,
 	env: [],
 	flags: []
 });
@@ -660,6 +661,24 @@ describe('UsageScreen skeletons', () => {
 				weekly: pooledWindow({ remainingPercent: 80, available: 1, total: 1 })
 			})
 		);
+
+		await expect.element(page.getByRole('progressbar', { name: '5-hour' })).toBeVisible();
+		await expect.element(pooledSkeleton()).not.toBeInTheDocument();
+	});
+
+	it('keeps the pooled placeholder while any account waits for its first poll', async () => {
+		const pooled = {
+			fiveHour: pooledWindow({ remainingPercent: 80, available: 1, total: 1 }),
+			weekly: pooledWindow({ remainingPercent: 80, available: 1, total: 1 })
+		};
+		const waiting = listWith(pooled, ['idle', 'idle']);
+		waiting.accounts[1].usagePending = true;
+		mount(waiting);
+
+		await expect.element(pooledSkeleton()).toBeVisible();
+		await expect.element(page.getByText('No usage data yet')).not.toBeInTheDocument();
+
+		await emit('accounts-changed', listWith(pooled, ['idle', 'idle']));
 
 		await expect.element(page.getByRole('progressbar', { name: '5-hour' })).toBeVisible();
 		await expect.element(pooledSkeleton()).not.toBeInTheDocument();

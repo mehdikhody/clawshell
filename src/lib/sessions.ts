@@ -14,6 +14,17 @@ export type CodeSession = {
 /** The account's Code sessions from every organisation, newest activity first. */
 export const listSessions = (id: string) => invoke<CodeSession[]>('list_sessions', { id });
 
+/** What a copy did. Mirrors the core's `CopyOutcome`. */
+export type CopyOutcome = {
+	copied: number;
+	/** The target's Claude is running, so it lists the copies only after a restart. */
+	targetRunning: boolean;
+};
+
+/** Copies the source's ticked sessions into the target account. */
+export const copySessions = (sourceId: string, cliSessionIds: string[], targetId: string) =>
+	invoke<CopyOutcome>('copy_sessions', { sourceId, cliSessionIds, targetId });
+
 /** The last part of a session's folder path, or null for a session with no folder of its own. */
 export function folderName(cwd: string): string | null {
 	// Claude runs a session started without a folder in a scratch workspace.

@@ -40,7 +40,7 @@ pub use disclaimer::{DISCLAIMER_VERSION, DisclaimerStatus};
 pub use launch_options::{EnvVar, LaunchOptions, LaunchOptionsError};
 pub use pooled::{PooledRemaining, PooledWindow};
 pub use routing::{RouteError, RoutingChange, RoutingError};
-pub use sessions::{CodeSession, SessionsError};
+pub use sessions::{CodeSession, CopyOutcome, SessionsError};
 pub use settings::{Language, OverrideAware, Settings, SettingsError};
 pub use shell::{CloseAction, TrayEntry, TrayLabels};
 pub use shortcuts::ShortcutError;

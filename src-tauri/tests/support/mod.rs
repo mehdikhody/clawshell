@@ -296,11 +296,13 @@ impl TokenReader for FakeTokens {
 }
 
 /// Process inspector faked at its port: the profile folders "running" Claude,
-/// and the pids each one's processes have.
+/// and the pids each one's processes have, and the profiles whose processes
+/// exit on their own once they have been looked up.
 #[derive(Default)]
 pub struct FakeProcesses(
     pub Mutex<HashSet<PathBuf>>,
     pub Mutex<HashMap<PathBuf, Vec<u32>>>,
+    pub Mutex<HashSet<PathBuf>>,
 );
 
 impl FakeProcesses {
@@ -312,6 +314,13 @@ impl FakeProcesses {
             .unwrap()
             .insert(profile.to_path_buf(), pids.to_vec());
     }
+
+    /// Like `run`, but the processes are gone after the first lookup, as
+    /// children exiting with their parent are.
+    pub fn run_then_exit(&self, profile: &Path, pids: &[u32]) {
+        self.run(profile, pids);
+        self.2.lock().unwrap().insert(profile.to_path_buf());
+    }
 }
 
 impl ProcessInspector for FakeProcesses {
@@ -320,6 +329,10 @@ impl ProcessInspector for FakeProcesses {
     }
 
     fn pids_for(&self, profile: &Path) -> Vec<u32> {
+        if self.2.lock().unwrap().remove(profile) {
+            self.0.lock().unwrap().remove(profile);
+            return self.1.lock().unwrap().remove(profile).unwrap_or_default();
+        }
         self.1
             .lock()
             .unwrap()

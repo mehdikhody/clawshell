@@ -173,6 +173,7 @@ pub fn run() {
             commands::open_account_folder,
             commands::quit_account,
             commands::list_sessions,
+            commands::copy_sessions,
             commands::delete_account,
             commands::add_shortcuts,
             commands::refresh_usage,

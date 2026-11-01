@@ -20,6 +20,7 @@ const account = (over: Partial<Account> = {}): Account => ({
 	running: false,
 	email: null,
 	usage: null,
+	usagePending: false,
 	env: [],
 	flags: [],
 	...over

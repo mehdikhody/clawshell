@@ -677,6 +677,17 @@ fn quit_reports_a_failure_to_end_the_processes() {
     ));
 }
 
+#[test]
+fn quit_succeeds_when_a_refused_process_exits_anyway() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.processes
+        .run_then_exit(&h.fixture.profile_path(ID_A), &[10, 11]);
+    *h.os.end_fails.lock().unwrap() = true;
+
+    h.core().quit_account(ID_A).unwrap();
+}
+
 // ---- delete ------------------------------------------------------------------
 
 fn ids(h: &Harness) -> Vec<String> {

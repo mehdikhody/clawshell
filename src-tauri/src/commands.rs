@@ -3,10 +3,11 @@
 
 use crate::core::ports::ClaudeLocator;
 use crate::core::{
-    Account, AccountError, AccountList, AddError, CodeSession, ColourError, Core, DeleteError,
-    DisclaimerStatus, Heatmap, LaunchError, LaunchOptions, LaunchOptionsError, LaunchOutcome,
-    MonthCost, NewAccount, OpenFolderError, RefreshOutcome, RenameError, RoutingChange,
-    RoutingError, SessionsError, Settings, SettingsError, ShortcutError,
+    Account, AccountError, AccountList, AddError, CodeSession, ColourError, CopyBlocker,
+    CopyOutcome, Core, DeleteError, DisclaimerStatus, Heatmap, LaunchError, LaunchOptions,
+    LaunchOptionsError, LaunchOutcome, MonthCost, NewAccount, OpenFolderError, RefreshOutcome,
+    RenameError, RoutingChange, RoutingError, SessionsError, Settings, SettingsError,
+    ShortcutError,
 };
 use crate::taskbar::{badge_image, claude_base, plain_image};
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -194,6 +195,16 @@ impl From<SessionsError> for CommandError {
                 "sessions-layout-changed",
                 "Claude's session files look different from what clawshell expects",
             ),
+            SessionsError::TargetBlocked(CopyBlocker::SignIn) => {
+                CommandError::new("copy-sign-in", "Sign in to this account first")
+            }
+            SessionsError::TargetBlocked(CopyBlocker::OpenCodeTab) => CommandError::new(
+                "copy-open-code-tab",
+                "Open the Code tab in this account once first",
+            ),
+            SessionsError::SameAccount => {
+                CommandError::new("copy-same-account", "Pick another account to copy into")
+            }
         }
     }
 }
@@ -289,6 +300,17 @@ pub fn list_sessions(
     id: String,
 ) -> Result<Vec<CodeSession>, CommandError> {
     Ok(core.list_sessions(&id)?)
+}
+
+/// Copies the ticked sessions into the target account.
+#[tauri::command]
+pub fn copy_sessions(
+    core: State<'_, Arc<Core>>,
+    source_id: String,
+    cli_session_ids: Vec<String>,
+    target_id: String,
+) -> Result<CopyOutcome, CommandError> {
+    Ok(core.copy_sessions(&source_id, &cli_session_ids, &target_id)?)
 }
 
 #[tauri::command]
