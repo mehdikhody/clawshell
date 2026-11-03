@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-04
+
 ### Added
 
 - **Disable account** and **Enable account** in an account's right-click menu. A disabled account is greyed out, shows a **Disabled** badge (with **Running** beside it while its Claude is open), and is listed at the very bottom, below limited and missing accounts. It is hidden from the tray, left out of the pooled usage, can't receive copied sessions and sends no limit notifications. It still opens when you launch it, and disabling never closes a running Claude. Disabled accounts can be dragged among themselves, and each returns to its place in your order when enabled.
@@ -88,7 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release.
 
-[unreleased]: https://github.com/mehdikhody/clawshell/compare/v0.4.1...HEAD
+[unreleased]: https://github.com/mehdikhody/clawshell/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/mehdikhody/clawshell/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/mehdikhody/clawshell/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/mehdikhody/clawshell/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mehdikhody/clawshell/compare/v0.2.0...v0.3.0

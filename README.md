@@ -24,7 +24,7 @@
 clawshell is a small tray app for people with more than one Claude subscription. Each account runs in its own Claude Desktop window at the same time, so you never sign out to switch. A compact dashboard shows how much of each account's 5-hour and weekly limits you have used, and what your Code-tab sessions cost.
 
 > [!TIP]
-> **New in this release:** the update dialog shows what's new again, laid out with headings and lists, and limited accounts move to the bottom of the list until they come back. See [What's new](docs/updates/v0.4.1.md).
+> **New in this release:** disable an account you aren't using. It stays greyed out at the bottom of the list, out of the tray and the pooled usage, until you enable it again. See [What's new](docs/updates/v0.5.0.md).
 
 > [!IMPORTANT]
 > clawshell is an unofficial project and is not affiliated with Anthropic. See the [disclaimer](#disclaimer) before you use it.
@@ -68,10 +68,10 @@ clawshell is a small tray app for people with more than one Claude subscription.
 
 ### New in this release
 
-|                                                                            Release notes                                                                            |                                                                           Limited accounts last                                                                            |
-| :-----------------------------------------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
-| <img src="docs/screenshots/update.png" alt="Update dialog with the release notes laid out as headings and a bullet list, and Update and Later buttons" width="260"> | <img src="docs/screenshots/limited-account.png" alt="A limited account greyed out at the bottom of the list, with the tooltip showing when its windows reset" width="260"> |
-|                                                                 What's new, with headings and lists                                                                 |                                                              Greyed out and listed last until a window resets                                                              |
+|                                                                              Disabled account                                                                              |                                                                                                        Account menu                                                                                                        |
+| :------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| <img src="docs/screenshots/disabled-account.png" alt="A disabled account greyed out at the bottom of the list with a Disabled badge, below a limited account" width="260"> | <img src="docs/screenshots/account-menu.png" alt="An account's right-click menu with Edit account, Open folder, Add shortcuts, Copy sessions, Environment and flags, Quit Claude, Disable account and Delete" width="260"> |
+|                                                               Greyed out and listed last until you enable it                                                               |                                                                                        Disable or enable from the right-click menu                                                                                         |
 
 ### Languages
 
@@ -124,18 +124,20 @@ The window is phone-sized (400×780) with three tabs along the bottom. clawshell
 
 ### Accounts tab
 
-Lists each account with its badge, name, email, usage and one of four statuses: **Running**, **Idle**, **Signed out** or **Limited**.
+Lists each account with its badge, name, email, usage and one of four statuses: **Running**, **Idle**, **Signed out** or **Limited**. An account you disabled shows **Disabled** instead.
 
 - **Usage bar.** One bar per account. The orange weekly segment is as wide as the weekly percentage, and the amber 5-hour segment takes its share of the room the week leaves. The labels underneath give each window's percentage and reset time. Hover the bar to see how long until each window resets.
 - **Limited accounts** are greyed out and listed after the others until a window resets, as are accounts whose folder is missing. They keep their place in your order for when they come back, and still open and keep their menu.
+- **Disabled accounts** are ones you turned off. They are greyed out with a **Disabled** badge and listed at the very bottom, below the limited ones. A disabled account is hidden from the tray, left out of the pooled usage on the Usage tab, can't receive copied sessions and sends no limit notifications. It still opens when you double-click it, and disabling never closes a running Claude.
 
-| Action               | How                                                                                                                          |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Open an account      | Double-click it. If its window is already open, clawshell brings it forward.                                                 |
-| Add an account       | Click **Add account**, or choose **Add account** from the tray menu. clawshell creates a profile and opens Claude's sign-in. |
-| Reorder accounts     | Drag a row up or down. The tray menu, cost card and heatmap follow the same order. Limited accounts can't be dragged.        |
-| Configure an account | Right-click it to rename it, change its badge colour, set launch options, add shortcuts or open its folder.                  |
-| Remove an account    | Right-click it and choose **Delete**.                                                                                        |
+| Action               | How                                                                                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Open an account      | Double-click it. If its window is already open, clawshell brings it forward.                                                                                        |
+| Add an account       | Click **Add account**, or choose **Add account** from the tray menu. clawshell creates a profile and opens Claude's sign-in.                                        |
+| Reorder accounts     | Drag a row up or down. The tray menu, cost card and heatmap follow the same order. Limited accounts can't be dragged, and disabled ones move only among themselves. |
+| Configure an account | Right-click it to rename it, change its badge colour, set launch options, add shortcuts or open its folder.                                                         |
+| Disable an account   | Right-click it and choose **Disable account**. Choose **Enable account** to bring it back to its place in your order.                                               |
+| Remove an account    | Right-click it and choose **Delete**.                                                                                                                               |
 
 ### Settings tab
 
