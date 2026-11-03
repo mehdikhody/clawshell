@@ -201,3 +201,30 @@ fn tray_labels_switch_to_arabic_russian_and_chinese_with_the_language_setting() 
         assert_eq!(labels.quit, quit, "{language:?}");
     }
 }
+
+#[test]
+fn a_disabled_account_is_not_offered_in_the_tray_even_while_running() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.fixture.sign_in(ID_A);
+    h.processes
+        .0
+        .lock()
+        .unwrap()
+        .insert(h.fixture.profile_path(ID_A));
+    h.core().set_account_disabled(ID_A, true).unwrap();
+
+    assert_eq!(
+        h.core().tray_entries().unwrap(),
+        vec![
+            TrayEntry::Open,
+            TrayEntry::Separator,
+            account("default", "Claude", false),
+            account(ID_B, "Account 3", false),
+            TrayEntry::Separator,
+            TrayEntry::AddAccount,
+            TrayEntry::Quit
+        ]
+    );
+}

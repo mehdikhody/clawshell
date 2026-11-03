@@ -28,12 +28,13 @@ pub struct PooledRemaining {
     pub weekly: PooledWindow,
 }
 
-/// Pools `accounts`. Signed-out and missing accounts are left out of the
-/// average and the count, and so is an account with no reading for the window.
+/// Pools `accounts`. Signed-out, missing and disabled accounts are left out
+/// of the average and the count, and so is an account with no reading for the
+/// window.
 pub fn pool_remaining(accounts: &[Account]) -> PooledRemaining {
     let snapshots: Vec<&UsageSnapshot> = accounts
         .iter()
-        .filter(|a| !matches!(a.status, Status::SignedOut | Status::Missing))
+        .filter(|a| !a.disabled && !matches!(a.status, Status::SignedOut | Status::Missing))
         .filter_map(|a| a.usage.as_ref())
         .collect();
     let pool = |window: fn(&UsageSnapshot) -> Option<&WindowUsage>| {

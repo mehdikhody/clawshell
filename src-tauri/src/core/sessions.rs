@@ -91,7 +91,7 @@ impl Core {
             let usage = self.usage.lock().unwrap();
             usage.accounts.get(&target.id).and_then(|u| u.ids.clone())
         };
-        let folder = target_folder(target.status, &target.path, ids.as_ref())
+        let folder = target_folder(target.status, target.disabled, &target.path, ids.as_ref())
             .map_err(SessionsError::TargetBlocked)?;
 
         let mut wanted = newest(records(&source.path)?);

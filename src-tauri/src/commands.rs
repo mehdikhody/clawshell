@@ -202,6 +202,9 @@ impl From<SessionsError> for CommandError {
                 "copy-open-code-tab",
                 "Open the Code tab in this account once first",
             ),
+            SessionsError::TargetBlocked(CopyBlocker::Disabled) => {
+                CommandError::new("copy-disabled", "Enable this account first")
+            }
             SessionsError::SameAccount => {
                 CommandError::new("copy-same-account", "Pick another account to copy into")
             }
@@ -250,6 +253,19 @@ pub fn reorder_accounts(
         .map_err(|e| CommandError::new("io", e.to_string()))?;
     feed.publish();
     Ok(())
+}
+
+/// Disables or enables the account. The tray follows at once.
+#[tauri::command]
+pub fn set_account_disabled(
+    core: State<'_, Arc<Core>>,
+    feed: State<'_, AccountFeed>,
+    id: String,
+    disabled: bool,
+) -> Result<Account, CommandError> {
+    let account = core.set_account_disabled(&id, disabled)?;
+    feed.publish();
+    Ok(account)
 }
 
 #[tauri::command]

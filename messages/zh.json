@@ -194,5 +194,11 @@
 	"disclaimer_title": "开始之前",
 	"disclaimer_body": "使用风险由你自行承担。你有责任在 Anthropic 的条款范围内使用 Claude 和多个账户。",
 	"disclaimer_accept": "接受",
-	"disclaimer_exit": "退出"
+	"disclaimer_exit": "退出",
+	"status_disabled": "已停用",
+	"menu_disable_account": "停用账户",
+	"menu_enable_account": "启用账户",
+	"error_disable_failed": "无法停用账户",
+	"error_enable_failed": "无法启用账户",
+	"copy_sessions_blocked_disabled": "请先启用此账户"
 }

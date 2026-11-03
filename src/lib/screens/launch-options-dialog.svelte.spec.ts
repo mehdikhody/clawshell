@@ -16,6 +16,7 @@ const account = (over: Partial<Account> = {}): Account => ({
 	badge: 'W',
 	colour: '#2563eb',
 	status: 'idle',
+	disabled: false,
 	copyBlocker: null,
 	running: false,
 	email: null,

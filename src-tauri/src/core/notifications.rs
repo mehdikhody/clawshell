@@ -8,6 +8,7 @@
 
 use super::calendar::{Digits, digits_of, localize_digits};
 use super::settings::Settings;
+use super::store::Records;
 use super::usage::{UsageSnapshot, UsageSource, WindowUsage};
 use super::{Core, Language};
 use serde::{Deserialize, Serialize};
@@ -249,7 +250,8 @@ fn text(
 impl Core {
     /// Sends the notifications `snapshot` earns for one account and remembers
     /// that they went out. Only a live reading counts: a stale or local one
-    /// carries no `resets_at` news.
+    /// carries no `resets_at` news. A disabled account's are remembered but
+    /// not sent, so enabling it later repeats nothing.
     pub(super) fn notify_usage(&self, id: &str, label: &str, snapshot: &UsageSnapshot) {
         if snapshot.source != UsageSource::Live {
             return;
@@ -286,6 +288,9 @@ impl Core {
                 // A failed save only risks one repeat after a restart.
                 let _ = fired.save(&self.ports.roots.local_app_data);
             }
+        }
+        if Records::load(&self.ports.roots.local_app_data).is_disabled(id) {
+            return;
         }
         for (title, body) in sends {
             self.ports.os.notify(&title, &body);

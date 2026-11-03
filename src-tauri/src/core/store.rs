@@ -26,6 +26,9 @@ pub struct Record {
     /// Extra launch arguments for this account's Claude.
     #[serde(default)]
     pub flags: Vec<String>,
+    /// The user turned the account off; left out of the file while false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub disabled: bool,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -101,35 +104,57 @@ impl Records {
     }
 
     /// Puts the records in the order of `ids`, except those `fixed` names:
-    /// they keep their places, and the others fill the places around them.
+    /// they keep their places. The records `apart` names trade places only
+    /// among themselves, and the others fill the places that are left.
     /// Unknown ids are ignored, and a record `ids` does not name keeps its
-    /// place after the named ones.
-    pub fn reorder(&mut self, ids: &[String], fixed: &[String]) {
-        let mut rest = Vec::new();
-        let places: Vec<Option<Record>> = std::mem::take(&mut self.accounts)
+    /// place after the named ones of its kind.
+    pub fn reorder(&mut self, ids: &[String], fixed: &[String], apart: &[String]) {
+        enum Place {
+            Kept(Record),
+            Apart,
+            Rest,
+        }
+        let (mut set_apart, mut rest) = (Vec::new(), Vec::new());
+        let places: Vec<Place> = std::mem::take(&mut self.accounts)
             .into_iter()
             .map(|r| {
                 if fixed.contains(&r.id) {
-                    Some(r)
+                    Place::Kept(r)
+                } else if apart.contains(&r.id) {
+                    set_apart.push(r);
+                    Place::Apart
                 } else {
                     rest.push(r);
-                    None
+                    Place::Rest
                 }
             })
             .collect();
-        let mut ordered = Vec::with_capacity(rest.len());
-        for id in ids {
-            if let Some(at) = rest.iter().position(|r| &r.id == id) {
-                ordered.push(rest.remove(at));
-            }
-        }
-        ordered.extend(rest);
-        let mut ordered = ordered.into_iter();
+        let mut set_apart = in_order_of(ids, set_apart);
+        let mut rest = in_order_of(ids, rest);
         self.accounts = places
             .into_iter()
-            .filter_map(|place| place.or_else(|| ordered.next()))
+            .filter_map(|place| match place {
+                Place::Kept(r) => Some(r),
+                Place::Apart => set_apart.next(),
+                Place::Rest => rest.next(),
+            })
             .collect();
         self.ordered = true;
+    }
+
+    pub fn is_disabled(&self, id: &str) -> bool {
+        self.accounts.iter().any(|r| r.id == id && r.disabled)
+    }
+
+    /// Disables or enables `id`; false when no record has that id.
+    pub fn set_disabled(&mut self, id: &str, disabled: bool) -> bool {
+        match self.accounts.iter_mut().find(|r| r.id == id) {
+            Some(record) => {
+                record.disabled = disabled;
+                true
+            }
+            None => false,
+        }
     }
 
     pub fn label_of(&self, id: &str) -> Option<&str> {
@@ -256,6 +281,19 @@ impl Records {
             colour: Some(colour.to_string()),
             env: Vec::new(),
             flags: Vec::new(),
+            disabled: false,
         });
     }
+}
+
+/// `records` in the order of `ids`, the ones `ids` does not name last.
+fn in_order_of(ids: &[String], mut records: Vec<Record>) -> std::vec::IntoIter<Record> {
+    let mut ordered = Vec::with_capacity(records.len());
+    for id in ids {
+        if let Some(at) = records.iter().position(|r| &r.id == id) {
+            ordered.push(records.remove(at));
+        }
+    }
+    ordered.extend(records);
+    ordered.into_iter()
 }

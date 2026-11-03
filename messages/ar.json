@@ -194,5 +194,11 @@
 	"disclaimer_title": "قبل أن تبدأ",
 	"disclaimer_body": "أنت تستخدمه على مسؤوليتك الخاصة. ومن مسؤوليتك استخدام Claude وعدة حسابات ضمن شروط Anthropic.",
 	"disclaimer_accept": "أوافق",
-	"disclaimer_exit": "خروج"
+	"disclaimer_exit": "خروج",
+	"status_disabled": "معطّل",
+	"menu_disable_account": "تعطيل الحساب",
+	"menu_enable_account": "تفعيل الحساب",
+	"error_disable_failed": "تعذّر تعطيل الحساب",
+	"error_enable_failed": "تعذّر تفعيل الحساب",
+	"copy_sessions_blocked_disabled": "فعّل هذا الحساب أولًا"
 }

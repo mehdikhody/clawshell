@@ -915,7 +915,7 @@ fn a_missing_account_is_listed_after_the_others() {
 }
 
 #[test]
-fn disabled_accounts_are_listed_last_in_their_saved_order() {
+fn unavailable_accounts_are_listed_last_in_their_saved_order() {
     let h = Harness::new();
     h.fixture.add_profile(ID_A);
     h.fixture.add_profile(ID_B);
@@ -930,7 +930,7 @@ fn disabled_accounts_are_listed_last_in_their_saved_order() {
 }
 
 #[test]
-fn a_reorder_keeps_a_disabled_account_in_its_saved_place() {
+fn a_reorder_keeps_an_unavailable_account_in_its_saved_place() {
     let h = Harness::new();
     h.fixture.add_profile(ID_A);
     h.fixture.add_profile(ID_B);
@@ -952,6 +952,152 @@ fn a_reorder_keeps_a_disabled_account_in_its_saved_place() {
     h.fixture.add_profile(ID_B);
 
     assert_eq!(ids_in_list(&h), vec![ID_C, ID_B, ID_A]);
+}
+
+// ---- Disabled accounts ----
+
+fn disable(h: &Harness, id: &str, disabled: bool) {
+    h.core().set_account_disabled(id, disabled).unwrap();
+}
+
+#[test]
+fn a_disabled_account_is_listed_after_the_unavailable_ones() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.fixture.add_profile(ID_C);
+    assert_eq!(ids_in_list(&h), vec![ID_A, ID_B, ID_C]);
+    std::fs::remove_dir_all(h.fixture.profile_path(ID_C)).unwrap();
+
+    disable(&h, ID_A, true);
+
+    assert_eq!(ids_in_list(&h), vec![ID_B, ID_C, ID_A]);
+    let accounts = h.core().list_accounts().unwrap().added();
+    assert!(accounts[2].disabled);
+    assert!(!accounts[0].disabled && !accounts[1].disabled);
+}
+
+#[test]
+fn disabling_is_saved_and_enabling_returns_the_account_to_its_place() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.fixture.add_profile(ID_C);
+    assert_eq!(ids_in_list(&h), vec![ID_A, ID_B, ID_C]);
+
+    disable(&h, ID_A, true);
+    // A new core reads the records afresh, as after a restart.
+    assert_eq!(ids_in_list(&h), vec![ID_B, ID_C, ID_A]);
+
+    disable(&h, ID_A, false);
+    assert_eq!(ids_in_list(&h), vec![ID_A, ID_B, ID_C]);
+}
+
+#[test]
+fn the_default_account_can_be_disabled() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+
+    disable(&h, "default", true);
+
+    let ids: Vec<String> = h
+        .core()
+        .list_accounts()
+        .unwrap()
+        .accounts
+        .into_iter()
+        .map(|a| a.id)
+        .collect();
+    assert_eq!(ids, vec![ID_A, "default"]);
+}
+
+#[test]
+fn a_disabled_and_missing_account_is_listed_with_the_disabled_ones() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.fixture.add_profile(ID_C);
+    assert_eq!(ids_in_list(&h), vec![ID_A, ID_B, ID_C]);
+    disable(&h, ID_A, true);
+    std::fs::remove_dir_all(h.fixture.profile_path(ID_A)).unwrap();
+    std::fs::remove_dir_all(h.fixture.profile_path(ID_B)).unwrap();
+
+    let accounts = h.core().list_accounts().unwrap().added();
+
+    assert_eq!(
+        accounts
+            .iter()
+            .map(|a| (a.id.as_str(), a.status, a.disabled))
+            .collect::<Vec<_>>(),
+        vec![
+            (ID_C, Status::SignedOut, false),
+            (ID_B, Status::Missing, false),
+            (ID_A, Status::Missing, true),
+        ]
+    );
+}
+
+#[test]
+fn disabled_accounts_trade_places_only_among_themselves() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.add_profile(ID_B);
+    h.fixture.add_profile(ID_C);
+    assert_eq!(ids_in_list(&h), vec![ID_A, ID_B, ID_C]);
+    disable(&h, ID_A, true);
+    disable(&h, ID_C, true);
+    assert_eq!(ids_in_list(&h), vec![ID_B, ID_A, ID_C]);
+
+    // C dragged above A, within the disabled rows at the bottom.
+    h.core()
+        .reorder_accounts(&[
+            "default".to_string(),
+            ID_B.to_string(),
+            ID_C.to_string(),
+            ID_A.to_string(),
+        ])
+        .unwrap();
+    assert_eq!(ids_in_list(&h), vec![ID_B, ID_C, ID_A]);
+
+    // Enabled again, each takes the place the other held; B never moved.
+    disable(&h, ID_A, false);
+    disable(&h, ID_C, false);
+    assert_eq!(ids_in_list(&h), vec![ID_C, ID_B, ID_A]);
+}
+
+#[test]
+fn a_disabled_account_still_launches() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.sign_in(ID_A);
+    disable(&h, ID_A, true);
+
+    let outcome = h.core().launch_account(ID_A).unwrap();
+
+    assert_eq!(outcome, LaunchOutcome::Started);
+}
+
+#[test]
+fn a_running_account_stays_running_when_disabled() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    h.fixture.sign_in(ID_A);
+    run_claude_on(&h, ID_A);
+
+    let account = h.core().set_account_disabled(ID_A, true).unwrap();
+
+    assert!(account.disabled);
+    assert!(account.running);
+    assert!(h.os.ended.lock().unwrap().is_empty());
+}
+
+#[test]
+fn disabling_an_unknown_account_fails_cleanly() {
+    let h = Harness::new();
+
+    let result = h.core().set_account_disabled(ID_A, true);
+
+    assert!(matches!(result, Err(AccountError::Unknown)));
 }
 
 #[test]

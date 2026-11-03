@@ -1226,3 +1226,19 @@ fn spend_money_object_converts_its_exponent_to_cents() {
         Some(83)
     );
 }
+
+#[test]
+fn disabled_accounts_are_left_out_of_the_pool() {
+    let h = Harness::new();
+    let core = pooled_core(
+        &h,
+        &[(ID_A, 60.0, 30.0), (ID_B, 100.0, 100.0), (ID_C, 0.0, 60.0)],
+    );
+
+    core.set_account_disabled(ID_B, true).unwrap();
+    let pooled = core.list_accounts().unwrap().pooled;
+
+    assert_eq!(pooled.five_hour.remaining_percent, Some(70.0));
+    assert_eq!((pooled.five_hour.available, pooled.five_hour.total), (2, 2));
+    assert_eq!(pooled.weekly.remaining_percent, Some(55.0));
+}

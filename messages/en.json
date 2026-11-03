@@ -194,5 +194,11 @@
 	"disclaimer_title": "Before you start",
 	"disclaimer_body": "You use it at your own risk. It's your responsibility to use Claude and multiple accounts within Anthropic's terms.",
 	"disclaimer_accept": "Accept",
-	"disclaimer_exit": "Exit"
+	"disclaimer_exit": "Exit",
+	"status_disabled": "Disabled",
+	"menu_disable_account": "Disable account",
+	"menu_enable_account": "Enable account",
+	"error_disable_failed": "Couldn't disable the account",
+	"error_enable_failed": "Couldn't enable the account",
+	"copy_sessions_blocked_disabled": "Enable this account first"
 }

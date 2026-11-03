@@ -36,11 +36,20 @@ pub enum Status {
 }
 
 impl Status {
-    /// Limited and missing accounts are disabled: listed after the others,
+    /// Limited and missing accounts are unavailable: listed after the others,
     /// and their saved place is kept when the others are reordered.
-    pub fn is_disabled(self) -> bool {
+    pub fn is_unavailable(self) -> bool {
         matches!(self, Status::Limited | Status::Missing)
     }
+}
+
+/// Where an account is listed: the usable ones first, then the unavailable
+/// ones, then the ones the user disabled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Group {
+    Usable,
+    Unavailable,
+    Disabled,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -60,6 +69,9 @@ pub struct Account {
     /// The badge colour, `#rrggbb`.
     pub colour: String,
     pub status: Status,
+    /// The user turned this account off. It is listed last whatever its
+    /// status, and still launches.
+    pub disabled: bool,
     /// Why this account can't receive session copies; none when it can.
     pub copy_blocker: Option<CopyBlocker>,
     /// A Claude Desktop process uses this profile, whatever the badge says.
@@ -132,7 +144,8 @@ impl Core {
 
     /// Every account clawshell knows: the default account, the profile folders
     /// on disk and recorded accounts whose folder has vanished (status
-    /// Missing), in the saved order with the disabled accounts last.
+    /// Missing), in the saved order with the unavailable accounts after the
+    /// usable ones and the disabled accounts last.
     pub(super) fn known_accounts(&self) -> io::Result<Vec<Account>> {
         let scan = self.scan_profiles()?;
         let records = self.synced_records(&scan.profiles);
@@ -151,7 +164,8 @@ impl Core {
                 let colour = colour_in(&records, &profile.id);
                 let known = usage.accounts.get(&profile.id);
                 let options = records.options_of(&profile.id);
-                account_of(profile, label, colour, &running, known, options)
+                let disabled = records.is_disabled(&profile.id);
+                account_of(profile, label, colour, disabled, &running, known, options)
             })
             .collect();
 
@@ -169,7 +183,8 @@ impl Core {
                     badge: badge_letter(&r.label),
                     colour: colour_in(&records, &r.id),
                     status: Status::Missing,
-                    copy_blocker: copy_blocker(Status::Missing, &path, None),
+                    disabled: r.disabled,
+                    copy_blocker: copy_blocker(Status::Missing, r.disabled, &path, None),
                     running: false,
                     email: None,
                     usage: None,
@@ -181,7 +196,7 @@ impl Core {
             })
             .collect();
         accounts.extend(missing);
-        accounts.sort_by_key(|a| (a.status.is_disabled(), records.position_of(&a.id)));
+        accounts.sort_by_key(|a| (a.group(), records.position_of(&a.id)));
         Ok(accounts)
     }
 
@@ -194,19 +209,34 @@ impl Core {
     }
 
     /// Saves the order the accounts were dropped into, as `ids` lists them.
-    /// Every list of accounts follows it from then on. Disabled accounts keep
-    /// their saved places, so each returns there once it is usable again.
+    /// Every list of accounts follows it from then on. Unavailable accounts
+    /// keep their saved places, so each returns there once it is usable
+    /// again. Disabled accounts trade places only among themselves, so each
+    /// returns to the place it holds once enabled.
     pub fn reorder_accounts(&self, ids: &[String]) -> io::Result<()> {
-        let disabled: Vec<String> = self
-            .known_accounts()?
-            .into_iter()
-            .filter(|a| a.status.is_disabled())
-            .map(|a| a.id)
-            .collect();
+        let accounts = self.known_accounts()?;
+        let in_group = |group: Group| -> Vec<String> {
+            accounts
+                .iter()
+                .filter(|a| a.group() == group)
+                .map(|a| a.id.clone())
+                .collect()
+        };
+        let unavailable = in_group(Group::Unavailable);
+        let disabled = in_group(Group::Disabled);
         let scan = self.scan_profiles()?;
         let mut records = self.synced_records(&scan.profiles);
-        records.reorder(ids, &disabled);
+        records.reorder(ids, &unavailable, &disabled);
         records.save(&self.ports.roots.local_app_data)
+    }
+
+    /// Disables or enables the account. A disabled account is listed last,
+    /// hidden from the tray, left out of the pooled totals, can't receive
+    /// session copies and sends no limit notifications. It still launches,
+    /// and a running Claude is left running.
+    pub fn set_account_disabled(&self, id: &str, disabled: bool) -> Result<Account, AccountError> {
+        self.update_record(id, |records| records.set_disabled(id, disabled))?;
+        self.find_account(id)?.ok_or(AccountError::Unknown)
     }
 
     pub(super) fn find_account(&self, id: &str) -> io::Result<Option<Account>> {
@@ -407,6 +437,7 @@ impl Core {
             Profile { id, path },
             label.to_string(),
             colour,
+            false,
             &running,
             None,
             LaunchOptions::default(),
@@ -441,10 +472,24 @@ fn colour_in(records: &Records, id: &str) -> String {
     records.colour_of(id).unwrap_or(PALETTE[0]).to_string()
 }
 
+impl Account {
+    /// A disabled account is listed with the disabled ones, whatever its status.
+    fn group(&self) -> Group {
+        if self.disabled {
+            Group::Disabled
+        } else if self.status.is_unavailable() {
+            Group::Unavailable
+        } else {
+            Group::Usable
+        }
+    }
+}
+
 fn account_of(
     profile: Profile,
     label: String,
     colour: String,
+    disabled: bool,
     running: &HashSet<PathBuf>,
     known: Option<&AccountUsage>,
     options: LaunchOptions,
@@ -469,7 +514,8 @@ fn account_of(
         label,
         colour,
         status,
-        copy_blocker: copy_blocker(status, &profile.path, identity),
+        disabled,
+        copy_blocker: copy_blocker(status, disabled, &profile.path, identity),
         running: is_running,
         email,
         usage,

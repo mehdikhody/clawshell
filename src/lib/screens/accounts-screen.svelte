@@ -5,6 +5,8 @@
 	import IconAlertTriangle from '@tabler/icons-svelte/icons/alert-triangle';
 	import IconAppWindow from '@tabler/icons-svelte/icons/app-window';
 	import IconCheck from '@tabler/icons-svelte/icons/check';
+	import IconCircleCheck from '@tabler/icons-svelte/icons/circle-check';
+	import IconCircleOff from '@tabler/icons-svelte/icons/circle-off';
 	import IconCopy from '@tabler/icons-svelte/icons/copy';
 	import IconFolderOpen from '@tabler/icons-svelte/icons/folder-open';
 	import IconPalette from '@tabler/icons-svelte/icons/palette';
@@ -28,6 +30,7 @@
 		renameAccount,
 		reorderAccounts,
 		setAccountColour,
+		setAccountDisabled,
 		type Account,
 		type AccountList,
 		type AccountStatus,
@@ -125,8 +128,8 @@
 	let confirming = $state<Account | null>(null);
 	/** The account ids in the order a drag has moved them into, kept until that order is saved. */
 	let dragOrder = $state<string[] | null>(null);
-	/** The rows that looked disabled when the drag started; they stay locked until it ends. */
-	let dragLocked = $state<Set<string> | null>(null);
+	/** The group each row was in when the drag started; rows keep it until the drag ends. */
+	let dragGroups = $state<Map<string, Group> | null>(null);
 	/** The list of rows, so a drop can tell whether it landed on the list. */
 	let listElement = $state<HTMLElement | null>(null);
 
@@ -144,15 +147,21 @@
 		limited: 'destructive',
 		missing: 'destructive'
 	};
-	/** Limited and missing rows look disabled; their badges and buttons keep their colour. */
-	const looksDisabled = (status: AccountStatus) => status === 'limited' || status === 'missing';
-	const disabledLook = 'opacity-60 grayscale';
+	/** Limited and missing accounts are unavailable. */
+	const isUnavailable = (status: AccountStatus) => status === 'limited' || status === 'missing';
+	/** Where a row is listed: usable rows first, then unavailable ones, then the disabled ones. */
+	type Group = 'usable' | 'unavailable' | 'disabled';
+	const groupOf = (account: Account): Group =>
+		account.disabled ? 'disabled' : isUnavailable(account.status) ? 'unavailable' : 'usable';
+	/** Unavailable and disabled rows are greyed out; their badges and buttons keep their colour. */
+	const greyed = (account: Account) => groupOf(account) !== 'usable';
+	const greyLook = 'opacity-60 grayscale';
 	/**
-	 * Disabled rows are listed last and can't be dragged or dropped among. While a drag runs, the
-	 * rows locked when it started stay locked, so a status change doesn't move rows under the pointer.
+	 * Unavailable rows can't be dragged or dropped among. While a drag runs, the rows keep the group
+	 * they had when it started, so a status change doesn't move rows under the pointer.
 	 */
 	const locked = (account: Account) =>
-		dragLocked ? dragLocked.has(account.id) : looksDisabled(account.status);
+		(dragGroups?.get(account.id) ?? groupOf(account)) === 'unavailable';
 
 	/** The usage bar under the pointer, and where its tooltip points: just above the bar, at the pointer. */
 	let hoveredBar = $state<{ id: string; anchor: { getBoundingClientRect: () => DOMRect } } | null>(
@@ -256,10 +265,10 @@
 		else endHold();
 	}
 
-	/** Lets the rows follow the list again: its order, and which rows are locked. */
+	/** Lets the rows follow the list again: its order, and which group each row is in. */
 	function endHold() {
 		dragOrder = null;
-		dragLocked = null;
+		dragGroups = null;
 	}
 
 	/** Saves an order, and keeps the rows in it until the core confirms it, so they do not flicker back. */
@@ -281,6 +290,17 @@
 			await openAccountFolder(account.id);
 		} catch (error) {
 			failure = describe(error, m.error_open_folder_failed());
+		}
+	}
+
+	async function setDisabled(account: Account, disabled: boolean) {
+		failure = null;
+		try {
+			await setAccountDisabled(account.id, disabled);
+		} catch (error) {
+			failure = describe(error, disabled ? m.error_disable_failed() : m.error_enable_failed());
+		} finally {
+			await refresh();
 		}
 	}
 
@@ -402,13 +422,18 @@
 		<DragDropProvider
 			onDragStart={() => {
 				dragOrder = list.accounts.map((account) => account.id);
-				dragLocked = new Set(list.accounts.filter(locked).map((account) => account.id));
+				dragGroups = new Map(list.accounts.map((account) => [account.id, groupOf(account)]));
 			}}
 			onDragOver={(event) => {
-				if (!dragOrder) return;
+				if (!dragOrder || !dragGroups) return;
 				const order = dragOrder;
-				const moved = move(order, event);				// The locked rows stay put at the bottom, so nothing goes among or below them.
-				if (moved.every((id, i) => !dragLocked?.has(id) || id === order[i])) dragOrder = moved;
+				const groups = dragGroups;
+				const moved = move(order, event);
+				// A row moves only among its own group, and the unavailable rows stay put.
+				const kept = (id: string, i: number) =>
+					id === order[i] ||
+					(groups.get(id) === groups.get(order[i]) && groups.get(id) !== 'unavailable');
+				if (moved.every(kept)) dragOrder = moved;
 			}}
 			onDragEnd={(event) => {
 				// The release point; a keyboard drop has none, so it uses where the row was moved to.
@@ -442,16 +467,14 @@
 											}
 										}}
 									>
-										<Item.Media class={[looksDisabled(account.status) && disabledLook]}>
+										<Item.Media class={[greyed(account) && greyLook]}>
 											<AccountIcon
 												badge={account.badge}
 												colour={account.colour}
 												isDefault={account.isDefault}
 											/>
 										</Item.Media>
-										<Item.Content
-											class={['min-w-0 flex-1', looksDisabled(account.status) && disabledLook]}
-										>
+										<Item.Content class={['min-w-0 flex-1', greyed(account) && greyLook]}>
 											<Item.Title>{account.label}</Item.Title>
 											{#if account.status === 'missing'}
 												<Item.Description>{m.missing_hint()}</Item.Description>
@@ -469,12 +492,20 @@
 											{/if}
 										</Item.Content>
 										<Item.Actions class="shrink-0 self-start">
-											{#if account.status === 'limited' && account.running}
-												<Badge variant="secondary">{statusLabel.running()}</Badge>
+											{#if account.disabled && account.status !== 'missing'}
+												<!-- A disabled row shows only Disabled, and Running while its Claude runs. -->
+												{#if account.running}
+													<Badge variant="secondary">{statusLabel.running()}</Badge>
+												{/if}
+												<Badge variant="outline">{m.status_disabled()}</Badge>
+											{:else}
+												{#if account.status === 'limited' && account.running}
+													<Badge variant="secondary">{statusLabel.running()}</Badge>
+												{/if}
+												<Badge variant={statusVariant[account.status]}
+													>{statusLabel[account.status]()}</Badge
+												>
 											{/if}
-											<Badge variant={statusVariant[account.status]}
-												>{statusLabel[account.status]()}</Badge
-											>
 											{#if account.status === 'missing'}
 												<Button size="xs" variant="destructive" onclick={() => askDelete(account)}>
 													{m.missing_remove()}
@@ -483,10 +514,7 @@
 										</Item.Actions>
 										{#if account.usage}
 											<div
-												class={[
-													'flex w-full flex-col gap-2 text-xs',
-													looksDisabled(account.status) && disabledLook
-												]}
+												class={['flex w-full flex-col gap-2 text-xs', greyed(account) && greyLook]}
 											>
 												{@render usageLines(account.id, account.usage)}
 											</div>
@@ -530,6 +558,15 @@
 											{m.menu_quit_claude()}
 										</ContextMenu.Item>
 									{/if}
+									<ContextMenu.Item onSelect={() => setDisabled(account, !account.disabled)}>
+										{#if account.disabled}
+											<IconCircleCheck />
+											{m.menu_enable_account()}
+										{:else}
+											<IconCircleOff />
+											{m.menu_disable_account()}
+										{/if}
+									</ContextMenu.Item>
 									{#if !account.isDefault}
 										<ContextMenu.Separator />
 										<ContextMenu.Item variant="destructive" onSelect={() => askDelete(account)}>

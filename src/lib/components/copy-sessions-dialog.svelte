@@ -60,7 +60,8 @@
 
 	const blockerText: Record<CopyBlocker, () => string> = {
 		'sign-in': () => m.copy_sessions_blocked_sign_in(),
-		'open-code-tab': () => m.copy_sessions_blocked_code_tab()
+		'open-code-tab': () => m.copy_sessions_blocked_code_tab(),
+		disabled: () => m.copy_sessions_blocked_disabled()
 	};
 
 	onMount(async () => {

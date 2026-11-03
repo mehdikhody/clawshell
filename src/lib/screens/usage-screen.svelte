@@ -36,9 +36,11 @@
 	let costReadAt = 0;
 	/** Ticks every second so "updated X ago" and the refresh wait stay current. */
 	let now = $state(Date.now());
-	/** Signed-in accounts exist, whether or not they have a reading yet. */
+	/** Signed-in accounts that are not disabled exist, whether or not they have a reading yet. */
 	const hasSignedIn = $derived(
-		shown.list?.accounts.some((a) => a.status !== 'signed-out' && a.status !== 'missing') ?? false
+		shown.list?.accounts.some(
+			(a) => !a.disabled && a.status !== 'signed-out' && a.status !== 'missing'
+		) ?? false
 	);
 	/** Some account's first poll hasn't been tried yet, so the pooled numbers would still move. */
 	const pending = $derived(shown.list?.accounts.some((a) => a.usagePending) ?? false);

@@ -17,6 +17,9 @@ pub enum CopyBlocker {
     /// "Open the Code tab in this account once first": Claude hasn't created
     /// the account's session folder yet.
     OpenCodeTab,
+    /// "Enable this account first": the user disabled it. Shown only when
+    /// nothing else blocks the account.
+    Disabled,
 }
 
 /// The account and organisation a profile is signed into now, as the OAuth
@@ -43,6 +46,7 @@ impl ProfileIdentity {
 /// receiving one.
 pub(super) fn target_folder(
     status: Status,
+    disabled: bool,
     profile: &Path,
     ids: Option<&ProfileIdentity>,
 ) -> Result<PathBuf, CopyBlocker> {
@@ -54,18 +58,21 @@ pub(super) fn target_folder(
         .join(SESSIONS_DIR)
         .join(&ids.account)
         .join(&ids.organization);
-    if folder.is_dir() {
-        Ok(folder)
-    } else {
+    if !folder.is_dir() {
         Err(CopyBlocker::OpenCodeTab)
+    } else if disabled {
+        Err(CopyBlocker::Disabled)
+    } else {
+        Ok(folder)
     }
 }
 
 /// The reason the account can't receive copies; `None` when it can.
 pub(super) fn copy_blocker(
     status: Status,
+    disabled: bool,
     profile: &Path,
     ids: Option<&ProfileIdentity>,
 ) -> Option<CopyBlocker> {
-    target_folder(status, profile, ids).err()
+    target_folder(status, disabled, profile, ids).err()
 }

@@ -19,6 +19,7 @@ const account: Account = {
 	badge: 'W',
 	colour: '#2563eb',
 	status: 'idle',
+	disabled: false,
 	copyBlocker: null,
 	running: false,
 	email: null,
@@ -52,13 +53,21 @@ const fresh: Account = {
 	badge: 'F',
 	copyBlocker: 'open-code-tab'
 };
+const retired: Account = {
+	...account,
+	id: 'id-retired',
+	label: 'Retired',
+	badge: 'R',
+	disabled: true,
+	copyBlocker: 'disabled'
+};
 
 function mount(handlers: IpcHandlers, oncopied: (message: string) => void = () => {}) {
 	const tauri = mockTauri(handlers);
 	restore = tauri.restore;
 	render(CopySessionsDialog, {
 		account,
-		accounts: [home, account, signedOut, fresh],
+		accounts: [home, account, signedOut, fresh, retired],
 		oncopied,
 		onclose: () => {}
 	});
@@ -214,6 +223,8 @@ describe('Copy sessions dialog', () => {
 			.element(options.nth(2))
 			.toHaveTextContent(/Fresh\s*Open the Code tab in this account once first/);
 		await expect.element(options.nth(2)).toHaveAttribute('aria-disabled', 'true');
+		await expect.element(options.nth(3)).toHaveTextContent(/Retired\s*Enable this account first/);
+		await expect.element(options.nth(3)).toHaveAttribute('aria-disabled', 'true');
 		await expect.element(page.getByRole('menuitemradio', { name: /Work/ })).not.toBeInTheDocument();
 	});
 

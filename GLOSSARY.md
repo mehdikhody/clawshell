@@ -16,9 +16,13 @@ _Avoid_: User, login, instance
 The account backed by Claude's own profile, the one Claude's Start-menu entry opens. Listed first as "Claude" until moved.
 _Avoid_: Main account, original profile
 
+**Unavailable account**:
+An account that is limited, or whose profile is missing. Listed after the usable accounts, and keeps its place in the saved order while the others are moved.
+_Avoid_: Inactive, blocked account
+
 **Disabled account**:
-An account that is limited, or whose profile is missing. Listed after the others, and keeps its place in the saved order while the others are moved.
-_Avoid_: Inactive, unavailable account
+An account the user turned off. Listed last, below the unavailable accounts, and left out of the tray, the pooled totals, session copies and limit notifications. It still launches.
+_Avoid_: Paused, hidden, archived account
 
 **Profile**:
 The folder that holds one account's Claude data.

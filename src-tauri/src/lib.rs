@@ -169,6 +169,7 @@ pub fn run() {
             commands::set_launch_options,
             commands::rename_account,
             commands::reorder_accounts,
+            commands::set_account_disabled,
             commands::set_account_colour,
             commands::open_account_folder,
             commands::quit_account,

@@ -8,7 +8,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 export type AccountStatus = 'running' | 'idle' | 'signed-out' | 'limited' | 'missing';
 
 /** Why an account can't receive session copies yet. */
-export type CopyBlocker = 'sign-in' | 'open-code-tab';
+export type CopyBlocker = 'sign-in' | 'open-code-tab' | 'disabled';
 
 /** `stale`: the last live numbers, kept after a failed poll. `local-history`: from Claude's own file. */
 export type UsageSource = 'live' | 'stale' | 'local-history';
@@ -54,6 +54,8 @@ export type Account = {
 	/** The badge colour, `#rrggbb`. */
 	colour: string;
 	status: AccountStatus;
+	/** You turned this account off: listed last, whatever its status. It still launches. */
+	disabled: boolean;
 	/** Why this account can't receive session copies; null when it can. */
 	copyBlocker: CopyBlocker | null;
 	/** A Claude Desktop window is open on this account, whatever the badge says. */
@@ -162,6 +164,9 @@ export const renameAccount = (id: string, label: string) =>
 export const reorderAccounts = (ids: string[]) => invoke<void>('reorder_accounts', { ids });
 export const setAccountColour = (id: string, colour: string) =>
 	invoke<Account>('set_account_colour', { id, colour });
+/** Disables or enables the account. */
+export const setAccountDisabled = (id: string, disabled: boolean) =>
+	invoke<Account>('set_account_disabled', { id, disabled });
 /** Saves the account's env vars and flags, or rejects with a code such as `invalid-env-name`. */
 export const setLaunchOptions = (id: string, options: LaunchOptions) =>
 	invoke<Account>('set_launch_options', { id, options });

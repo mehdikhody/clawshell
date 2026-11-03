@@ -293,3 +293,35 @@ fn an_account_cannot_copy_into_itself() {
 
     assert!(matches!(result, Err(SessionsError::SameAccount)));
 }
+
+#[test]
+fn a_disabled_target_is_refused_and_nothing_is_written() {
+    let h = Harness::new();
+    eligible_target(&h);
+    write_record(&h, SOURCE, SOURCE_ACCOUNT, ORG, "cli-1", "Fix", false);
+    let core = h.core();
+    core.refresh_usage(false);
+    core.set_account_disabled(TARGET, true).unwrap();
+
+    let result = core.copy_sessions(SOURCE, &ids(&["cli-1"]), TARGET);
+
+    assert!(matches!(
+        result,
+        Err(SessionsError::TargetBlocked(CopyBlocker::Disabled))
+    ));
+    assert!(files_in(&h, TARGET).is_empty());
+}
+
+#[test]
+fn a_disabled_source_can_still_copy_out() {
+    let h = Harness::new();
+    eligible_target(&h);
+    write_record(&h, SOURCE, SOURCE_ACCOUNT, ORG, "cli-1", "Fix", false);
+    let core = h.core();
+    core.refresh_usage(false);
+    core.set_account_disabled(SOURCE, true).unwrap();
+
+    let result = core.copy_sessions(SOURCE, &ids(&["cli-1"]), TARGET);
+
+    assert!(matches!(result, Ok(CopyOutcome { copied: 1, .. })));
+}

@@ -194,5 +194,11 @@
 	"disclaimer_title": "Прежде чем начать",
 	"disclaimer_body": "Вы используете его на свой страх и риск. Вы сами отвечаете за то, чтобы пользоваться Claude и несколькими аккаунтами в рамках условий Anthropic.",
 	"disclaimer_accept": "Принять",
-	"disclaimer_exit": "Выйти"
+	"disclaimer_exit": "Выйти",
+	"status_disabled": "Отключён",
+	"menu_disable_account": "Отключить аккаунт",
+	"menu_enable_account": "Включить аккаунт",
+	"error_disable_failed": "Не удалось отключить аккаунт",
+	"error_enable_failed": "Не удалось включить аккаунт",
+	"copy_sessions_blocked_disabled": "Сначала включите этот аккаунт"
 }

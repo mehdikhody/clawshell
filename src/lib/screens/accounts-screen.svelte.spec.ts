@@ -5,7 +5,7 @@ import { emit } from '@tauri-apps/api/event';
 import '../../routes/layout.css';
 import { mockTauri, type IpcHandlers } from '$lib/test/tauri-ipc';
 import { deferred } from '$lib/test/deferred';
-import { emptyPooled, type AccountList } from '$lib/accounts';
+import { emptyPooled, type Account, type AccountList } from '$lib/accounts';
 import { addRequest } from '$lib/add-account-request.svelte';
 
 import { switchLocale } from '$lib/locale-state.svelte';
@@ -24,6 +24,7 @@ const account = (id: string, label: string, status: string, colour = BLUE) => ({
 	badge: label.charAt(0).toUpperCase(),
 	colour,
 	status,
+	disabled: false,
 	copyBlocker: null,
 	running: status === 'running',
 	email: null,
@@ -793,6 +794,114 @@ describe('AccountsScreen', () => {
 			await expect
 				.poll(() => tauri.calls.filter((call) => call.cmd === 'reorder_accounts'))
 				.toEqual([{ cmd: 'reorder_accounts', args: { ids: ['id-home', 'id-work', 'id-lim'] } }]);
+		});
+
+		/** A usable account above two disabled ones, as the core lists them. */
+		const withDisabled: AccountList = {
+			...threeAccounts,
+			accounts: [
+				account('id-work', 'Work', 'idle'),
+				{ ...account('id-old', 'Old one', 'idle'), disabled: true },
+				{ ...account('id-spare', 'Spare one', 'limited'), disabled: true }
+			] as AccountList['accounts']
+		};
+
+		it('moves a disabled row among the disabled rows', async () => {
+			const tauri = mount({}, withDisabled);
+			await expect.element(page.getByRole('listitem').nth(2)).toBeVisible();
+			const [, middle, last] = [...document.querySelectorAll('[role="listitem"]')];
+			const over = spot(middle, 'top');
+
+			pointer('pointerdown', spot(last, 'middle'), last);
+			pointer('pointermove', over);
+			await expect.poll(() => rowTexts()[1]).toContain('Spare one');
+			pointer('pointerup', over);
+
+			await expect
+				.poll(() => tauri.calls.filter((call) => call.cmd === 'reorder_accounts'))
+				.toEqual([{ cmd: 'reorder_accounts', args: { ids: ['id-work', 'id-spare', 'id-old'] } }]);
+		});
+
+		it('keeps a disabled row below the usable rows', async () => {
+			const tauri = mount({}, withDisabled);
+			await expect.element(page.getByRole('listitem').nth(2)).toBeVisible();
+			const [first, middle] = [...document.querySelectorAll('[role="listitem"]')];
+			const over = spot(first, 'top');
+
+			pointer('pointerdown', spot(middle, 'middle'), middle);
+			pointer('pointermove', over);
+			pointer('pointerup', over);
+
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			expect(rowTexts()[0]).toContain('Work');
+			expect(tauri.calls.filter((call) => call.cmd === 'reorder_accounts')).toEqual([]);
+		});
+	});
+
+	describe('a disabled account', () => {
+		const disabledRow = (over: Partial<Account> = {}): AccountList => ({
+			...threeAccounts,
+			accounts: [
+				account('id-idle', 'Work', 'idle'),
+				{ ...account('id-off', 'Old one', 'idle'), disabled: true, ...over }
+			] as AccountList['accounts']
+		});
+
+		it('shows only a Disabled badge, greyed out with the badge in colour', async () => {
+			mount({}, disabledRow({ status: 'limited' }));
+
+			const row = page.getByRole('listitem').nth(1);
+			await expect.element(row).toHaveTextContent('Disabled');
+			await expect.element(row).not.toHaveTextContent('Limited');
+			expect(greyedParts(row.element())).toEqual({
+				row: false,
+				media: true,
+				content: true,
+				usage: false,
+				actions: false
+			});
+		});
+
+		it('shows Running beside Disabled while its Claude is open', async () => {
+			mount({}, disabledRow({ status: 'running', running: true }));
+
+			const row = page.getByRole('listitem').nth(1);
+			await expect.element(row).toHaveTextContent('Disabled');
+			await expect.element(row).toHaveTextContent('Running');
+		});
+
+		it('shows Folder missing and Remove instead when its folder is gone', async () => {
+			mount({}, disabledRow({ status: 'missing' }));
+
+			const row = page.getByRole('listitem').nth(1);
+			await expect.element(row).toHaveTextContent('Folder missing');
+			await expect.element(row).not.toHaveTextContent('Disabled');
+			await expect.element(row.getByRole('button', { name: 'Remove' })).toBeVisible();
+		});
+
+		it('is disabled from the menu of an enabled row', async () => {
+			const tauri = mount({ set_account_disabled: () => null }, disabledRow());
+
+			await page.getByText('Work', { exact: true }).click({ button: 'right' });
+			await page.getByRole('menuitem', { name: 'Disable account' }).click();
+
+			expect(tauri.calls.filter((c) => c.cmd === 'set_account_disabled')).toEqual([
+				{ cmd: 'set_account_disabled', args: { id: 'id-idle', disabled: true } }
+			]);
+		});
+
+		it('is enabled again from its own menu', async () => {
+			const tauri = mount({ set_account_disabled: () => null }, disabledRow());
+
+			await page.getByText('Old one', { exact: true }).click({ button: 'right' });
+			await expect
+				.element(page.getByRole('menuitem', { name: 'Disable account' }))
+				.not.toBeInTheDocument();
+			await page.getByRole('menuitem', { name: 'Enable account' }).click();
+
+			expect(tauri.calls.filter((c) => c.cmd === 'set_account_disabled')).toEqual([
+				{ cmd: 'set_account_disabled', args: { id: 'id-off', disabled: false } }
+			]);
 		});
 	});
 

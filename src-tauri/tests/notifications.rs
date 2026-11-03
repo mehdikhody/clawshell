@@ -667,3 +667,23 @@ fn a_new_threshold_applies_to_the_current_reading_without_waiting_for_a_poll() {
     assert_eq!(sent(&h).len(), 1);
     assert_eq!(h.http.requests().len(), requests, "no extra poll was made");
 }
+
+#[test]
+fn a_disabled_account_sends_no_notifications_and_enabling_it_repeats_none() {
+    let h = Harness::new();
+    signed_in(&h);
+    script(&h, (85.0, FIVE_RESET_1), (10.0, WEEK_RESET_1));
+    script(&h, (85.0, FIVE_RESET_1), (10.0, WEEK_RESET_1));
+    let core = h.core();
+    core.set_account_disabled(ID, true).unwrap();
+
+    core.refresh_usage(false);
+    assert!(sent(&h).is_empty(), "a disabled account is muted");
+
+    core.set_account_disabled(ID, false).unwrap();
+    poll(&h, &core);
+    assert!(
+        sent(&h).is_empty(),
+        "the warning it earned while disabled is not sent late"
+    );
+}

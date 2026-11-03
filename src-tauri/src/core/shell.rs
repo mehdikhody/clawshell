@@ -95,7 +95,7 @@ impl Core {
             .list_accounts()?
             .accounts
             .into_iter()
-            .filter(|a| a.status != Status::Missing)
+            .filter(|a| a.status != Status::Missing && !a.disabled)
             .map(|a| TrayEntry::Account {
                 id: a.id,
                 label: a.label,

@@ -176,3 +176,31 @@ fn a_signed_in_account_whose_uuids_are_unknown_asks_to_be_signed_in_first() {
 
     assert_eq!(account(&core, ID_A).copy_blocker, Some(CopyBlocker::SignIn));
 }
+
+#[test]
+fn a_disabled_account_can_not_receive_copies() {
+    let h = Harness::new();
+    signed_in(&h);
+    profile_answers(&h, &profile_with_ids());
+    make_folder(&h, ACCOUNT_UUID, ORG_UUID);
+    let core = h.core();
+    core.refresh_usage(false);
+
+    core.set_account_disabled(ID_A, true).unwrap();
+
+    assert_eq!(
+        account(&core, ID_A).copy_blocker,
+        Some(CopyBlocker::Disabled)
+    );
+}
+
+#[test]
+fn a_disabled_account_shows_its_other_blocker_first() {
+    let h = Harness::new();
+    h.fixture.add_profile(ID_A);
+    let core = h.core();
+
+    core.set_account_disabled(ID_A, true).unwrap();
+
+    assert_eq!(account(&core, ID_A).copy_blocker, Some(CopyBlocker::SignIn));
+}
