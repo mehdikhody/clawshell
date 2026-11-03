@@ -101,6 +101,14 @@ const shots = {
 			await page.mouse.move(0, 0);
 		}
 	},
+	'disabled-account': {
+		async go(page) {
+			await tab(page, 1);
+			await settle(page);
+			// The bottom of the list: the limited account, then the disabled one below it.
+			await scrollTo(page.getByRole('listitem').last(), 'end');
+		}
+	},
 	'account-menu': {
 		async go(page) {
 			await tab(page, 1);

@@ -48,6 +48,7 @@
 	});
 	const account = (o) => ({
 		isDefault: false,
+		disabled: false,
 		copyBlocker: null,
 		running: o.status === 'running',
 		usagePending: false,
@@ -94,10 +95,21 @@
 			email: 'lab@example.net',
 			copyBlocker: 'open-code-tab',
 			usage: snap(100, 0.6 * H, 88, 1.4 * D)
+		}),
+		account({
+			id: 'f2a8',
+			label: 'Freelance',
+			colour: '#0891b2',
+			status: 'idle',
+			disabled: true,
+			email: 'alex@freelance.example',
+			copyBlocker: 'disabled',
+			usage: snap(4, 4.2 * H, 9, 5.6 * D)
 		})
 	];
+	// Disabled accounts are left out of the pool, as the core does.
 	const pooledWindow = (key) => {
-		const used = accounts.map((a) => a.usage[key]);
+		const used = accounts.filter((a) => !a.disabled).map((a) => a.usage[key]);
 		return {
 			remainingPercent: used.reduce((s, w) => s + (100 - w.utilization), 0) / used.length,
 			available: used.filter((w) => w.utilization < 100).length,
@@ -126,7 +138,7 @@
 	};
 
 	// ---- cost ------------------------------------------------------------
-	const shares = [0.46, 0.31, 0.15, 0.08];
+	const shares = [0.44, 0.3, 0.15, 0.08, 0.03];
 	const monthCost = {
 		estimateUsd: 390.74,
 		noEstimate: null,
@@ -223,13 +235,13 @@
 
 	// Markdown, as the release workflow writes it into latest.json.
 	const notes = [
-		'The update dialog shows what’s new again, now laid out with headings and lists.',
+		'You can now disable an account you aren’t using.',
 		'',
-		'## Changed',
+		'## Added',
 		'',
-		'- Release notes keep their headings, paragraphs and bullet lists.',
-		'- Limited accounts are listed after the others until they come back.',
-		'- The **Update available** badge is smaller.'
+		'- **Disable account** and **Enable account** in an account’s right-click menu.',
+		'- A disabled account is greyed out and listed at the very bottom.',
+		'- It is hidden from the tray and left out of the pooled usage.'
 	].join('\n');
 
 	const handlers = {
@@ -244,13 +256,13 @@
 		routing_needs_choice: () => !!cfg.routingNeedsChoice,
 		disclaimer_status: () => ({ accepted: true, version: 1 }),
 		list_sessions: () => sessions,
-		new_account_defaults: () => ({ label: 'Account 5', colour: '#0891b2' }),
+		new_account_defaults: () => ({ label: 'Account 6', colour: '#db2777' }),
 		'plugin:updater|check': () =>
 			cfg.update
 				? {
 						rid: 1,
-						currentVersion: '0.4.0',
-						version: '0.4.1',
+						currentVersion: '0.4.1',
+						version: '0.5.0',
 						date: iso(now),
 						body: notes,
 						rawJson: {}
